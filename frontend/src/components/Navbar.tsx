@@ -33,6 +33,9 @@ const Navbar: React.FC = () => {
               <Button color="inherit" onClick={() => navigate('/items')}>
                 Items
               </Button>
+              <Button color="inherit" onClick={() => navigate('/client')}>
+                Client
+              </Button>
               <Button color="inherit" onClick={handleLogout}>
                 Logout ({user.username})
               </Button>

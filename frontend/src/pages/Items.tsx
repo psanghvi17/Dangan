@@ -23,14 +23,16 @@ import * as yup from 'yup';
 import { itemsAPI } from '../services/api';
 import { Item } from '../types';
 
-const schema = yup.object({
-  title: yup.string().required('Title is required'),
-  description: yup.string(),
-});
+const schema: yup.ObjectSchema<FormData> = yup
+  .object({
+    title: yup.string().required('Title is required'),
+    description: yup.string().optional(),
+  })
+  .required();
 
 interface FormData {
   title: string;
-  description: string;
+  description?: string;
 }
 
 const Items: React.FC = () => {
@@ -91,9 +93,16 @@ const Items: React.FC = () => {
   const onSubmit = async (data: FormData) => {
     try {
       if (editingItem) {
-        await itemsAPI.updateItem(editingItem.id, data);
+        await itemsAPI.updateItem(editingItem.id, {
+          title: data.title,
+          description: data.description,
+        });
       } else {
-        await itemsAPI.createItem(data);
+        await itemsAPI.createItem({
+          title: data.title,
+          description: data.description,
+          is_active: true,
+        });
       }
       await fetchItems();
       handleClose();
