@@ -177,8 +177,8 @@ const TimesheetList: React.FC = () => {
                       <TableCell align="center">{r.notFilledCount}</TableCell>
                       <TableCell align="center"><StatusChip value={r.status} /></TableCell>
                       <TableCell align="center">
-                        <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
-                        <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => navigate(ROUTES.TIMESHEET.VIEW(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => navigate(ROUTES.TIMESHEET.EDIT(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small"><FileCopyIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error"><DeleteOutlineIcon fontSize="small" /></IconButton>
                       </TableCell>

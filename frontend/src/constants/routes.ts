@@ -26,6 +26,8 @@ export const ROUTES = {
     MANAGE: '/timesheet/manage-timesheet',
     MANAGE_WITH_ID: (timesheetId?: string | number) => 
       timesheetId ? `/timesheet/manage-timesheet/${timesheetId}` : '/timesheet/manage-timesheet',
+    VIEW: (timesheetId: string | number) => `/timesheet/manage-timesheet/${timesheetId}?mode=view`,
+    EDIT: (timesheetId: string | number) => `/timesheet/manage-timesheet/${timesheetId}?mode=edit`,
   },
 } as const;
 

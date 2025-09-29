@@ -311,13 +311,15 @@ def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
 
 
 def get_timesheet_detail(db: Session, timesheet_id: str):
-    """Get timesheet with all its entries, creating entries for all candidates if needed"""
+    """Get timesheet with all its entries"""
     timesheet = db.query(models.Timesheet).filter(models.Timesheet.timesheet_id == timesheet_id).first()
     if not timesheet:
         return None
     
-    # Get or create entries for all candidates
-    entries = get_or_create_timesheet_entries_for_candidates(db, timesheet_id)
+    # Get existing entries for this timesheet
+    entries = db.query(models.TimesheetEntry).filter(
+        models.TimesheetEntry.timesheet_id == timesheet_id
+    ).all()
     
     # Convert entries to proper schema objects
     entry_objects = []

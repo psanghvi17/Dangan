@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO } from '../services/api';
 import {
   Container,
@@ -59,8 +59,52 @@ const convertEntryToRow = (entry: TimesheetEntryDTO): TimesheetRow => ({
   ],
 });
 
+// Helper function to calculate date range for a given week and month
+const calculateDateRange = (week: string, month: string): string => {
+  if (!week || !month) return '';
+  
+  try {
+    const [monthName, year] = month.split(' ');
+    const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
+    const yearNum = parseInt(year);
+    
+    // Get the first day of the month
+    const firstDay = new Date(yearNum, monthIndex, 1);
+    
+    // Find the first Monday of the month (or before if month doesn't start on Monday)
+    const firstMonday = new Date(firstDay);
+    const dayOfWeek = firstDay.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    firstMonday.setDate(firstDay.getDate() - daysToMonday);
+    
+    // Calculate which week we want (Week 1, Week 2, etc.)
+    const weekNumber = parseInt(week.replace('Week ', ''));
+    const weekStart = new Date(firstMonday);
+    weekStart.setDate(firstMonday.getDate() + ((weekNumber - 1) * 7));
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    const startDate = weekStart.toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    const endDate = weekEnd.toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    
+    return `${startDate} - ${endDate}`;
+  } catch (error) {
+    console.error('Error calculating date range:', error);
+    return '';
+  }
+};
+
 const Timesheet: React.FC = () => {
   const { timesheetId } = useParams<{ timesheetId?: string }>();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') || 'edit'; // Default to edit mode
   const [timesheetData, setTimesheetData] = useState<TimesheetDetailDTO | null>(null);
   const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +113,6 @@ const Timesheet: React.FC = () => {
   const [clientFilter, setClientFilter] = useState('All Client');
   const [candidateFilter, setCandidateFilter] = useState('All Candidate');
   const [showFilled, setShowFilled] = useState<'filled' | 'notfilled' | 'all'>('all');
-  const [editAll, setEditAll] = useState(false);
 
   // Load candidates and timesheet data
   useEffect(() => {
@@ -86,7 +129,9 @@ const Timesheet: React.FC = () => {
           const data = await timesheetsAPI.getDetail(timesheetId);
           setTimesheetData(data);
           setWeek(data.week || '');
-          setDateRange(data.date_range || '');
+          // Calculate date range from week and month
+          const calculatedDateRange = calculateDateRange(data.week || '', data.month || '');
+          setDateRange(calculatedDateRange);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -102,7 +147,7 @@ const Timesheet: React.FC = () => {
     if (!timesheetData) return [];
     
     const convertedRows = timesheetData.entries.map(convertEntryToRow);
-    return convertedRows.filter((r) => {
+    const filtered = convertedRows.filter((r) => {
       // Filter by filled status
       if (showFilled === 'filled' && !r.filled) return false;
       if (showFilled === 'notfilled' && r.filled) return false;
@@ -117,11 +162,14 @@ const Timesheet: React.FC = () => {
       
       return true;
     });
+    // Keep alphabetical order by employee name (case-insensitive)
+    return filtered.sort((a, b) => a.employee.localeCompare(b.employee, undefined, { sensitivity: 'base' }));
   }, [timesheetData, showFilled, candidateFilter, candidates]);
 
   // Determine if this is editing an existing timesheet or creating a new one
   const isEditing = Boolean(timesheetId);
-  const pageTitle = isEditing ? 'Edit Timesheet' : 'Create New Timesheet';
+  const isViewMode = mode === 'view';
+  const pageTitle = isViewMode ? 'View Timesheet' : (isEditing ? 'Edit Timesheet' : 'Create New Timesheet');
 
   const onHourChange = async (rowId: string, colIdx: number, value: string) => {
     const v = value === '' ? 0 : Number(value);
@@ -211,9 +259,6 @@ const Timesheet: React.FC = () => {
             <Grid item>
               <Button variant="contained">Upload CSV</Button>
             </Grid>
-            <Grid item>
-              <FormControlLabel control={<Checkbox checked={editAll} onChange={(e) => setEditAll(e.target.checked)} />} label="Edit All" />
-            </Grid>
           </Grid>
         </Paper>
 
@@ -241,16 +286,24 @@ const Timesheet: React.FC = () => {
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.employee}</Typography>
                       <Typography variant="caption" color="text.secondary">{r.client}</Typography>
-                      <Typography variant="caption" sx={{ display: 'block' }}>Edit sheet</Typography>
+                      <Typography variant="caption" sx={{ display: 'block' }}>
+                        {isViewMode ? 'View sheet' : 'Edit sheet'}
+                      </Typography>
                     </TableCell>
                     {r.hours.map((h, i) => (
                       <TableCell key={i} align="center">
-                        <TextField
-                          size="small"
-                          value={h}
-                          onChange={(e) => onHourChange(r.id, i, e.target.value)}
-                          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', style: { textAlign: 'center', width: 60 } }}
-                        />
+                        {isViewMode ? (
+                          <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60 }}>
+                            {h}
+                          </Typography>
+                        ) : (
+                          <TextField
+                            size="small"
+                            value={h}
+                            onChange={(e) => onHourChange(r.id, i, e.target.value)}
+                            inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', style: { textAlign: 'center', width: 60 } }}
+                          />
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -260,9 +313,11 @@ const Timesheet: React.FC = () => {
           </TableContainer>
         </Paper>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-          <Button variant="contained">Save</Button>
-        </Box>
+        {!isViewMode && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="contained">Save</Button>
+          </Box>
+        )}
       </Box>
     </Container>
   );
