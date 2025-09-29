@@ -64,3 +64,38 @@ class Candidate(Base):
     invoice_contact_name = Column(String)
     invoice_email = Column(String)
     invoice_phone = Column(String)
+
+class Timesheet(Base):
+    __tablename__ = "t_timesheet"
+    __table_args__ = {"schema": "app"}
+
+    timesheet_id = Column(UUID(as_uuid=True), primary_key=True)
+    status = Column(String, nullable=True)
+    month = Column(String, nullable=True)  # e.g., April 2025
+    week = Column(String, nullable=True)  # e.g., Week 4
+    date_range = Column(String, nullable=True)  # e.g., 7th-14th Apr 2025
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+
+
+class TimesheetEntry(Base):
+    __tablename__ = "t_timesheet_entry"
+    __table_args__ = {"schema": "app"}
+
+    entry_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    timesheet_id = Column(UUID(as_uuid=True), ForeignKey("app.t_timesheet.timesheet_id"))
+    employee_name = Column(String, nullable=False)
+    employee_code = Column(String, nullable=False)
+    client_name = Column(String, nullable=False)
+    filled = Column(Boolean, default=False)
+    # Hours columns
+    standard_hours = Column(Float, default=0)
+    rate2_hours = Column(Float, default=0)
+    rate3_hours = Column(Float, default=0)
+    rate4_hours = Column(Float, default=0)
+    rate5_hours = Column(Float, default=0)
+    rate6_hours = Column(Float, default=0)
+    holiday_hours = Column(Float, default=0)
+    bank_holiday_hours = Column(Float, default=0)
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)

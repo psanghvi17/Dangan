@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Container,
   Box,
@@ -24,22 +24,6 @@ import MuiAlert from '@mui/material/Alert';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { clientsAPI, ClientDTO } from '../services/api';
 
-interface ClientRow {
-  id: number;
-  name: string;
-  email: string;
-  activeContractors: number;
-  description: string;
-}
-
-const mockClients: ClientRow[] = Array.from({ length: 12 }).map((_, i) => ({
-  id: i + 1,
-  name: 'Client1253',
-  email: 'clientkaushik@gmail.com',
-  activeContractors: 3,
-  description: 'New Client',
-}));
-
 const ManageClient: React.FC = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -54,11 +38,7 @@ const ManageClient: React.FC = () => {
   const [toastMsg, setToastMsg] = useState('');
   const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
 
-  useEffect(() => {
-    loadClients();
-  }, [page, rowsPerPage]);
-
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       const res = await clientsAPI.list({ skip: page * rowsPerPage, limit: rowsPerPage });
       setData(res.items);
@@ -67,7 +47,11 @@ const ManageClient: React.FC = () => {
       console.error('Failed to load clients', err);
       setData([]);
     }
-  };
+  }, [page, rowsPerPage]);
+
+  useEffect(() => {
+    loadClients();
+  }, [loadClients]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();

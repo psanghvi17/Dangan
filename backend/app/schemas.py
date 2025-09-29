@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 
@@ -111,6 +111,74 @@ class CandidateCreate(CandidateBase):
 class Candidate(CandidateBase):
     candidate_id: str
     created_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TimesheetSummary(BaseModel):
+    timesheet_id: UUID
+    weekLabel: str
+    monthLabel: str
+    filledCount: int
+    notFilledCount: int
+    status: str
+
+    class Config:
+        from_attributes = True
+
+
+class TimesheetEntryBase(BaseModel):
+    employee_name: str
+    employee_code: str
+    client_name: str
+    filled: bool = False
+    standard_hours: float = 0
+    rate2_hours: float = 0
+    rate3_hours: float = 0
+    rate4_hours: float = 0
+    rate5_hours: float = 0
+    rate6_hours: float = 0
+    holiday_hours: float = 0
+    bank_holiday_hours: float = 0
+
+
+class TimesheetEntryCreate(TimesheetEntryBase):
+    timesheet_id: UUID
+
+
+class TimesheetEntryUpdate(BaseModel):
+    employee_name: Optional[str] = None
+    employee_code: Optional[str] = None
+    client_name: Optional[str] = None
+    filled: Optional[bool] = None
+    standard_hours: Optional[float] = None
+    rate2_hours: Optional[float] = None
+    rate3_hours: Optional[float] = None
+    rate4_hours: Optional[float] = None
+    rate5_hours: Optional[float] = None
+    rate6_hours: Optional[float] = None
+    holiday_hours: Optional[float] = None
+    bank_holiday_hours: Optional[float] = None
+
+
+class TimesheetEntry(TimesheetEntryBase):
+    entry_id: UUID
+    timesheet_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TimesheetDetail(BaseModel):
+    timesheet_id: UUID
+    status: Optional[str] = None
+    month: Optional[str] = None
+    week: Optional[str] = None
+    date_range: Optional[str] = None
+    entries: List[TimesheetEntry] = []
 
     class Config:
         from_attributes = True

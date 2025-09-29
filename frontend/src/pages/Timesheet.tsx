@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO } from '../services/api';
 import {
   Container,
   Box,
@@ -19,7 +21,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 interface TimesheetRow {
-  id: number;
+  id: string;
   employee: string;
   code: string;
   client: string;
@@ -38,20 +40,29 @@ const hourColumns = [
   'Bank Holiday\nHours',
 ];
 
-const mockRows: TimesheetRow[] = Array.from({ length: 4 }).map((_, i) => ({
-  id: i + 1,
-  employee: 'Prince Etukudoh',
-  code: '0101',
-  client: 'Greenstar OSR_WEST DUB',
-  filled: i % 2 === 0,
-  hours: i === 1
-    ? [18, 12, 15, 16, 10, 10, 10, 6]
-    : i === 2
-      ? [25, 32, 12, 0, 22, 0, 0, 6]
-      : [12, 0, 12, 0, 12, 0, 10, 24],
-}));
+// Helper function to convert TimesheetEntryDTO to TimesheetRow
+const convertEntryToRow = (entry: TimesheetEntryDTO): TimesheetRow => ({
+  id: entry.entry_id,
+  employee: entry.employee_name,
+  code: entry.employee_code,
+  client: entry.client_name,
+  filled: entry.filled,
+  hours: [
+    entry.standard_hours,
+    entry.rate2_hours,
+    entry.rate3_hours,
+    entry.rate4_hours,
+    entry.rate5_hours,
+    entry.rate6_hours,
+    entry.holiday_hours,
+    entry.bank_holiday_hours,
+  ],
+});
 
 const Timesheet: React.FC = () => {
+  const { timesheetId } = useParams<{ timesheetId?: string }>();
+  const [timesheetData, setTimesheetData] = useState<TimesheetDetailDTO | null>(null);
+  const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState('Week 4');
   const [dateRange, setDateRange] = useState('7th-14th Apr 2025');
   const [clientFilter, setClientFilter] = useState('All Client');
@@ -59,20 +70,71 @@ const Timesheet: React.FC = () => {
   const [showFilled, setShowFilled] = useState<'filled' | 'notfilled' | 'all'>('all');
   const [editAll, setEditAll] = useState(false);
 
+  // Load timesheet data
+  useEffect(() => {
+    const fetchTimesheetData = async () => {
+      if (timesheetId) {
+        try {
+          setLoading(true);
+          const data = await timesheetsAPI.getDetail(timesheetId);
+          setTimesheetData(data);
+          setWeek(data.week || 'Week 4');
+          setDateRange(data.date_range || '7th-14th Apr 2025');
+        } catch (error) {
+          console.error('Error fetching timesheet data:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+
+    fetchTimesheetData();
+  }, [timesheetId]);
+
   const rows = useMemo(() => {
-    return mockRows.filter((r) => {
+    if (!timesheetData) return [];
+    
+    const convertedRows = timesheetData.entries.map(convertEntryToRow);
+    return convertedRows.filter((r) => {
       if (showFilled === 'filled') return r.filled;
       if (showFilled === 'notfilled') return !r.filled;
       return true;
     });
-  }, [showFilled]);
+  }, [timesheetData, showFilled]);
 
-  const onHourChange = (rowId: number, colIdx: number, value: string) => {
+  // Determine if this is editing an existing timesheet or creating a new one
+  const isEditing = Boolean(timesheetId);
+  const pageTitle = isEditing ? 'Edit Timesheet' : 'Create New Timesheet';
+
+  const onHourChange = async (rowId: string, colIdx: number, value: string) => {
     const v = value === '' ? 0 : Number(value);
     if (Number.isNaN(v)) return;
-    const idx = mockRows.findIndex((r) => r.id === rowId);
-    if (idx >= 0) {
-      mockRows[idx].hours[colIdx] = v;
+    
+    // Find the entry to update
+    const entry = timesheetData?.entries.find(e => e.entry_id === rowId);
+    if (!entry) return;
+    
+    // Create update object based on column index
+    const hourFields = [
+      'standard_hours', 'rate2_hours', 'rate3_hours', 'rate4_hours',
+      'rate5_hours', 'rate6_hours', 'holiday_hours', 'bank_holiday_hours'
+    ];
+    
+    const updateData = {
+      [hourFields[colIdx]]: v
+    };
+    
+    try {
+      await timesheetsAPI.updateEntry(rowId, updateData);
+      // Refresh data after update
+      if (timesheetId) {
+        const updatedData = await timesheetsAPI.getDetail(timesheetId);
+        setTimesheetData(updatedData);
+      }
+    } catch (error) {
+      console.error('Error updating timesheet entry:', error);
     }
   };
 
@@ -88,11 +150,23 @@ const Timesheet: React.FC = () => {
       </Button>
     );
 
+  if (loading) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Loading...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Timesheet
+          {pageTitle}
         </Typography>
 
         <Paper elevation={0} sx={{ mb: 2, p: 1.5, bgcolor: 'background.default' }}>

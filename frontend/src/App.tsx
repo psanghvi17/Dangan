@@ -1,6 +1,5 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box } from '@mui/material';
 import AppLayout from './components/AppLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -35,9 +34,10 @@ function App() {
           <Route path="/candidate" element={<ManageCandidate />} />
           <Route path="/candidate/manage-candidate" element={<Candidate />} />
 
-          {/** Timesheet: list at /timesheet, manage at /timesheet/manage-timesheet */}
+          {/** Timesheet: list at /timesheet, manage at /timesheet/manage-timesheet/:timesheetId? */}
           <Route path="/timesheet" element={<TimesheetList />} />
           <Route path="/timesheet/manage-timesheet" element={<Timesheet />} />
+          <Route path="/timesheet/manage-timesheet/:timesheetId" element={<Timesheet />} />
           <Route path="/holiday" element={<Holiday />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from uuid import uuid4
+from typing import Optional
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -154,3 +155,80 @@ def create_candidate(db: Session, cand: schemas.CandidateCreate):
     db.commit()
     db.refresh(c)
     return c
+
+
+# Timesheets CRUD
+def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
+    query = db.query(models.Timesheet)
+    if month_label:
+        query = query.filter(models.Timesheet.month == month_label)
+    rows = query.order_by(models.Timesheet.created_on.desc()).all()
+    # Map to DTO-style dict keys used by frontend
+    result = [
+        {
+            "timesheet_id": r.timesheet_id,
+            "weekLabel": r.week or f"Week {i+1}",  # Use stored week or generate
+            "monthLabel": r.month or "Unknown",
+            "filledCount": 0,  # Mock data for now
+            "notFilledCount": 0,  # Mock data for now
+            "status": r.status or "Open",
+        }
+        for i, r in enumerate(rows)
+    ]
+    return result
+
+
+def get_timesheet_detail(db: Session, timesheet_id: str):
+    """Get timesheet with all its entries"""
+    timesheet = db.query(models.Timesheet).filter(models.Timesheet.timesheet_id == timesheet_id).first()
+    if not timesheet:
+        return None
+    
+    entries = db.query(models.TimesheetEntry).filter(
+        models.TimesheetEntry.timesheet_id == timesheet_id
+    ).all()
+    
+    return {
+        "timesheet_id": timesheet.timesheet_id,
+        "status": timesheet.status,
+        "month": timesheet.month,
+        "week": timesheet.week,
+        "date_range": timesheet.date_range,
+        "entries": entries
+    }
+
+
+def create_timesheet_entry(db: Session, entry: schemas.TimesheetEntryCreate):
+    """Create a new timesheet entry"""
+    db_entry = models.TimesheetEntry(
+        timesheet_id=entry.timesheet_id,
+        employee_name=entry.employee_name,
+        employee_code=entry.employee_code,
+        client_name=entry.client_name,
+        filled=entry.filled,
+        standard_hours=entry.standard_hours,
+        rate2_hours=entry.rate2_hours,
+        rate3_hours=entry.rate3_hours,
+        rate4_hours=entry.rate4_hours,
+        rate5_hours=entry.rate5_hours,
+        rate6_hours=entry.rate6_hours,
+        holiday_hours=entry.holiday_hours,
+        bank_holiday_hours=entry.bank_holiday_hours,
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+
+def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.TimesheetEntryUpdate):
+    """Update a timesheet entry"""
+    db_entry = db.query(models.TimesheetEntry).filter(models.TimesheetEntry.entry_id == entry_id).first()
+    if db_entry:
+        update_data = entry_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_entry, field, value)
+        db_entry.updated_on = func.now()
+        db.commit()
+        db.refresh(db_entry)
+    return db_entry

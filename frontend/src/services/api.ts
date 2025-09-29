@@ -148,3 +148,101 @@ export const candidatesAPI = {
 };
 
 export default api;
+
+// Timesheets API
+export type TimesheetStatus = 'Open' | 'Close';
+
+export interface TimesheetSummaryDTO {
+  timesheet_id: string;
+  weekLabel: string; // e.g., "Week 1"
+  monthLabel: string;
+  filledCount: number;
+  notFilledCount: number;
+  status: TimesheetStatus;
+}
+
+export interface TimesheetEntryDTO {
+  entry_id: string;
+  timesheet_id: string;
+  employee_name: string;
+  employee_code: string;
+  client_name: string;
+  filled: boolean;
+  standard_hours: number;
+  rate2_hours: number;
+  rate3_hours: number;
+  rate4_hours: number;
+  rate5_hours: number;
+  rate6_hours: number;
+  holiday_hours: number;
+  bank_holiday_hours: number;
+  created_on?: string;
+  updated_on?: string;
+}
+
+export interface TimesheetDetailDTO {
+  timesheet_id: string;
+  status?: string;
+  month?: string;
+  week?: string;
+  date_range?: string;
+  entries: TimesheetEntryDTO[];
+}
+
+export interface TimesheetEntryCreateDTO {
+  timesheet_id: string;
+  employee_name: string;
+  employee_code: string;
+  client_name: string;
+  filled?: boolean;
+  standard_hours?: number;
+  rate2_hours?: number;
+  rate3_hours?: number;
+  rate4_hours?: number;
+  rate5_hours?: number;
+  rate6_hours?: number;
+  holiday_hours?: number;
+  bank_holiday_hours?: number;
+}
+
+export interface TimesheetEntryUpdateDTO {
+  employee_name?: string;
+  employee_code?: string;
+  client_name?: string;
+  filled?: boolean;
+  standard_hours?: number;
+  rate2_hours?: number;
+  rate3_hours?: number;
+  rate4_hours?: number;
+  rate5_hours?: number;
+  rate6_hours?: number;
+  holiday_hours?: number;
+  bank_holiday_hours?: number;
+}
+
+export const timesheetsAPI = {
+  listSummaries: async (params?: { month?: string }): Promise<TimesheetSummaryDTO[]> => {
+    const res = await api.get('/api/timesheets/', { params });
+    return res.data;
+  },
+  
+  getDetail: async (timesheetId: string): Promise<TimesheetDetailDTO> => {
+    const res = await api.get(`/api/timesheets/${timesheetId}`);
+    return res.data;
+  },
+  
+  createEntry: async (timesheetId: string, entry: TimesheetEntryCreateDTO): Promise<TimesheetEntryDTO> => {
+    const res = await api.post(`/api/timesheets/${timesheetId}/entries`, entry);
+    return res.data;
+  },
+  
+  updateEntry: async (entryId: string, entry: TimesheetEntryUpdateDTO): Promise<TimesheetEntryDTO> => {
+    const res = await api.put(`/api/timesheets/entries/${entryId}`, entry);
+    return res.data;
+  },
+  
+  seedData: async (): Promise<{ seeded: boolean; message?: string; error?: string }> => {
+    const res = await api.post('/api/timesheets/seed');
+    return res.data;
+  },
+};

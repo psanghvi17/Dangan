@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Container,
   Box,
@@ -22,26 +22,34 @@ import EditIcon from '@mui/icons-material/Edit';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useNavigate } from 'react-router-dom';
+import { timesheetsAPI, TimesheetSummaryDTO } from '../services/api';
+import { ROUTES, getTimesheetManageRoute } from '../constants/routes';
 
-interface Row {
-  id: number;
-  week: string;
-  filled: number;
-  notFilled: number;
-  status: 'Open' | 'Close';
-}
-
-const mock: Row[] = [
-  { id: 4, week: 'Week 4', filled: 18, notFilled: 12, status: 'Close' },
-  { id: 3, week: 'Week 3', filled: 19, notFilled: 20, status: 'Open' },
-  { id: 2, week: 'Week 2', filled: 50, notFilled: 20, status: 'Close' },
-  { id: 1, week: 'Week 1', filled: 28, notFilled: 20, status: 'Open' },
+const mock: TimesheetSummaryDTO[] = [
+  { timesheet_id: '4', weekLabel: 'Week 4', monthLabel: 'April 2025', filledCount: 18, notFilledCount: 12, status: 'Close' },
+  { timesheet_id: '3', weekLabel: 'Week 3', monthLabel: 'April 2025', filledCount: 19, notFilledCount: 20, status: 'Open' },
+  { timesheet_id: '2', weekLabel: 'Week 2', monthLabel: 'April 2025', filledCount: 50, notFilledCount: 20, status: 'Close' },
+  { timesheet_id: '1', weekLabel: 'Week 1', monthLabel: 'April 2025', filledCount: 28, notFilledCount: 20, status: 'Open' },
 ];
 
 const TimesheetList: React.FC = () => {
   const navigate = useNavigate();
   const [month, setMonth] = useState('April 2025');
-  const rows = useMemo(() => mock, []);
+  const [rows, setRows] = useState<TimesheetSummaryDTO[]>(mock);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await timesheetsAPI.listSummaries({ month });
+        // Minimal validation: ensure required fields exist
+        if (Array.isArray(data)) setRows(data);
+      } catch (_err) {
+        // Fallback to mock if API not ready
+        setRows(mock);
+      }
+    };
+    fetchData();
+  }, [month]);
 
   const StatusChip: React.FC<{ value: 'Open' | 'Close' }> = ({ value }) => (
     <Chip
@@ -70,7 +78,24 @@ const TimesheetList: React.FC = () => {
             </Grid>
             <Grid item sx={{ flexGrow: 1 }} />
             <Grid item>
-              <Button variant="contained" onClick={() => navigate('/timesheet/manage-timesheet')}>+ Add Timesheet</Button>
+              <Button 
+                variant="outlined" 
+                onClick={async () => {
+                  try {
+                    await timesheetsAPI.seedData();
+                    // Refresh the data
+                    const data = await timesheetsAPI.listSummaries({ month });
+                    setRows(data);
+                  } catch (error) {
+                    console.error('Error seeding data:', error);
+                  }
+                }}
+              >
+                Seed Test Data
+              </Button>
+            </Grid>
+            <Grid item>
+              <Button variant="contained" onClick={() => navigate(ROUTES.TIMESHEET.MANAGE)}>+ Add Timesheet</Button>
             </Grid>
           </Grid>
         </Paper>
@@ -89,14 +114,14 @@ const TimesheetList: React.FC = () => {
               </TableHead>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell>{r.week}</TableCell>
-                    <TableCell align="center">{r.filled}</TableCell>
-                    <TableCell align="center">{r.notFilled}</TableCell>
+                  <TableRow key={r.timesheet_id} hover>
+                    <TableCell>{r.weekLabel}</TableCell>
+                    <TableCell align="center">{r.filledCount}</TableCell>
+                    <TableCell align="center">{r.notFilledCount}</TableCell>
                     <TableCell align="center"><StatusChip value={r.status} /></TableCell>
                     <TableCell align="center">
-                      <IconButton size="small"><VisibilityIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" onClick={() => navigate('/timesheet/manage-timesheet')}><EditIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
                       <IconButton size="small"><FileCopyIcon fontSize="small" /></IconButton>
                       <IconButton size="small" color="error"><DeleteOutlineIcon fontSize="small" /></IconButton>
                     </TableCell>
