@@ -94,15 +94,18 @@ const Candidate: React.FC = () => {
                 Personal Detail
               </Typography>
               <Button variant="contained" onClick={async () => {
-                await candidatesAPI.create({
-                  invoice_contact_name: firstName + ' ' + lastName,
-                  invoice_email: email,
-                  invoice_phone: contact,
-                  address1: addr1,
-                  address2: addr2,
-                  pps_number: pps,
-                  date_of_birth: dob,
-                });
+                try {
+                  const result = await candidatesAPI.create({
+                    first_name: firstName,
+                    last_name: lastName,
+                    email_id: email,
+                  });
+                  alert('User created successfully!');
+                  console.log('Created user:', result);
+                } catch (error) {
+                  console.error('Failed to create user:', error);
+                  alert('Failed to create user. Please check the console for details.');
+                }
               }}>Save</Button>
             </Box>
             <Grid container spacing={2}>

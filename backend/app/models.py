@@ -62,7 +62,7 @@ class Candidate(Base):
     bank_account_number = Column(String)
     bank_name = Column(String)
     invoice_contact_name = Column(String)
-    invoice_email = Column(String)
+    invoice_email = Column(ARRAY(String))  # Changed to array type
     invoice_phone = Column(String)
 
 class Timesheet(Base):
@@ -99,3 +99,15 @@ class TimesheetEntry(Base):
     bank_holiday_hours = Column(Float, default=0)
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     updated_on = Column(DateTime(timezone=False), nullable=True)
+
+class MUser(Base):
+    __tablename__ = "m_user"
+    __table_args__ = {"schema": "app"}
+
+    user_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    email_id = Column(String(254))
+    role_id = Column(Integer)
+    pass_ = Column("pass", String(256), nullable=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now())

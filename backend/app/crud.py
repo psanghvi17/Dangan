@@ -138,20 +138,23 @@ def soft_delete_client(db: Session, client_id: str, deleted_by: str):
     return db_client
 
 
-def create_candidate(db: Session, cand: schemas.CandidateCreate):
-    c = models.Candidate(
-        invoice_contact_name=cand.invoice_contact_name,
-        invoice_email=cand.invoice_email,
-        invoice_phone=cand.invoice_phone,
-        address1=cand.address1,
-        address2=cand.address2,
-        town=cand.town,
-        county=cand.county,
-        eircode=cand.eircode,
-        pps_number=cand.pps_number,
-        date_of_birth=cand.date_of_birth,
+def create_m_user(db: Session, payload: schemas.MUserCreate):
+    # Create user in app.m_user without forcing role_id (to avoid FK violations)
+    m_user = models.MUser(
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        email_id=payload.email_id,
     )
-    db.add(c)
+    db.add(m_user)
+    db.flush()  # Get the user_id without committing yet
+    
+    # Create candidate in app.m_candidate with candidate_id = user.user_id
+    candidate = models.Candidate(
+        candidate_id=m_user.user_id,
+        invoice_contact_name=f"{payload.first_name} {payload.last_name}",
+        invoice_email=[payload.email_id],  # Pass as array
+    )
+    db.add(candidate)
     db.commit()
     db.refresh(c)
     return c
@@ -232,3 +235,5 @@ def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.Tim
         db.commit()
         db.refresh(db_entry)
     return db_entry
+    db.refresh(m_user)
+    return m_user

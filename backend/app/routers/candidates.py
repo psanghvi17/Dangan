@@ -7,7 +7,11 @@ from .. import crud, schemas
 router = APIRouter()
 
 
-@router.post("/", response_model=schemas.Candidate)
-def create_candidate(candidate: schemas.CandidateCreate, db: Session = Depends(get_db)):
-    return crud.create_candidate(db, candidate)
+@router.post("/create-user", response_model=schemas.MUserOut)
+def create_m_user(user: schemas.MUserCreate, db: Session = Depends(get_db)):
+    try:
+        return crud.create_m_user(db, user)
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        raise
 

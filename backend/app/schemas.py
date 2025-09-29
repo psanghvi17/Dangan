@@ -179,6 +179,18 @@ class TimesheetDetail(BaseModel):
     week: Optional[str] = None
     date_range: Optional[str] = None
     entries: List[TimesheetEntry] = []
+class MUserCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email_id: EmailStr
+
+
+class MUserOut(BaseModel):
+    user_id: UUID
+    first_name: Optional[str]
+    last_name: Optional[str]
+    email_id: Optional[EmailStr]
+    created_on: Optional[datetime]
 
     class Config:
         from_attributes = True

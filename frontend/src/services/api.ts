@@ -128,21 +128,14 @@ export const clientsAPI = {
 
 // Candidates API
 export interface CandidateCreateDTO {
-  invoice_contact_name: string;
-  invoice_email?: string;
-  invoice_phone?: string;
-  address1?: string;
-  address2?: string;
-  town?: string;
-  county?: string;
-  eircode?: string;
-  pps_number?: string;
-  date_of_birth?: string;
+  first_name: string;
+  last_name: string;
+  email_id: string;
 }
 
 export const candidatesAPI = {
   create: async (payload: CandidateCreateDTO) => {
-    const res = await api.post('/api/candidates/', payload);
+    const res = await api.post('/api/candidates/create-user', payload);
     return res.data;
   },
 };
