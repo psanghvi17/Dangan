@@ -11,7 +11,10 @@ import {
   Button,
   Paper,
 } from '@mui/material';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 import AddIcon from '@mui/icons-material/Add';
+import { useNavigate } from 'react-router-dom';
 import Avatar from '@mui/material/Avatar';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -19,6 +22,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import { clientsAPI } from '../services/api';
 
 interface ClientFormData {
   clientName: string;
@@ -34,6 +38,11 @@ const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Client: React.FC = () => {
   const [tab, setTab] = useState(0);
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
   const [form, setForm] = useState<ClientFormData>({
     clientName: '',
     description: '',
@@ -172,7 +181,34 @@ const Client: React.FC = () => {
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                   <Button variant="outlined">Cancel</Button>
-                  <Button variant="contained">Save</Button>
+                  <Button
+                    variant="contained"
+                    disabled={saving}
+                    onClick={async () => {
+                      setSaving(true);
+                      try {
+                        await clientsAPI.create({
+                          client_name: form.clientName,
+                          email: form.email,
+                          description: form.description,
+                          contact_email: form.email,
+                          contact_name: form.accountManager,
+                        });
+                        setToastSev('success');
+                        setToastMsg('Client saved');
+                        setToastOpen(true);
+                      } catch (e) {
+                        console.error(e);
+                        setToastSev('error');
+                        setToastMsg('Failed to save client');
+                        setToastOpen(true);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  >
+                    {saving ? 'Saving…' : 'Save'}
+                  </Button>
                 </Box>
               </Grid>
             </Grid>
@@ -268,7 +304,9 @@ const Client: React.FC = () => {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Candidates</Typography>
-              <Button variant="contained" startIcon={<AddIcon />}>Add Candidate</Button>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/candidate/manage-candidate')}>
+                Add Candidate
+              </Button>
             </Box>
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
               <Table>
@@ -305,6 +343,11 @@ const Client: React.FC = () => {
           </Paper>
         )}
       </Box>
+      <Snackbar open={toastOpen} autoHideDuration={3000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <MuiAlert onClose={() => setToastOpen(false)} severity={toastSev} elevation={6} variant="filled">
+          {toastMsg}
+        </MuiAlert>
+      </Snackbar>
     </Container>
   );
 };

@@ -1,15 +1,10 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
-
+from urllib.parse import quote
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql://username:password@localhost:5432/dangan_db"
-    secret_key: str = "your-secret-key-here"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    
+    # URL encode the password to handle special characters
+    database_url: str = "postgresql+psycopg://pankhu:23%40Paras@64.227.158.128:5432/Dangan"
     class Config:
         env_file = ".env"
-
 
 settings = Settings()

@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
+from uuid import uuid4
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -65,3 +67,90 @@ def delete_item(db: Session, item_id: int):
         db.delete(db_item)
         db.commit()
     return db_item
+
+
+# Client CRUD
+def create_client(db: Session, client: schemas.ClientCreate):
+    db_client = models.Client(
+        client_id=uuid4(),
+        client_name=client.client_name,
+        email=client.email,
+        description=client.description,
+        contact_email=client.contact_email,
+        contact_name=client.contact_name,
+        contact_phone=client.contact_phone,
+    )
+    db.add(db_client)
+    db.commit()
+    # Refresh to load server-generated fields (e.g., created_on, client_id when server_default is used)
+    db.refresh(db_client)
+    return db_client
+
+
+def get_clients(db: Session, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Client)
+        .filter(models.Client.deleted_on.is_(None))  # Only get non-deleted clients
+        .order_by(models.Client.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def count_clients(db: Session):
+    return (
+        db.query(models.Client)
+        .filter(models.Client.deleted_on.is_(None))
+        .count()
+    )
+
+
+def get_client(db: Session, client_id: str):
+    return (
+        db.query(models.Client)
+        .filter(models.Client.client_id == client_id)
+        .filter(models.Client.deleted_on.is_(None))  # Only get non-deleted client
+        .first()
+    )
+
+
+def update_client(db: Session, client_id: str, client: schemas.ClientUpdate):
+    db_client = db.query(models.Client).filter(models.Client.client_id == client_id).first()
+    if db_client:
+        update_data = client.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_client, field, value)
+        db_client.updated_on = func.now()
+        db.commit()
+        db.refresh(db_client)
+    return db_client
+
+
+def soft_delete_client(db: Session, client_id: str, deleted_by: str):
+    db_client = db.query(models.Client).filter(models.Client.client_id == client_id).first()
+    if db_client:
+        db_client.deleted_on = func.now()
+        db_client.deleted_by = deleted_by
+        db.commit()
+        db.refresh(db_client)
+    return db_client
+
+
+def create_candidate(db: Session, cand: schemas.CandidateCreate):
+    c = models.Candidate(
+        invoice_contact_name=cand.invoice_contact_name,
+        invoice_email=cand.invoice_email,
+        invoice_phone=cand.invoice_phone,
+        address1=cand.address1,
+        address2=cand.address2,
+        town=cand.town,
+        county=cand.county,
+        eircode=cand.eircode,
+        pps_number=cand.pps_number,
+        date_of_birth=cand.date_of_birth,
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c

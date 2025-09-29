@@ -1,0 +1,1 @@
+"select \"id\" from \"app\".\"t_candidate_client_cost_center\" as \"TCCCC\" where \"app\".\"t_candidate_client_cost_center\".\"pcc_id\" = $1 and \"TCCCC\".\"deleted_on\" is null - invalid reference to FROM-clause entry for table \"t_candidate_client_cost_center\""

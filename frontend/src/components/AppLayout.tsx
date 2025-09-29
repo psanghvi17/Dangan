@@ -40,10 +40,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   const navItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { label: 'Client', icon: <WorkOutlineIcon />, path: '/client' },
-    { label: 'Candidate', icon: <PersonIcon />, path: '#' },
-    { label: 'Timesheet', icon: <AssignmentIcon />, path: '#' },
+    { label: 'Candidate', icon: <PersonIcon />, path: '/candidate' },
+    { label: 'Timesheet', icon: <AssignmentIcon />, path: '/timesheet' },
     { label: 'Payroll', icon: <PaidIcon />, path: '#' },
-    { label: 'Holiday', icon: <BeachAccessIcon />, path: '#' },
+    { label: 'Holiday', icon: <BeachAccessIcon />, path: '/holiday' },
     { label: 'Report', icon: <BarChartIcon />, path: '#' },
   ];
 

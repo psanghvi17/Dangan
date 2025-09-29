@@ -73,4 +73,78 @@ export const itemsAPI = {
   },
 };
 
+// Clients API
+export interface ClientDTO {
+  client_id: string;
+  client_name: string;
+  email?: string;
+  description?: string;
+  contact_email?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  created_on?: string;
+}
+
+export interface ClientCreateDTO {
+  client_name: string;
+  email?: string;
+  description?: string;
+  contact_email?: string;
+  contact_name?: string;
+  contact_phone?: string;
+}
+
+export interface ClientUpdateDTO {
+  client_name?: string;
+  email?: string;
+  description?: string;
+  contact_email?: string;
+  contact_name?: string;
+  contact_phone?: string;
+}
+
+export const clientsAPI = {
+  list: async (params?: { skip?: number; limit?: number }): Promise<{ items: ClientDTO[]; total: number }> => {
+    const res = await api.get('/api/clients/', { params });
+    return res.data;
+  },
+  get: async (clientId: string): Promise<ClientDTO> => {
+    const res = await api.get(`/api/clients/${clientId}`);
+    return res.data;
+  },
+  create: async (payload: ClientCreateDTO): Promise<ClientDTO> => {
+    const res = await api.post('/api/clients/', payload);
+    return res.data;
+  },
+  update: async (clientId: string, payload: ClientUpdateDTO): Promise<ClientDTO> => {
+    const res = await api.put(`/api/clients/${clientId}`, payload);
+    return res.data;
+  },
+  delete: async (clientId: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/api/clients/${clientId}`);
+    return res.data;
+  },
+};
+
+// Candidates API
+export interface CandidateCreateDTO {
+  invoice_contact_name: string;
+  invoice_email?: string;
+  invoice_phone?: string;
+  address1?: string;
+  address2?: string;
+  town?: string;
+  county?: string;
+  eircode?: string;
+  pps_number?: string;
+  date_of_birth?: string;
+}
+
+export const candidatesAPI = {
+  create: async (payload: CandidateCreateDTO) => {
+    const res = await api.post('/api/candidates/', payload);
+    return res.data;
+  },
+};
+
 export default api;
