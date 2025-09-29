@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO } from '../services/api';
+import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO } from '../services/api';
 import {
   Container,
   Box,
@@ -62,35 +62,40 @@ const convertEntryToRow = (entry: TimesheetEntryDTO): TimesheetRow => ({
 const Timesheet: React.FC = () => {
   const { timesheetId } = useParams<{ timesheetId?: string }>();
   const [timesheetData, setTimesheetData] = useState<TimesheetDetailDTO | null>(null);
+  const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [week, setWeek] = useState('Week 4');
-  const [dateRange, setDateRange] = useState('7th-14th Apr 2025');
+  const [week, setWeek] = useState('');
+  const [dateRange, setDateRange] = useState('');
   const [clientFilter, setClientFilter] = useState('All Client');
   const [candidateFilter, setCandidateFilter] = useState('All Candidate');
   const [showFilled, setShowFilled] = useState<'filled' | 'notfilled' | 'all'>('all');
   const [editAll, setEditAll] = useState(false);
 
-  // Load timesheet data
+  // Load candidates and timesheet data
   useEffect(() => {
-    const fetchTimesheetData = async () => {
-      if (timesheetId) {
-        try {
-          setLoading(true);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Load candidates
+        const candidatesData = await candidatesAPI.list();
+        setCandidates(candidatesData);
+        
+        // Load timesheet data if editing
+        if (timesheetId) {
           const data = await timesheetsAPI.getDetail(timesheetId);
           setTimesheetData(data);
-          setWeek(data.week || 'Week 4');
-          setDateRange(data.date_range || '7th-14th Apr 2025');
-        } catch (error) {
-          console.error('Error fetching timesheet data:', error);
-        } finally {
-          setLoading(false);
+          setWeek(data.week || '');
+          setDateRange(data.date_range || '');
         }
-      } else {
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchTimesheetData();
+    fetchData();
   }, [timesheetId]);
 
   const rows = useMemo(() => {
@@ -98,11 +103,21 @@ const Timesheet: React.FC = () => {
     
     const convertedRows = timesheetData.entries.map(convertEntryToRow);
     return convertedRows.filter((r) => {
-      if (showFilled === 'filled') return r.filled;
-      if (showFilled === 'notfilled') return !r.filled;
+      // Filter by filled status
+      if (showFilled === 'filled' && !r.filled) return false;
+      if (showFilled === 'notfilled' && r.filled) return false;
+      
+      // Filter by candidate (if not "All Candidate")
+      if (candidateFilter !== 'All Candidate') {
+        const candidate = candidates.find(c => c.candidate_id === r.code);
+        if (!candidate || candidate.invoice_contact_name !== candidateFilter) {
+          return false;
+        }
+      }
+      
       return true;
     });
-  }, [timesheetData, showFilled]);
+  }, [timesheetData, showFilled, candidateFilter, candidates]);
 
   // Determine if this is editing an existing timesheet or creating a new one
   const isEditing = Boolean(timesheetId);
@@ -184,7 +199,12 @@ const Timesheet: React.FC = () => {
             </Grid>
             <Grid item>
               <TextField select size="small" value={candidateFilter} onChange={(e) => setCandidateFilter(e.target.value)}>
-                {['All Candidate', 'Candidate'].map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                <MenuItem value="All Candidate">All Candidate</MenuItem>
+                {candidates.map((candidate) => (
+                  <MenuItem key={candidate.candidate_id} value={candidate.invoice_contact_name || 'Unknown'}>
+                    {candidate.invoice_contact_name || 'Unknown'}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
             <Grid item sx={{ flexGrow: 1 }} />

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LoginCredentials, RegisterData, User, Item } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8007';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -128,9 +128,31 @@ export const clientsAPI = {
 
 // Candidates API
 export interface CandidateCreateDTO {
-  first_name: string;
-  last_name: string;
-  email_id: string;
+  invoice_contact_name: string;
+  invoice_email?: string;
+  invoice_phone?: string;
+  address1?: string;
+  address2?: string;
+  town?: string;
+  county?: string;
+  eircode?: string;
+  pps_number?: string;
+  date_of_birth?: string;
+}
+
+export interface CandidateDTO {
+  candidate_id: string;
+  invoice_contact_name?: string;
+  invoice_email?: string;
+  invoice_phone?: string;
+  address1?: string;
+  address2?: string;
+  town?: string;
+  county?: string;
+  eircode?: string;
+  pps_number?: string;
+  date_of_birth?: string;
+  created_on?: string;
 }
 
 export interface CandidateListItemDTO {
@@ -150,21 +172,37 @@ export interface CandidateListResponseDTO {
 }
 
 export const candidatesAPI = {
-  create: async (payload: CandidateCreateDTO) => {
-    const res = await api.post('/api/candidates/create-user', payload);
+  list: async (params?: { skip?: number; limit?: number }): Promise<CandidateDTO[]> => {
+    const res = await api.get('/api/candidates/', { params });
     return res.data;
   },
   
-  list: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
-    console.log('Making API call to /api/candidates/list with params:', params);
-    try {
-      const res = await api.get('/api/candidates/list', { params });
-      console.log('API response:', res.data);
-      return res.data;
-    } catch (error) {
-      console.error('API call failed:', error);
-      throw error;
-    }
+  listPaginated: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
+    const res = await api.get('/api/candidates/', { params });
+    // Transform the response to match the expected format
+    return {
+      candidates: res.data.map((candidate: CandidateDTO) => ({
+        user_id: candidate.candidate_id,
+        first_name: candidate.invoice_contact_name?.split(' ')[0] || '',
+        last_name: candidate.invoice_contact_name?.split(' ').slice(1).join(' ') || '',
+        email_id: candidate.invoice_email || '',
+        created_on: candidate.created_on
+      })),
+      total: res.data.length,
+      page: 1,
+      limit: res.data.length,
+      total_pages: 1
+    };
+  },
+  
+  create: async (payload: CandidateCreateDTO): Promise<CandidateDTO> => {
+    const res = await api.post('/api/candidates/', payload);
+    return res.data;
+  },
+  
+  seedData: async (): Promise<{ seeded: boolean; message?: string; error?: string }> => {
+    const res = await api.post('/api/candidates/seed');
+    return res.data;
   },
 };
 
@@ -241,6 +279,13 @@ export interface TimesheetEntryUpdateDTO {
   bank_holiday_hours?: number;
 }
 
+export interface TimesheetCreateDTO {
+  month: string;
+  week: string;
+  client_id?: string | null;
+  candidate_ids: string[];
+}
+
 export const timesheetsAPI = {
   listSummaries: async (params?: { month?: string }): Promise<TimesheetSummaryDTO[]> => {
     const res = await api.get('/api/timesheets/', { params });
@@ -249,6 +294,11 @@ export const timesheetsAPI = {
   
   getDetail: async (timesheetId: string): Promise<TimesheetDetailDTO> => {
     const res = await api.get(`/api/timesheets/${timesheetId}`);
+    return res.data;
+  },
+  
+  create: async (timesheet: TimesheetCreateDTO): Promise<TimesheetDetailDTO> => {
+    const res = await api.post('/api/timesheets/', timesheet);
     return res.data;
   },
   

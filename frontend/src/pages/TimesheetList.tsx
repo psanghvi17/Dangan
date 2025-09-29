@@ -22,8 +22,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useNavigate } from 'react-router-dom';
-import { timesheetsAPI, TimesheetSummaryDTO } from '../services/api';
+import { timesheetsAPI, TimesheetSummaryDTO, candidatesAPI } from '../services/api';
 import { ROUTES, getTimesheetManageRoute } from '../constants/routes';
+import CreateTimesheetModal from '../components/CreateTimesheetModal';
 
 const mock: TimesheetSummaryDTO[] = [
   { timesheet_id: '4', weekLabel: 'Week 4', monthLabel: 'April 2025', filledCount: 18, notFilledCount: 12, status: 'Close' },
@@ -34,22 +35,66 @@ const mock: TimesheetSummaryDTO[] = [
 
 const TimesheetList: React.FC = () => {
   const navigate = useNavigate();
-  const [month, setMonth] = useState('April 2025');
+  const [month, setMonth] = useState('2025-04'); // Format: YYYY-MM for HTML5 month input
   const [rows, setRows] = useState<TimesheetSummaryDTO[]>(mock);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      // Convert YYYY-MM format to "Month YYYY" format for API
+      const date = new Date(month + '-01');
+      const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const data = await timesheetsAPI.listSummaries({ month: monthLabel });
+      // Minimal validation: ensure required fields exist
+      if (Array.isArray(data)) setRows(data);
+    } catch (_err) {
+      // Fallback to mock if API not ready
+      setRows(mock);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await timesheetsAPI.listSummaries({ month });
-        // Minimal validation: ensure required fields exist
-        if (Array.isArray(data)) setRows(data);
-      } catch (_err) {
-        // Fallback to mock if API not ready
-        setRows(mock);
-      }
-    };
     fetchData();
   }, [month]);
+
+  const handleCreateSuccess = () => {
+    fetchData(); // Refresh the list after creating a new timesheet
+  };
+
+  // Function to calculate start and end dates for a week
+  const getWeekDates = (weekLabel: string, monthLabel: string) => {
+    // Parse the month (e.g., "April 2025")
+    const [monthName, year] = monthLabel.split(' ');
+    const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
+    const yearNum = parseInt(year);
+    
+    // Get the first day of the month
+    const firstDay = new Date(yearNum, monthIndex, 1);
+    const firstMonday = new Date(firstDay);
+    const dayOfWeek = firstDay.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    firstMonday.setDate(firstDay.getDate() - daysToMonday);
+    
+    // Calculate week number (1-4)
+    const weekNumber = parseInt(weekLabel.split(' ')[1]) - 1;
+    
+    const weekStart = new Date(firstMonday);
+    weekStart.setDate(firstMonday.getDate() + (weekNumber * 7));
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    const startDate = weekStart.toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    const endDate = weekEnd.toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    
+    return { startDate, endDate };
+  };
 
   const StatusChip: React.FC<{ value: 'Open' | 'Close' }> = ({ value }) => (
     <Chip
@@ -70,11 +115,20 @@ const TimesheetList: React.FC = () => {
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: 'background.default' }}>
           <Grid container alignItems="center" spacing={2}>
             <Grid item>
-              <TextField select size="small" value={month} onChange={(e) => setMonth(e.target.value)}>
-                {['April 2025', 'March 2025'].map((m) => (
-                  <MenuItem key={m} value={m}>{m}</MenuItem>
-                ))}
-              </TextField>
+              <TextField
+                type="month"
+                size="small"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{
+                  '& input[type="month"]': {
+                    padding: '8px 12px',
+                  }
+                }}
+              />
             </Grid>
             <Grid item sx={{ flexGrow: 1 }} />
             <Grid item>
@@ -82,6 +136,7 @@ const TimesheetList: React.FC = () => {
                 variant="outlined" 
                 onClick={async () => {
                   try {
+                    await candidatesAPI.seedData();
                     await timesheetsAPI.seedData();
                     // Refresh the data
                     const data = await timesheetsAPI.listSummaries({ month });
@@ -95,7 +150,7 @@ const TimesheetList: React.FC = () => {
               </Button>
             </Grid>
             <Grid item>
-              <Button variant="contained" onClick={() => navigate(ROUTES.TIMESHEET.MANAGE)}>+ Add Timesheet</Button>
+              <Button variant="contained" onClick={() => setCreateModalOpen(true)}>+ Add Timesheet</Button>
             </Grid>
           </Grid>
         </Paper>
@@ -113,24 +168,33 @@ const TimesheetList: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.timesheet_id} hover>
-                    <TableCell>{r.weekLabel}</TableCell>
-                    <TableCell align="center">{r.filledCount}</TableCell>
-                    <TableCell align="center">{r.notFilledCount}</TableCell>
-                    <TableCell align="center"><StatusChip value={r.status} /></TableCell>
-                    <TableCell align="center">
-                      <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
-                      <IconButton size="small"><FileCopyIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" color="error"><DeleteOutlineIcon fontSize="small" /></IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((r) => {
+                  const { startDate, endDate } = getWeekDates(r.weekLabel, r.monthLabel);
+                  return (
+                    <TableRow key={r.timesheet_id} hover>
+                      <TableCell>{r.weekLabel} ({startDate} - {endDate})</TableCell>
+                      <TableCell align="center">{r.filledCount}</TableCell>
+                      <TableCell align="center">{r.notFilledCount}</TableCell>
+                      <TableCell align="center"><StatusChip value={r.status} /></TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => navigate(getTimesheetManageRoute(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small"><FileCopyIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error"><DeleteOutlineIcon fontSize="small" /></IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
         </Paper>
+
+        <CreateTimesheetModal
+          open={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
       </Box>
     </Container>
   );

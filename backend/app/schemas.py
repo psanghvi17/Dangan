@@ -172,6 +172,13 @@ class TimesheetEntry(TimesheetEntryBase):
         from_attributes = True
 
 
+class TimesheetCreate(BaseModel):
+    month: str
+    week: str
+    client_id: Optional[UUID] = None
+    candidate_ids: List[str]
+
+
 class TimesheetDetail(BaseModel):
     timesheet_id: UUID
     status: Optional[str] = None

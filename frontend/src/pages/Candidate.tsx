@@ -139,9 +139,8 @@ const Candidate: React.FC = () => {
               <Button variant="contained" onClick={async () => {
                 try {
                   const result = await candidatesAPI.create({
-                    first_name: firstName,
-                    last_name: lastName,
-                    email_id: email,
+                    invoice_contact_name: `${firstName} ${lastName}`,
+                    invoice_email: email,
                   });
                   setToastSev('success');
                   setToastMsg('Candidate created successfully!');

@@ -55,7 +55,7 @@ const ManageCandidate: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await candidatesAPI.list({ page, limit });
+      const response = await candidatesAPI.listPaginated({ page, limit });
       console.log('✅ Candidates loaded:', response);
       setCandidates(response.candidates);
       setPagination({

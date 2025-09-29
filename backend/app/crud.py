@@ -259,6 +259,36 @@ def count_candidates(db: Session):
         return count
 
 
+def get_candidates(db: Session, skip: int = 0, limit: int = 100):
+    candidates = (
+        db.query(models.Candidate)
+        .order_by(models.Candidate.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    # Convert to proper schema format
+    result = []
+    for candidate in candidates:
+        result.append(schemas.Candidate(
+            candidate_id=str(candidate.candidate_id),
+            invoice_contact_name=candidate.invoice_contact_name,
+            invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+            invoice_phone=candidate.invoice_phone,
+            address1=candidate.address1,
+            address2=candidate.address2,
+            town=candidate.town,
+            county=candidate.county,
+            eircode=candidate.eircode,
+            pps_number=candidate.pps_number,
+            date_of_birth=candidate.date_of_birth,
+            created_on=candidate.created_on
+        ))
+    
+    return result
+
+
 # Timesheets CRUD
 def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
     query = db.query(models.Timesheet)
@@ -281,23 +311,44 @@ def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
 
 
 def get_timesheet_detail(db: Session, timesheet_id: str):
-    """Get timesheet with all its entries"""
+    """Get timesheet with all its entries, creating entries for all candidates if needed"""
     timesheet = db.query(models.Timesheet).filter(models.Timesheet.timesheet_id == timesheet_id).first()
     if not timesheet:
         return None
     
-    entries = db.query(models.TimesheetEntry).filter(
-        models.TimesheetEntry.timesheet_id == timesheet_id
-    ).all()
+    # Get or create entries for all candidates
+    entries = get_or_create_timesheet_entries_for_candidates(db, timesheet_id)
     
-    return {
-        "timesheet_id": timesheet.timesheet_id,
-        "status": timesheet.status,
-        "month": timesheet.month,
-        "week": timesheet.week,
-        "date_range": timesheet.date_range,
-        "entries": entries
-    }
+    # Convert entries to proper schema objects
+    entry_objects = []
+    for entry in entries:
+        entry_objects.append(schemas.TimesheetEntry(
+            entry_id=entry.entry_id,
+            timesheet_id=entry.timesheet_id,
+            employee_name=entry.employee_name,
+            employee_code=entry.employee_code,
+            client_name=entry.client_name,
+            filled=entry.filled,
+            standard_hours=entry.standard_hours,
+            rate2_hours=entry.rate2_hours,
+            rate3_hours=entry.rate3_hours,
+            rate4_hours=entry.rate4_hours,
+            rate5_hours=entry.rate5_hours,
+            rate6_hours=entry.rate6_hours,
+            holiday_hours=entry.holiday_hours,
+            bank_holiday_hours=entry.bank_holiday_hours,
+            created_on=entry.created_on,
+            updated_on=entry.updated_on
+        ))
+    
+    return schemas.TimesheetDetail(
+        timesheet_id=timesheet.timesheet_id,
+        status=timesheet.status,
+        month=timesheet.month,
+        week=timesheet.week,
+        date_range=timesheet.date_range,
+        entries=entry_objects
+    )
 
 
 def create_timesheet_entry(db: Session, entry: schemas.TimesheetEntryCreate):
@@ -334,3 +385,48 @@ def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.Tim
         db.commit()
         db.refresh(db_entry)
     return db_entry
+
+
+def get_or_create_timesheet_entries_for_candidates(db: Session, timesheet_id: str):
+    """Get or create timesheet entries for all candidates"""
+    # Get all candidates
+    candidates = db.query(models.Candidate).all()
+    
+    # Get existing entries for this timesheet
+    existing_entries = db.query(models.TimesheetEntry).filter(
+        models.TimesheetEntry.timesheet_id == timesheet_id
+    ).all()
+    
+    existing_candidate_ids = {entry.employee_code for entry in existing_entries}
+    
+    # Create entries for candidates that don't have entries yet
+    new_entries = []
+    for candidate in candidates:
+        if candidate.candidate_id not in existing_candidate_ids:
+            entry = models.TimesheetEntry(
+                timesheet_id=timesheet_id,
+                employee_name=candidate.invoice_contact_name or "Unknown",
+                employee_code=candidate.candidate_id,
+                client_name="TBD",  # Will be set when assigned to a client
+                filled=False,
+                standard_hours=0,
+                rate2_hours=0,
+                rate3_hours=0,
+                rate4_hours=0,
+                rate5_hours=0,
+                rate6_hours=0,
+                holiday_hours=0,
+                bank_holiday_hours=0,
+            )
+            db.add(entry)
+            new_entries.append(entry)
+    
+    if new_entries:
+        db.commit()
+        for entry in new_entries:
+            db.refresh(entry)
+    
+    # Return all entries for this timesheet
+    return db.query(models.TimesheetEntry).filter(
+        models.TimesheetEntry.timesheet_id == timesheet_id
+    ).all()
