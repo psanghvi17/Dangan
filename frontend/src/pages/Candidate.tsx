@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Box,
@@ -8,7 +8,9 @@ import {
   TextField,
   Paper,
   MenuItem,
+  Snackbar,
 } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import { candidatesAPI } from '../services/api';
@@ -19,38 +21,43 @@ const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Candidate: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('personal');
+  
+  // Notification state
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
 
   // Personal details
-  const [employeeId, setEmployeeId] = useState('1001');
-  const [pps, setPps] = useState('1001');
-  const [firstName, setFirstName] = useState('Prince Etukudoh');
-  const [lastName, setLastName] = useState('Edward');
-  const [email, setEmail] = useState('edwardeurocleaningservices1@gmail.com');
-  const [contact, setContact] = useState('contact no.');
-  const [dob, setDob] = useState('10/1/1968');
-  const [addr1, setAddr1] = useState('44 Harrington Street');
+  const [employeeId, setEmployeeId] = useState('');
+  const [pps, setPps] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
+  const [dob, setDob] = useState('');
+  const [addr1, setAddr1] = useState('');
   const [addr2, setAddr2] = useState('');
 
   // Account details
-  const [bic, setBic] = useState('AIBKIE2DXXX');
-  const [iban, setIban] = useState('IE75AIBK933368112127039');
-  const [accountEmail, setAccountEmail] = useState('edwardeurocleaningservices1@gmail.com');
-  const [clientNameAcc, setClientNameAcc] = useState('Greenstar OSR_WEST DUB');
+  const [bic, setBic] = useState('');
+  const [iban, setIban] = useState('');
+  const [accountEmail, setAccountEmail] = useState('');
+  const [clientNameAcc, setClientNameAcc] = useState('');
 
   // Client details + rates
-  const [clientName, setClientName] = useState('Prince Greenstar OSR_WEST DUB');
+  const [clientName, setClientName] = useState('');
   const [manager, setManager] = useState(accountManagers[0]);
-  const [hourlyPay, setHourlyPay] = useState('150');
-  const [hourlyBill, setHourlyBill] = useState('100');
-  const [weekendPay, setWeekendPay] = useState('160');
-  const [weekendBill, setWeekendBill] = useState('120');
-  const [bankHolidayPay, setBankHolidayPay] = useState('170');
-  const [bankHolidayBill, setBankHolidayBill] = useState('130');
-  const [overtimePay, setOvertimePay] = useState('140');
-  const [overtimeBill, setOvertimeBill] = useState('120');
+  const [hourlyPay, setHourlyPay] = useState('');
+  const [hourlyBill, setHourlyBill] = useState('');
+  const [weekendPay, setWeekendPay] = useState('');
+  const [weekendBill, setWeekendBill] = useState('');
+  const [bankHolidayPay, setBankHolidayPay] = useState('');
+  const [bankHolidayBill, setBankHolidayBill] = useState('');
+  const [overtimePay, setOvertimePay] = useState('');
+  const [overtimeBill, setOvertimeBill] = useState('');
 
   // Documents tab
-  const [docs, setDocs] = useState<string[]>(['ID Proof.Pdf', 'Passport.Pdf']);
+  const [docs, setDocs] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const handleUploadClick = () => fileInputRef.current?.click();
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,11 +67,47 @@ const Candidate: React.FC = () => {
   };
   const removeDoc = (name: string) => setDocs((prev) => prev.filter((n) => n !== name));
 
+  // Reset form function
+  const resetForm = () => {
+    setEmployeeId('');
+    setPps('');
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setContact('');
+    setDob('');
+    setAddr1('');
+    setAddr2('');
+    setBic('');
+    setIban('');
+    setAccountEmail('');
+    setClientNameAcc('');
+    setClientName('');
+    setManager(accountManagers[0]);
+    setHourlyPay('');
+    setHourlyBill('');
+    setWeekendPay('');
+    setWeekendBill('');
+    setBankHolidayPay('');
+    setBankHolidayBill('');
+    setOvertimePay('');
+    setOvertimeBill('');
+    setDocs([]);
+  };
+
+  // Reset form on component mount
+  useEffect(() => {
+    resetForm();
+  }, []);
+
   const TabButton: React.FC<{ k: TabKey; label: string }> = ({ k, label }) => (
     <Button
       variant={tab === k ? 'contained' : 'outlined'}
       color={tab === k ? 'primary' : 'inherit'}
-      onClick={() => setTab(k)}
+      onClick={() => {
+        console.log('Tab clicked:', k);
+        setTab(k);
+      }}
       sx={{ borderRadius: 999, px: 3 }}
     >
       {label}
@@ -100,11 +143,15 @@ const Candidate: React.FC = () => {
                     last_name: lastName,
                     email_id: email,
                   });
-                  alert('User created successfully!');
+                  setToastSev('success');
+                  setToastMsg('Candidate created successfully!');
+                  setToastOpen(true);
                   console.log('Created user:', result);
                 } catch (error) {
                   console.error('Failed to create user:', error);
-                  alert('Failed to create user. Please check the console for details.');
+                  setToastSev('error');
+                  setToastMsg('Failed to create candidate. Please check the console for details.');
+                  setToastOpen(true);
                 }
               }}>Save</Button>
             </Box>
@@ -184,7 +231,11 @@ const Candidate: React.FC = () => {
 
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button variant="contained">Save</Button>
+                  <Button variant="contained" onClick={() => {
+                    setToastSev('success');
+                    setToastMsg('Account details saved successfully!');
+                    setToastOpen(true);
+                  }}>Save</Button>
                 </Box>
               </Grid>
             </Grid>
@@ -273,7 +324,11 @@ const Candidate: React.FC = () => {
 
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <Button variant="contained">Save</Button>
+                  <Button variant="contained" onClick={() => {
+                    setToastSev('success');
+                    setToastMsg('Client details saved successfully!');
+                    setToastOpen(true);
+                  }}>Save</Button>
                 </Box>
               </Grid>
             </Grid>
@@ -305,11 +360,27 @@ const Candidate: React.FC = () => {
             </Grid>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="contained">Save</Button>
+              <Button variant="contained" onClick={() => {
+                setToastSev('success');
+                setToastMsg('Documents saved successfully!');
+                setToastOpen(true);
+              }}>Save</Button>
             </Box>
           </Paper>
         )}
       </Box>
+      
+      {/* Notification Snackbar */}
+      <Snackbar 
+        open={toastOpen} 
+        autoHideDuration={3000} 
+        onClose={() => setToastOpen(false)} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MuiAlert onClose={() => setToastOpen(false)} severity={toastSev} elevation={6} variant="filled">
+          {toastMsg}
+        </MuiAlert>
+      </Snackbar>
     </Container>
   );
 };

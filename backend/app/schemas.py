@@ -116,7 +116,7 @@ class Candidate(CandidateBase):
         from_attributes = True
 
 
-class TimesheetSummary(BaseModel):
+class TimesheetSummary(BaseModel): 
     timesheet_id: UUID
     weekLabel: str
     monthLabel: str
@@ -194,3 +194,22 @@ class MUserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CandidateListItem(BaseModel):
+    user_id: UUID
+    first_name: Optional[str]
+    last_name: Optional[str]
+    email_id: Optional[EmailStr]
+    created_on: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class CandidateListResponse(BaseModel):
+    candidates: List[CandidateListItem]
+    total: int
+    page: int
+    limit: int
+    total_pages: int

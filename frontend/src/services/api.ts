@@ -133,10 +133,38 @@ export interface CandidateCreateDTO {
   email_id: string;
 }
 
+export interface CandidateListItemDTO {
+  user_id: string;
+  first_name?: string;
+  last_name?: string;
+  email_id?: string;
+  created_on?: string;
+}
+
+export interface CandidateListResponseDTO {
+  candidates: CandidateListItemDTO[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
 export const candidatesAPI = {
   create: async (payload: CandidateCreateDTO) => {
     const res = await api.post('/api/candidates/create-user', payload);
     return res.data;
+  },
+  
+  list: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
+    console.log('Making API call to /api/candidates/list with params:', params);
+    try {
+      const res = await api.get('/api/candidates/list', { params });
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
   },
 };
 

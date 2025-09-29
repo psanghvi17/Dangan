@@ -144,6 +144,7 @@ def create_m_user(db: Session, payload: schemas.MUserCreate):
         first_name=payload.first_name,
         last_name=payload.last_name,
         email_id=payload.email_id,
+        role_id=4  # Set role_id to 4 for candidates
     )
     db.add(m_user)
     db.flush()  # Get the user_id without committing yet
@@ -156,8 +157,106 @@ def create_m_user(db: Session, payload: schemas.MUserCreate):
     )
     db.add(candidate)
     db.commit()
-    db.refresh(c)
-    return c
+    db.refresh(m_user)
+    return m_user
+
+
+def get_candidates_paginated(db: Session, skip: int = 0, limit: int = 10):
+    """Get paginated list of candidates with user details"""
+    from sqlalchemy import and_, or_
+    
+    # First try to get all users that have candidates (more flexible approach)
+    try:
+        query = (
+            db.query(models.MUser, models.Candidate)
+            .join(models.Candidate, models.MUser.user_id == models.Candidate.candidate_id)
+            .filter(
+                or_(
+                    models.MUser.deleted_on.is_(None),
+                    models.MUser.deleted_on.is_(None)  # This will match NULL values
+                )
+            )
+            .order_by(models.MUser.created_on.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        
+        results = query.all()
+        print(f"🔍 Found {len(results)} candidates with join")
+        
+        # If no results with join, try just getting all users
+        if len(results) == 0:
+            print("🔍 No results with join, trying all users...")
+            users_query = (
+                db.query(models.MUser)
+                .filter(models.MUser.deleted_on.is_(None))
+                .order_by(models.MUser.created_on.desc())
+                .offset(skip)
+                .limit(limit)
+            )
+            users = users_query.all()
+            print(f"🔍 Found {len(users)} users without join")
+            
+            # Convert to the expected format (user, None for candidate)
+            results = [(user, None) for user in users]
+        
+        return results
+        
+    except Exception as e:
+        print(f"❌ Error in get_candidates_paginated: {e}")
+        # Fallback: just get all users
+        users_query = (
+            db.query(models.MUser)
+            .filter(models.MUser.deleted_on.is_(None))
+            .order_by(models.MUser.created_on.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        users = users_query.all()
+        print(f"🔍 Fallback: Found {len(users)} users")
+        return [(user, None) for user in users]
+
+
+def count_candidates(db: Session):
+    """Count total number of candidates"""
+    from sqlalchemy import or_
+    
+    try:
+        # Try with join first
+        count = (
+            db.query(models.MUser)
+            .join(models.Candidate, models.MUser.user_id == models.Candidate.candidate_id)
+            .filter(
+                or_(
+                    models.MUser.deleted_on.is_(None),
+                    models.MUser.deleted_on.is_(None)  # This will match NULL values
+                )
+            )
+            .count()
+        )
+        print(f"🔍 Total candidates count with join: {count}")
+        
+        # If no results with join, try just counting all users
+        if count == 0:
+            count = (
+                db.query(models.MUser)
+                .filter(models.MUser.deleted_on.is_(None))
+                .count()
+            )
+            print(f"🔍 Total users count without join: {count}")
+        
+        return count
+        
+    except Exception as e:
+        print(f"❌ Error in count_candidates: {e}")
+        # Fallback: just count all users
+        count = (
+            db.query(models.MUser)
+            .filter(models.MUser.deleted_on.is_(None))
+            .count()
+        )
+        print(f"🔍 Fallback count: {count}")
+        return count
 
 
 # Timesheets CRUD
@@ -235,5 +334,3 @@ def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.Tim
         db.commit()
         db.refresh(db_entry)
     return db_entry
-    db.refresh(m_user)
-    return m_user

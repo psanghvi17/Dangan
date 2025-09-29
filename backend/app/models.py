@@ -111,3 +111,4 @@ class MUser(Base):
     role_id = Column(Integer)
     pass_ = Column("pass", String(256), nullable=True)
     created_on = Column(DateTime(timezone=False), server_default=func.now())
+    deleted_on = Column(DateTime(timezone=False), nullable=True)
