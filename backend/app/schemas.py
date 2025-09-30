@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 
@@ -220,3 +220,82 @@ class CandidateListResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+
+class CandidateUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_id: Optional[EmailStr] = None
+    invoice_contact_name: Optional[str] = None
+    invoice_email: Optional[List[str]] = None
+
+
+class ClientOption(BaseModel):
+    client_id: UUID
+    client_name: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+class CandidateClientCreate(BaseModel):
+    candidate_id: UUID
+    client_id: UUID
+    placement_date: Optional[date] = None
+    contract_start_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
+    status: int = 0
+
+
+class CandidateClientOut(BaseModel):
+    pcc_id: UUID
+    candidate_id: UUID
+    client_id: UUID
+    placement_date: Optional[date]
+    contract_start_date: Optional[date]
+    contract_end_date: Optional[date]
+    status: Optional[int]
+    created_on: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class RateTypeOut(BaseModel):
+    rate_type_id: int
+    rate_type_name: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class RateFrequencyOut(BaseModel):
+    rate_frequency_id: int
+    rate_frequency_name: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class ContractRateCreate(BaseModel):
+    rate_type: int
+    rate_frequency: int
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+    date_applicable: Optional[date] = None
+    date_end: Optional[date] = None
+
+
+class ContractRateOut(BaseModel):
+    id: int
+    pcc_id: UUID
+    rate_type: int
+    rate_frequency: int
+    pay_rate: Optional[float]
+    bill_rate: Optional[float]
+    date_applicable: Optional[date]
+    date_end: Optional[date]
+    created_on: Optional[datetime]
+
+    class Config:
+        from_attributes = True

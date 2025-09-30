@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import math
@@ -108,4 +108,261 @@ def seed_candidates(db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error in seed_candidates: {e}")
         return {"error": str(e)}
+
+
+@router.get("/list", response_model=schemas.CandidateListResponse)
+def get_candidates_list(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db)
+):
+    """Get paginated list of candidates"""
+    try:
+        print(f"🚀 API called with page={page}, limit={limit}")
+        skip = (page - 1) * limit
+        print(f"🚀 Skip={skip}")
+        
+        candidates_data = crud.get_candidates_paginated(db, skip=skip, limit=limit)
+        print(f"🚀 Got {len(candidates_data)} candidates from database")
+        
+        total = crud.count_candidates(db)
+        print(f"🚀 Total count: {total}")
+        
+        # Convert the joined results to candidate list items
+        candidates = []
+        for m_user, candidate in candidates_data:
+            print(f"🚀 Processing user: {m_user.first_name} {m_user.last_name}")
+            candidates.append(schemas.CandidateListItem(
+                user_id=m_user.user_id,
+                first_name=m_user.first_name,
+                last_name=m_user.last_name,
+                email_id=m_user.email_id,
+                created_on=m_user.created_on
+            ))
+        
+        print(f"🚀 Final candidates list: {len(candidates)}")
+        
+        total_pages = math.ceil(total / limit) if total > 0 else 1
+        
+        response = schemas.CandidateListResponse(
+            candidates=candidates,
+            total=total,
+            page=page,
+            limit=limit,
+            total_pages=total_pages
+        )
+        
+        print(f"🚀 Returning response: {response}")
+        return response
+        
+    except Exception as e:
+        print(f"❌ Error getting candidates: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+
+@router.get("/{user_id}", response_model=schemas.CandidateListItem)
+def get_candidate_by_id(user_id: str, db: Session = Depends(get_db)):
+    """Get a specific candidate by user_id"""
+    try:
+        print(f"🚀 Getting candidate with user_id: {user_id}")
+        m_user, candidate = crud.get_candidate_by_user_id(db, user_id)
+        
+        if not m_user:
+            print(f"❌ No candidate found with user_id: {user_id}")
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        print(f"✅ Found candidate: {m_user.first_name} {m_user.last_name}")
+        
+        return schemas.CandidateListItem(
+            user_id=m_user.user_id,
+            first_name=m_user.first_name,
+            last_name=m_user.last_name,
+            email_id=m_user.email_id,
+            created_on=m_user.created_on
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting candidate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/{user_id}", response_model=schemas.CandidateListItem)
+def update_candidate_by_id(user_id: str, candidate_update: schemas.CandidateUpdate, db: Session = Depends(get_db)):
+    """Update a specific candidate by user_id"""
+    try:
+        print(f"🚀 Updating candidate with user_id: {user_id}")
+        print(f"🚀 Update data: {candidate_update.dict()}")
+        
+        # Convert Pydantic model to dict, excluding None values
+        update_data = {k: v for k, v in candidate_update.dict().items() if v is not None}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No data provided for update")
+        
+        # Add invoice_contact_name if first_name and last_name are provided
+        if 'first_name' in update_data and 'last_name' in update_data:
+            update_data['invoice_contact_name'] = f"{update_data['first_name']} {update_data['last_name']}"
+        
+        # Add invoice_email if email_id is provided
+        if 'email_id' in update_data:
+            update_data['invoice_email'] = [update_data['email_id']]
+        
+        updated_user = crud.update_candidate(db, user_id, update_data)
+        
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        print(f"✅ Successfully updated candidate: {updated_user.first_name} {updated_user.last_name}")
+        
+        return schemas.CandidateListItem(
+            user_id=updated_user.user_id,
+            first_name=updated_user.first_name,
+            last_name=updated_user.last_name,
+            email_id=updated_user.email_id,
+            created_on=updated_user.created_on
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating candidate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/clients/options", response_model=List[schemas.ClientOption])
+def get_client_options(db: Session = Depends(get_db)):
+    """Get all clients for dropdown"""
+    try:
+        print("🚀 Getting client options for dropdown")
+        clients = crud.get_all_clients(db)
+        print(f"🔍 Raw clients from database: {clients}")
+        
+        client_options = []
+        for client in clients:
+            print(f"🔍 Processing client: {client.client_id} - {client.client_name}")
+            client_options.append(schemas.ClientOption(
+                client_id=client.client_id,
+                client_name=client.client_name
+            ))
+        
+        print(f"✅ Returning {len(client_options)} client options")
+        print(f"🔍 Client options: {client_options}")
+        return client_options
+        
+    except Exception as e:
+        print(f"❌ Error getting client options: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/client-relationship", response_model=schemas.CandidateClientOut)
+def create_candidate_client_relationship(
+    candidate_client_data: schemas.CandidateClientCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a candidate-client relationship"""
+    try:
+        print(f"🚀 Creating candidate-client relationship: {candidate_client_data}")
+        
+        candidate_client = crud.create_candidate_client(db, candidate_client_data)
+        
+        if not candidate_client:
+            raise HTTPException(status_code=400, detail="Failed to create candidate-client relationship")
+        
+        print(f"✅ Successfully created candidate-client relationship: {candidate_client.pcc_id}")
+        
+        return schemas.CandidateClientOut(
+            pcc_id=candidate_client.pcc_id,
+            candidate_id=candidate_client.candidate_id,
+            client_id=candidate_client.client_id,
+            placement_date=candidate_client.placement_date,
+            contract_start_date=candidate_client.contract_start_date,
+            contract_end_date=candidate_client.contract_end_date,
+            status=candidate_client.status,
+            created_on=candidate_client.created_on
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating candidate-client relationship: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{user_id}/client-relationships", response_model=List[schemas.CandidateClientOut])
+def get_candidate_client_relationships(user_id: str, db: Session = Depends(get_db)):
+    """Get all client relationships for a candidate"""
+    try:
+        print(f"🚀 Getting client relationships for candidate: {user_id}")
+        
+        relationships = crud.get_candidate_client_relationships(db, user_id)
+        
+        client_relationships = []
+        for relationship in relationships:
+            client_relationships.append(schemas.CandidateClientOut(
+                pcc_id=relationship.pcc_id,
+                candidate_id=relationship.candidate_id,
+                client_id=relationship.client_id,
+                placement_date=relationship.placement_date,
+                contract_start_date=relationship.contract_start_date,
+                contract_end_date=relationship.contract_end_date,
+                status=relationship.status,
+                created_on=relationship.created_on
+            ))
+        
+        print(f"✅ Returning {len(client_relationships)} client relationships")
+        return client_relationships
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate-client relationships: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-types", response_model=List[schemas.RateTypeOut])
+def get_rate_types(db: Session = Depends(get_db)):
+    try:
+        print("🚀 Getting rate types...")
+        rows = crud.list_rate_types(db)
+        print(f"🔍 Raw rate types from database: {rows}")
+        
+        result = [schemas.RateTypeOut.model_validate(r) for r in rows]
+        print(f"✅ Returning {len(result)} rate types")
+        return result
+    except Exception as e:
+        print(f"❌ Error getting rate types: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-frequencies", response_model=List[schemas.RateFrequencyOut])
+def get_rate_frequencies(db: Session = Depends(get_db)):
+    try:
+        print("🚀 Getting rate frequencies...")
+        rows = crud.list_rate_frequencies(db)
+        print(f"🔍 Raw rate frequencies from database: {rows}")
+        
+        result = [schemas.RateFrequencyOut.model_validate(r) for r in rows]
+        print(f"✅ Returning {len(result)} rate frequencies")
+        return result
+    except Exception as e:
+        print(f"❌ Error getting rate frequencies: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/client-relationship/{pcc_id}/rates", response_model=List[schemas.ContractRateOut])
+def create_rates_for_pcc(pcc_id: str, rates: List[schemas.ContractRateCreate], db: Session = Depends(get_db)):
+    try:
+        created = crud.create_contract_rates(db, pcc_id, rates)
+        return [schemas.ContractRateOut.model_validate(r) for r in created]
+    except Exception as e:
+        print(f"❌ Error creating rates: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LoginCredentials, RegisterData, User, Item } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8007';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -171,28 +171,66 @@ export interface CandidateListResponseDTO {
   total_pages: number;
 }
 
+export interface ClientOptionDTO {
+  client_id: string;
+  client_name?: string;
+}
+
+export interface CandidateClientCreateDTO {
+  candidate_id: string;
+  client_id: string;
+  placement_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  status?: number;
+}
+
+export interface CandidateClientOutDTO {
+  pcc_id: string;
+  candidate_id: string;
+  client_id: string;
+  placement_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  status?: number;
+  created_on?: string;
+}
+
+export interface RateTypeDTO { rate_type_id: number; rate_type_name?: string }
+export interface RateFrequencyDTO { rate_frequency_id: number; rate_frequency_name?: string }
+export interface ContractRateCreateDTO {
+  rate_type: number;
+  rate_frequency: number;
+  pay_rate?: number;
+  bill_rate?: number;
+  date_applicable?: string;
+  date_end?: string;
+}
+export interface ContractRateOutDTO extends ContractRateCreateDTO { id: number; pcc_id: string; created_on?: string }
+
 export const candidatesAPI = {
-  list: async (params?: { skip?: number; limit?: number }): Promise<CandidateDTO[]> => {
-    const res = await api.get('/api/candidates/', { params });
-    return res.data;
+  list: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
+    console.log('Making API call to /api/candidates/list with params:', params);
+    try {
+      const res = await api.get('/api/candidates/list', { params });
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
   },
-  
-  listPaginated: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
-    const res = await api.get('/api/candidates/', { params });
-    // Transform the response to match the expected format
-    return {
-      candidates: res.data.map((candidate: CandidateDTO) => ({
-        user_id: candidate.candidate_id,
-        first_name: candidate.invoice_contact_name?.split(' ')[0] || '',
-        last_name: candidate.invoice_contact_name?.split(' ').slice(1).join(' ') || '',
-        email_id: candidate.invoice_email || '',
-        created_on: candidate.created_on
-      })),
-      total: res.data.length,
-      page: 1,
-      limit: res.data.length,
-      total_pages: 1
-    };
+
+  listAll: async (): Promise<CandidateDTO[]> => {
+    console.log('Making API call to /api/candidates/ to get all candidates');
+    try {
+      const res = await api.get('/api/candidates/');
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
   },
   
   create: async (payload: CandidateCreateDTO): Promise<CandidateDTO> => {
@@ -202,6 +240,46 @@ export const candidatesAPI = {
   
   seedData: async (): Promise<{ seeded: boolean; message?: string; error?: string }> => {
     const res = await api.post('/api/candidates/seed');
+    return res.data;
+  },
+  
+  get: async (user_id: string): Promise<CandidateListItemDTO> => {
+    const res = await api.get(`/api/candidates/${user_id}`);
+    return res.data;
+  },
+  
+  update: async (user_id: string, payload: Partial<CandidateCreateDTO>): Promise<CandidateListItemDTO> => {
+    const res = await api.put(`/api/candidates/${user_id}`, payload);
+    return res.data;
+  },
+  
+  getClientOptions: async (): Promise<ClientOptionDTO[]> => {
+    const res = await api.get('/api/candidates/clients/options');
+    return res.data;
+  },
+  
+  createClientRelationship: async (payload: CandidateClientCreateDTO): Promise<CandidateClientOutDTO> => {
+    const res = await api.post('/api/candidates/client-relationship', payload);
+    return res.data;
+  },
+  
+  getClientRelationships: async (user_id: string): Promise<CandidateClientOutDTO[]> => {
+    const res = await api.get(`/api/candidates/${user_id}/client-relationships`);
+    return res.data;
+  },
+
+  getRateTypes: async (): Promise<RateTypeDTO[]> => {
+    const res = await api.get('/api/candidates/rate-types');
+    return res.data;
+  },
+
+  getRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
+    const res = await api.get('/api/candidates/rate-frequencies');
+    return res.data;
+  },
+
+  createRatesForPcc: async (pcc_id: string, rates: ContractRateCreateDTO[]): Promise<ContractRateOutDTO[]> => {
+    const res = await api.post(`/api/candidates/client-relationship/${pcc_id}/rates`, rates);
     return res.data;
   },
 };

@@ -121,7 +121,7 @@ const Timesheet: React.FC = () => {
         setLoading(true);
         
         // Load candidates
-        const candidatesData = await candidatesAPI.list();
+        const candidatesData = await candidatesAPI.listAll();
         setCandidates(candidatesData);
         
         // Load timesheet data if editing

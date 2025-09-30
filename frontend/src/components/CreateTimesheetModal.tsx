@@ -121,7 +121,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     const fetchData = async () => {
       try {
         const [candidatesData, clientsData] = await Promise.all([
-          candidatesAPI.list(),
+          candidatesAPI.listAll(),
           clientsAPI.list()
         ]);
         setCandidates(candidatesData);

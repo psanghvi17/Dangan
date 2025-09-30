@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, List
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -289,6 +289,153 @@ def get_candidates(db: Session, skip: int = 0, limit: int = 100):
     return result
 
 
+def get_candidate_by_user_id(db: Session, user_id: str):
+    """Get a specific candidate by user_id"""
+    try:
+        # Try to get user with candidate join first
+        result = (
+            db.query(models.MUser, models.Candidate)
+            .join(models.Candidate, models.MUser.user_id == models.Candidate.candidate_id)
+            .filter(models.MUser.user_id == user_id)
+            .first()
+        )
+        
+        if result:
+            m_user, candidate = result
+            print(f"🔍 Found candidate with join: {m_user.first_name} {m_user.last_name}")
+            return m_user, candidate
+        
+        # If no result with join, try just getting the user
+        print("🔍 No result with join, trying just user...")
+        m_user = (
+            db.query(models.MUser)
+            .filter(models.MUser.user_id == user_id)
+            .first()
+        )
+        
+        if m_user:
+            print(f"🔍 Found user without join: {m_user.first_name} {m_user.last_name}")
+            return m_user, None
+        
+        print(f"❌ No candidate found with user_id: {user_id}")
+        return None, None
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate by user_id: {e}")
+        return None, None
+
+
+def update_candidate(db: Session, user_id: str, candidate_data: dict):
+    """Update a candidate by user_id"""
+    try:
+        print(f"🔄 Updating candidate with user_id: {user_id}")
+        
+        # Get the user first
+        m_user = (
+            db.query(models.MUser)
+            .filter(models.MUser.user_id == user_id)
+            .first()
+        )
+        
+        if not m_user:
+            print(f"❌ No user found with user_id: {user_id}")
+            return None
+        
+        # Update user fields
+        if 'first_name' in candidate_data:
+            m_user.first_name = candidate_data['first_name']
+        if 'last_name' in candidate_data:
+            m_user.last_name = candidate_data['last_name']
+        if 'email_id' in candidate_data:
+            m_user.email_id = candidate_data['email_id']
+        
+        # Update candidate fields if they exist
+        candidate = (
+            db.query(models.Candidate)
+            .filter(models.Candidate.candidate_id == user_id)
+            .first()
+        )
+        
+        if candidate:
+            if 'invoice_contact_name' in candidate_data:
+                candidate.invoice_contact_name = candidate_data['invoice_contact_name']
+            if 'invoice_email' in candidate_data:
+                candidate.invoice_email = candidate_data['invoice_email']
+        
+        db.commit()
+        db.refresh(m_user)
+        
+        print(f"✅ Successfully updated candidate: {m_user.first_name} {m_user.last_name}")
+        return m_user
+        
+    except Exception as e:
+        print(f"❌ Error updating candidate: {e}")
+        db.rollback()
+        return None
+
+
+def get_all_clients(db: Session):
+    """Get all clients for dropdown"""
+    try:
+        clients = (
+            db.query(models.Client)
+            .filter(models.Client.deleted_on.is_(None))
+            .all()
+        )
+        print(f"🔍 Found {len(clients)} clients")
+        return clients
+    except Exception as e:
+        print(f"❌ Error getting clients: {e}")
+        return []
+
+
+def create_candidate_client(db: Session, candidate_client_data: schemas.CandidateClientCreate):
+    """Create a candidate-client relationship"""
+    try:
+        print(f"🔄 Creating candidate-client relationship: {candidate_client_data}")
+        
+        candidate_client = models.P_CandidateClient(
+            candidate_id=candidate_client_data.candidate_id,
+            client_id=candidate_client_data.client_id,
+            placement_date=candidate_client_data.placement_date,
+            contract_start_date=candidate_client_data.contract_start_date,
+            contract_end_date=candidate_client_data.contract_end_date,
+            status=candidate_client_data.status
+        )
+        
+        db.add(candidate_client)
+        db.commit()
+        db.refresh(candidate_client)
+        
+        print(f"✅ Successfully created candidate-client relationship: {candidate_client.pcc_id}")
+        return candidate_client
+        
+    except Exception as e:
+        print(f"❌ Error creating candidate-client relationship: {e}")
+        db.rollback()
+        return None
+
+
+def get_candidate_client_relationships(db: Session, candidate_id: str):
+    """Get all client relationships for a candidate"""
+    try:
+        print(f"🔍 Getting client relationships for candidate: {candidate_id}")
+        
+        relationships = (
+            db.query(models.P_CandidateClient)
+            .filter(models.P_CandidateClient.candidate_id == candidate_id)
+            .filter(models.P_CandidateClient.deleted_on.is_(None))
+            .all()
+        )
+        
+        print(f"🔍 Found {len(relationships)} client relationships")
+        return relationships
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate-client relationships: {e}")
+        return []
+
+
 # Timesheets CRUD
 def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
     query = db.query(models.Timesheet)
@@ -432,3 +579,54 @@ def get_or_create_timesheet_entries_for_candidates(db: Session, timesheet_id: st
     return db.query(models.TimesheetEntry).filter(
         models.TimesheetEntry.timesheet_id == timesheet_id
     ).all()
+
+
+def list_rate_types(db: Session) -> List[models.RateType]:
+    try:
+        print("🔍 Querying rate types...")
+        result = db.query(models.RateType).all()
+        print(f"✅ Found {len(result)} rate types")
+        return result
+    except Exception as e:
+        print(f"❌ Error listing rate types: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def list_rate_frequencies(db: Session) -> List[models.RateFrequency]:
+    try:
+        print("🔍 Querying rate frequencies...")
+        result = db.query(models.RateFrequency).all()
+        print(f"✅ Found {len(result)} rate frequencies")
+        return result
+    except Exception as e:
+        print(f"❌ Error listing rate frequencies: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def create_contract_rates(db: Session, pcc_id: str, rates: List[schemas.ContractRateCreate]) -> List[models.ContractRate]:
+    try:
+        created: List[models.ContractRate] = []
+        for r in rates:
+            row = models.ContractRate(
+                pcc_id=pcc_id,
+                rate_type=r.rate_type,
+                rate_frequency=r.rate_frequency,
+                pay_rate=r.pay_rate,
+                bill_rate=r.bill_rate,
+                date_applicable=r.date_applicable,
+                date_end=r.date_end,
+            )
+            db.add(row)
+            created.append(row)
+        db.commit()
+        for row in created:
+            db.refresh(row)
+        return created
+    except Exception as e:
+        print(f"❌ Error creating contract rates: {e}")
+        db.rollback()
+        return []

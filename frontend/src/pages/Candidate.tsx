@@ -14,18 +14,26 @@ import MuiAlert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import { candidatesAPI } from '../services/api';
+import { useSearchParams } from 'react-router-dom';
+
 
 type TabKey = 'personal' | 'account' | 'client' | 'documents';
 
 const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Candidate: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const user_id = searchParams.get('user_id');
   const [tab, setTab] = useState<TabKey>('personal');
   
   // Notification state
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [loadingCandidate, setLoadingCandidate] = useState(false);
 
   // Personal details
   const [employeeId, setEmployeeId] = useState('');
@@ -46,6 +54,14 @@ const Candidate: React.FC = () => {
 
   // Client details + rates
   const [clientName, setClientName] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [placementDate, setPlacementDate] = useState('');
+  const [contractStartDate, setContractStartDate] = useState('');
+  const [contractEndDate, setContractEndDate] = useState('');
+  const [clientOptions, setClientOptions] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clientRelationships, setClientRelationships] = useState<any[]>([]);
+  const [loadingRelationships, setLoadingRelationships] = useState(false);
   const [manager, setManager] = useState(accountManagers[0]);
   const [hourlyPay, setHourlyPay] = useState('');
   const [hourlyBill, setHourlyBill] = useState('');
@@ -55,6 +71,13 @@ const Candidate: React.FC = () => {
   const [bankHolidayBill, setBankHolidayBill] = useState('');
   const [overtimePay, setOvertimePay] = useState('');
   const [overtimeBill, setOvertimeBill] = useState('');
+
+  // Rates meta and dynamic rows
+  const [rateTypes, setRateTypes] = useState<any[]>([]);
+  const [rateFrequencies, setRateFrequencies] = useState<any[]>([]);
+  const [loadingRateMeta, setLoadingRateMeta] = useState(false);
+  type RateRow = { rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
+  const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
 
   // Documents tab
   const [docs, setDocs] = useState<string[]>([]);
@@ -83,6 +106,11 @@ const Candidate: React.FC = () => {
     setAccountEmail('');
     setClientNameAcc('');
     setClientName('');
+    setSelectedClientId('');
+    setPlacementDate('');
+    setContractStartDate('');
+    setContractEndDate('');
+    setClientRelationships([]);
     setManager(accountManagers[0]);
     setHourlyPay('');
     setHourlyBill('');
@@ -92,13 +120,119 @@ const Candidate: React.FC = () => {
     setBankHolidayBill('');
     setOvertimePay('');
     setOvertimeBill('');
+    setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
     setDocs([]);
+  };
+
+  // Load candidate data if user_id is provided
+  const loadCandidateData = async (userId: string) => {
+    setLoadingCandidate(true);
+    try {
+      console.log('🔄 Loading candidate data for user_id:', userId);
+      const candidate = await candidatesAPI.get(userId);
+      console.log('✅ Candidate data loaded:', candidate);
+      
+      // Pre-fill form with candidate data
+      setFirstName(candidate.first_name || '');
+      setLastName(candidate.last_name || '');
+      setEmail(candidate.email_id || '');
+      
+      setIsEditMode(true);
+      setToastSev('success');
+      setToastMsg('Candidate data loaded successfully!');
+      setToastOpen(true);
+      
+    } catch (error) {
+      console.error('❌ Error loading candidate:', error);
+      setToastSev('error');
+      setToastMsg('Failed to load candidate data');
+      setToastOpen(true);
+    } finally {
+      setLoadingCandidate(false);
+    }
+  };
+
+  // Load client options
+  const loadClientOptions = async () => {
+    setLoadingClients(true);
+    try {
+      console.log('🔄 Loading client options...');
+      const clients = await candidatesAPI.getClientOptions();
+      console.log('✅ Client options loaded:', clients);
+      console.log('🔍 Number of clients:', clients.length);
+      setClientOptions(clients);
+    } catch (error: any) {
+      console.error('❌ Error loading client options:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      setToastSev('error');
+      setToastMsg('Failed to load client options');
+      setToastOpen(true);
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  // Load client relationships for the candidate
+  const loadClientRelationships = async (userId: string) => {
+    setLoadingRelationships(true);
+    try {
+      console.log('🔄 Loading client relationships for candidate:', userId);
+      const relationships = await candidatesAPI.getClientRelationships(userId);
+      console.log('✅ Client relationships loaded:', relationships);
+      setClientRelationships(relationships);
+      
+      // Pre-fill form with the first relationship if any
+      if (relationships.length > 0) {
+        const firstRelationship = relationships[0];
+        setSelectedClientId(firstRelationship.client_id);
+        setPlacementDate(firstRelationship.placement_date ? firstRelationship.placement_date.split('T')[0] : '');
+        setContractStartDate(firstRelationship.contract_start_date ? firstRelationship.contract_start_date.split('T')[0] : '');
+        setContractEndDate(firstRelationship.contract_end_date ? firstRelationship.contract_end_date.split('T')[0] : '');
+        console.log('✅ Pre-filled form with existing relationship data');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error loading client relationships:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
+
+  // Load rate meta (types, frequencies)
+  const loadRateMeta = async () => {
+    setLoadingRateMeta(true);
+    try {
+      const [types, freqs] = await Promise.all([
+        candidatesAPI.getRateTypes(),
+        candidatesAPI.getRateFrequencies(),
+      ]);
+      setRateTypes(types);
+      setRateFrequencies(freqs);
+      console.log('✅ Rate meta loaded', { types, freqs });
+    } catch (error) {
+      console.error('❌ Failed to load rate meta', error);
+    } finally {
+      setLoadingRateMeta(false);
+    }
   };
 
   // Reset form on component mount
   useEffect(() => {
-    resetForm();
-  }, []);
+    if (user_id) {
+      console.log('🚀 Edit mode: Loading candidate with user_id:', user_id);
+      loadCandidateData(user_id);
+      loadClientRelationships(user_id);
+    } else {
+      console.log('🚀 Create mode: Resetting form');
+      resetForm();
+    }
+    
+    // Load client options
+    loadClientOptions();
+    // Load rate meta
+    loadRateMeta();
+  }, [user_id]);
 
   const TabButton: React.FC<{ k: TabKey; label: string }> = ({ k, label }) => (
     <Button
@@ -108,7 +242,6 @@ const Candidate: React.FC = () => {
         console.log('Tab clicked:', k);
         setTab(k);
       }}
-      sx={{ borderRadius: 999, px: 3 }}
     >
       {label}
     </Button>
@@ -118,7 +251,8 @@ const Candidate: React.FC = () => {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Candidate
+          {isEditMode ? 'Edit Candidate' : 'Add New Candidate'}
+          {loadingCandidate && ' (Loading...)'}
         </Typography>
 
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
@@ -138,21 +272,36 @@ const Candidate: React.FC = () => {
               </Typography>
               <Button variant="contained" onClick={async () => {
                 try {
-                  const result = await candidatesAPI.create({
-                    invoice_contact_name: `${firstName} ${lastName}`,
-                    invoice_email: email,
-                  });
-                  setToastSev('success');
-                  setToastMsg('Candidate created successfully!');
-                  setToastOpen(true);
-                  console.log('Created user:', result);
+                  if (isEditMode && user_id) {
+                    // Update existing candidate
+                    const result = await candidatesAPI.update(user_id, {
+                      invoice_contact_name: `${firstName} ${lastName}`,
+                      invoice_email: email,
+                    });
+                    setToastSev('success');
+                    setToastMsg('Candidate updated successfully!');
+                    setToastOpen(true);
+                    console.log('Updated candidate:', result);
+                  } else {
+                    // Create new candidate
+                    const result = await candidatesAPI.create({
+                      invoice_contact_name: `${firstName} ${lastName}`,
+                      invoice_email: email,
+                    });
+                    setToastSev('success');
+                    setToastMsg('Candidate created successfully!');
+                    setToastOpen(true);
+                    console.log('Created user:', result);
+                  }
                 } catch (error) {
-                  console.error('Failed to create user:', error);
+                  console.error('Failed to save candidate:', error);
                   setToastSev('error');
-                  setToastMsg('Failed to create candidate. Please check the console for details.');
+                  setToastMsg('Failed to save candidate. Please check the console for details.');
                   setToastOpen(true);
                 }
-              }}>Save</Button>
+              }}>
+                {isEditMode ? 'Update' : 'Create'}
+              </Button>
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -177,6 +326,7 @@ const Candidate: React.FC = () => {
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Email</Typography>
                 <TextField fullWidth value={email} onChange={(e) => setEmail(e.target.value)} />
               </Grid>
+
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Contact No.</Typography>
                 <TextField fullWidth value={contact} onChange={(e) => setContact(e.target.value)} />
@@ -248,8 +398,24 @@ const Candidate: React.FC = () => {
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Client Name</Typography>
-                <TextField fullWidth value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Select Client</Typography>
+                <TextField 
+                  select 
+                  fullWidth 
+                  value={selectedClientId} 
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  disabled={loadingClients || loadingRelationships}
+                  helperText={loadingRelationships ? "Loading existing relationships..." : ""}
+                >
+                  <MenuItem value="">
+                    <em>Select a client...</em>
+                  </MenuItem>
+                  {clientOptions.map((client) => (
+                    <MenuItem key={client.client_id} value={client.client_id}>
+                      {client.client_name || 'Unnamed Client'}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Account Manager</Typography>
@@ -259,78 +425,151 @@ const Candidate: React.FC = () => {
                   ))}
                 </TextField>
               </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Placement Date</Typography>
+                <TextField 
+                  fullWidth 
+                  type="date"
+                  value={placementDate} 
+                  onChange={(e) => setPlacementDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Contract Start Date</Typography>
+                <TextField 
+                  fullWidth 
+                  type="date"
+                  value={contractStartDate} 
+                  onChange={(e) => setContractStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Contract End Date</Typography>
+                <TextField 
+                  fullWidth 
+                  type="date"
+                  value={contractEndDate} 
+                  onChange={(e) => setContractEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
             </Grid>
 
             <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
-              Rate Types
+              Rates
             </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2">Hourly</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Pay Rate</Typography>
-                    <TextField fullWidth value={hourlyPay} onChange={(e) => setHourlyPay(e.target.value)} />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Bill Rate</Typography>
-                    <TextField fullWidth value={hourlyBill} onChange={(e) => setHourlyBill(e.target.value)} />
-                  </Grid>
+
+            {rates.map((row, idx) => (
+              <Grid key={idx} container spacing={2} sx={{ mb: 1 }}>
+                <Grid item xs={12} md={3}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Rate Type</Typography>
+                  <TextField select fullWidth value={row.rate_type ?? ''} onChange={(e) => {
+                    const v = e.target.value === '' ? '' : Number(e.target.value);
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_type: v } : r));
+                  }} disabled={loadingRateMeta}>
+                    <MenuItem value=""><em>Select...</em></MenuItem>
+                    {rateTypes.map(rt => (
+                      <MenuItem key={rt.rate_type_id} value={rt.rate_type_id}>{rt.rate_type_name}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Frequency</Typography>
+                  <TextField select fullWidth value={row.rate_frequency ?? ''} onChange={(e) => {
+                    const v = e.target.value === '' ? '' : Number(e.target.value);
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_frequency: v } : r));
+                  }} disabled={loadingRateMeta}>
+                    <MenuItem value=""><em>Select...</em></MenuItem>
+                    {rateFrequencies.map(rf => (
+                      <MenuItem key={rf.rate_frequency_id} value={rf.rate_frequency_id}>{rf.rate_frequency_name}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Pay Rate</Typography>
+                  <TextField type="number" fullWidth value={row.pay_rate ?? ''} onChange={(e) => {
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, pay_rate: e.target.value } : r));
+                  }} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Bill Rate</Typography>
+                  <TextField type="number" fullWidth value={row.bill_rate ?? ''} onChange={(e) => {
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, bill_rate: e.target.value } : r));
+                  }} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Start Date</Typography>
+                  <TextField type="date" fullWidth value={row.date_applicable ?? ''} onChange={(e) => {
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_applicable: e.target.value } : r));
+                  }} InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>End Date</Typography>
+                  <TextField type="date" fullWidth value={row.date_end ?? ''} onChange={(e) => {
+                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_end: e.target.value } : r));
+                  }} InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Button color="error" variant="outlined" onClick={() => {
+                    setRates(prev => prev.filter((_, i) => i !== idx));
+                  }} disabled={rates.length <= 1}>Remove</Button>
                 </Grid>
               </Grid>
+            ))}
 
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2">Weekend</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Pay Rate</Typography>
-                    <TextField fullWidth value={weekendPay} onChange={(e) => setWeekendPay(e.target.value)} />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Bill Rate</Typography>
-                    <TextField fullWidth value={weekendBill} onChange={(e) => setWeekendBill(e.target.value)} />
-                  </Grid>
-                </Grid>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2">Bank Holiday</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Pay Rate</Typography>
-                    <TextField fullWidth value={bankHolidayPay} onChange={(e) => setBankHolidayPay(e.target.value)} />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Bill Rate</Typography>
-                    <TextField fullWidth value={bankHolidayBill} onChange={(e) => setBankHolidayBill(e.target.value)} />
-                  </Grid>
-                </Grid>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2">Overtime</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Pay Rate</Typography>
-                    <TextField fullWidth value={overtimePay} onChange={(e) => setOvertimePay(e.target.value)} />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption">Bill Rate</Typography>
-                    <TextField fullWidth value={overtimeBill} onChange={(e) => setOvertimeBill(e.target.value)} />
-                  </Grid>
-                </Grid>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <Button variant="contained" onClick={() => {
-                    setToastSev('success');
-                    setToastMsg('Client details saved successfully!');
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Button variant="outlined" onClick={() => setRates(prev => [...prev, { rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }])}>+ Add Rate</Button>
+              <Box sx={{ flexGrow: 1 }} />
+              <Button variant="contained" onClick={async () => {
+                try {
+                  if (!user_id) {
+                    setToastSev('error');
+                    setToastMsg('No candidate ID available');
                     setToastOpen(true);
-                  }}>Save</Button>
-                </Box>
-              </Grid>
-            </Grid>
+                    return;
+                  }
+                  if (clientRelationships.length === 0) {
+                    setToastSev('error');
+                    setToastMsg('Please create and save client relationship first');
+                    setToastOpen(true);
+                    return;
+                  }
+
+                  const pccId = clientRelationships[0].pcc_id;
+                  const payload = rates
+                    .filter(r => r.rate_type && r.rate_frequency)
+                    .map(r => ({
+                      rate_type: Number(r.rate_type),
+                      rate_frequency: Number(r.rate_frequency),
+                      pay_rate: r.pay_rate ? Number(r.pay_rate) : undefined,
+                      bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
+                      date_applicable: r.date_applicable || undefined,
+                      date_end: r.date_end || undefined,
+                    }));
+
+                  if (payload.length === 0) {
+                    setToastSev('error');
+                    setToastMsg('Please add at least one valid rate');
+                    setToastOpen(true);
+                    return;
+                  }
+
+                  const res = await candidatesAPI.createRatesForPcc(pccId, payload);
+                  console.log('✅ Rates saved:', res);
+                  setToastSev('success');
+                  setToastMsg('Rates saved successfully!');
+                  setToastOpen(true);
+                } catch (e) {
+                  console.error('❌ Failed to save rates', e);
+                  setToastSev('error');
+                  setToastMsg('Failed to save rates');
+                  setToastOpen(true);
+                }
+              }}>Save Rates</Button>
+            </Box>
           </Paper>
         )}
 
@@ -345,41 +584,22 @@ const Candidate: React.FC = () => {
             </Box>
 
             <Grid container spacing={2}>
-              {docs.map((name) => (
-                <Grid item key={name}>
-                  <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 180 }}>
-                    <PictureAsPdfIcon color="error" />
-                    <Typography variant="body2" sx={{ flexGrow: 1 }}>{name}</Typography>
-                    <Button size="small" onClick={() => removeDoc(name)} sx={{ minWidth: 0, p: 0.5 }}>
-                      <CloseIcon fontSize="small" />
-                    </Button>
-                  </Paper>
-                </Grid>
-              ))}
+              {/* Documents list rendering */}
             </Grid>
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="contained" onClick={() => {
-                setToastSev('success');
-                setToastMsg('Documents saved successfully!');
-                setToastOpen(true);
-              }}>Save</Button>
-            </Box>
           </Paper>
         )}
+
+        <Snackbar
+          open={toastOpen}
+          autoHideDuration={3000}
+          onClose={() => setToastOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <MuiAlert elevation={6} variant="filled" severity={toastSev} onClose={() => setToastOpen(false)}>
+            {toastMsg}
+          </MuiAlert>
+        </Snackbar>
       </Box>
-      
-      {/* Notification Snackbar */}
-      <Snackbar 
-        open={toastOpen} 
-        autoHideDuration={3000} 
-        onClose={() => setToastOpen(false)} 
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <MuiAlert onClose={() => setToastOpen(false)} severity={toastSev} elevation={6} variant="filled">
-          {toastMsg}
-        </MuiAlert>
-      </Snackbar>
     </Container>
   );
 };

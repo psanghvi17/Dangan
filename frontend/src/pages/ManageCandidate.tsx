@@ -55,7 +55,7 @@ const ManageCandidate: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await candidatesAPI.listPaginated({ page, limit });
+      const response = await candidatesAPI.list({ page, limit });
       console.log('✅ Candidates loaded:', response);
       setCandidates(response.candidates);
       setPagination({
@@ -167,7 +167,20 @@ const ManageCandidate: React.FC = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Avatar sx={{ bgcolor: 'primary.light' }}>{r.initials}</Avatar>
                           <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.name}</Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 600, 
+                                cursor: 'pointer',
+                                color: 'primary.main',
+                                '&:hover': {
+                                  textDecoration: 'underline'
+                                }
+                              }}
+                              onClick={() => navigate(`/candidate/manage-candidate?user_id=${r.id}`)}
+                            >
+                              {r.name}
+                            </Typography>
                             <Typography variant="caption" color="text.secondary">{r.email}</Typography>
                           </Box>
                         </Box>
