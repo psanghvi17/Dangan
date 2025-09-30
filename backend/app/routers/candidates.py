@@ -30,6 +30,38 @@ def list_candidates(
         raise
 
 
+@router.get("/rate-types", response_model=List[schemas.RateTypeOut])
+def get_rate_types(db: Session = Depends(get_db)):
+    try:
+        print("🚀 Getting rate types...")
+        rows = crud.list_rate_types(db)
+        print(f"🔍 Raw rate types from database: {rows}")
+        result = [schemas.RateTypeOut.model_validate(r) for r in rows]
+        print(f"✅ Returning {len(result)} rate types")
+        return result
+    except Exception as e:
+        print(f"❌ Error getting rate types: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-frequencies", response_model=List[schemas.RateFrequencyOut])
+def get_rate_frequencies(db: Session = Depends(get_db)):
+    try:
+        print("🚀 Getting rate frequencies...")
+        rows = crud.list_rate_frequencies(db)
+        print(f"🔍 Raw rate frequencies from database: {rows}")
+        result = [schemas.RateFrequencyOut.model_validate(r) for r in rows]
+        print(f"✅ Returning {len(result)} rate frequencies")
+        return result
+    except Exception as e:
+        print(f"❌ Error getting rate frequencies: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/", response_model=schemas.Candidate)
 def create_candidate(candidate: schemas.CandidateCreate, db: Session = Depends(get_db)):
     return crud.create_candidate(db, candidate)
@@ -320,40 +352,6 @@ def get_candidate_client_relationships(user_id: uuid.UUID, db: Session = Depends
         
     except Exception as e:
         print(f"❌ Error getting candidate-client relationships: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/rate-types", response_model=List[schemas.RateTypeOut])
-def get_rate_types(db: Session = Depends(get_db)):
-    try:
-        print("🚀 Getting rate types...")
-        rows = crud.list_rate_types(db)
-        print(f"🔍 Raw rate types from database: {rows}")
-        
-        result = [schemas.RateTypeOut.model_validate(r) for r in rows]
-        print(f"✅ Returning {len(result)} rate types")
-        return result
-    except Exception as e:
-        print(f"❌ Error getting rate types: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/rate-frequencies", response_model=List[schemas.RateFrequencyOut])
-def get_rate_frequencies(db: Session = Depends(get_db)):
-    try:
-        print("🚀 Getting rate frequencies...")
-        rows = crud.list_rate_frequencies(db)
-        print(f"🔍 Raw rate frequencies from database: {rows}")
-        
-        result = [schemas.RateFrequencyOut.model_validate(r) for r in rows]
-        print(f"✅ Returning {len(result)} rate frequencies")
-        return result
-    except Exception as e:
-        print(f"❌ Error getting rate frequencies: {e}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
