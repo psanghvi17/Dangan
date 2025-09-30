@@ -208,6 +208,15 @@ export interface ContractRateCreateDTO {
 }
 export interface ContractRateOutDTO extends ContractRateCreateDTO { id: number; pcc_id: string; created_on?: string }
 
+export interface ContractRateUpdateDTO {
+  rate_type?: number;
+  rate_frequency?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+  date_applicable?: string;
+  date_end?: string;
+}
+
 export const candidatesAPI = {
   list: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
     console.log('Making API call to /api/candidates/list with params:', params);
@@ -280,6 +289,21 @@ export const candidatesAPI = {
 
   createRatesForPcc: async (pcc_id: string, rates: ContractRateCreateDTO[]): Promise<ContractRateOutDTO[]> => {
     const res = await api.post(`/api/candidates/client-relationship/${pcc_id}/rates`, rates);
+    return res.data;
+  },
+
+  getRatesByPcc: async (pcc_id: string): Promise<ContractRateOutDTO[]> => {
+    const res = await api.get(`/api/candidates/client-relationship/${pcc_id}/rates`);
+    return res.data;
+  },
+
+  getRatesForCandidateClient: async (candidate_id: string, client_id: string): Promise<ContractRateOutDTO[]> => {
+    const res = await api.get(`/api/candidates/client-relationship/rates`, { params: { candidate_id, client_id } });
+    return res.data;
+  },
+
+  updateRate: async (tcr_id: number, update: ContractRateUpdateDTO): Promise<ContractRateOutDTO> => {
+    const res = await api.put(`/api/candidates/rates/${tcr_id}`, update);
     return res.data;
   },
 };

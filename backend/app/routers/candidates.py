@@ -364,3 +364,54 @@ def create_rates_for_pcc(pcc_id: str, rates: List[schemas.ContractRateCreate], d
         print(f"❌ Error creating rates: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.post("/client-relationship/rates", response_model=List[schemas.ContractRateOut])
+def create_rates_for_candidate_client(payload: schemas.RatesForCandidateClientCreate, db: Session = Depends(get_db)):
+    try:
+        created = crud.create_rates_for_candidate_client(
+            db,
+            str(payload.candidate_id),
+            str(payload.client_id),
+            payload.rates,
+        )
+        return [schemas.ContractRateOut.model_validate(r) for r in created]
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        print(f"❌ Error creating rates for candidate-client: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/client-relationship/{pcc_id}/rates", response_model=List[schemas.ContractRateOut])
+def list_rates_by_pcc(pcc_id: str, db: Session = Depends(get_db)):
+    try:
+        rows = crud.list_contract_rates_by_pcc(db, pcc_id)
+        return [schemas.ContractRateOut.model_validate(r) for r in rows]
+    except Exception as e:
+        print(f"❌ Error listing rates by pcc: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/client-relationship/rates", response_model=List[schemas.ContractRateOut])
+def list_rates_for_candidate_client(candidate_id: uuid.UUID, client_id: uuid.UUID, db: Session = Depends(get_db)):
+    try:
+        rows = crud.list_contract_rates_for_candidate_client(db, str(candidate_id), str(client_id))
+        return [schemas.ContractRateOut.model_validate(r) for r in rows]
+    except Exception as e:
+        print(f"❌ Error listing rates for candidate-client: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/rates/{tcr_id}", response_model=schemas.ContractRateOut)
+def update_rate(tcr_id: int, payload: schemas.ContractRateUpdate, db: Session = Depends(get_db)):
+    try:
+        row = crud.update_contract_rate(db, tcr_id, payload)
+        if not row:
+            raise HTTPException(status_code=404, detail="Rate not found")
+        return schemas.ContractRateOut.model_validate(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating rate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+

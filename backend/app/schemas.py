@@ -300,3 +300,18 @@ class ContractRateOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RatesForCandidateClientCreate(BaseModel):
+    candidate_id: UUID
+    client_id: UUID
+    rates: List[ContractRateCreate]
+
+
+class ContractRateUpdate(BaseModel):
+    rate_type: Optional[int] = None
+    rate_frequency: Optional[int] = None
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+    date_applicable: Optional[date] = None
+    date_end: Optional[date] = None

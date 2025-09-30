@@ -76,7 +76,7 @@ const Candidate: React.FC = () => {
   const [rateTypes, setRateTypes] = useState<any[]>([]);
   const [rateFrequencies, setRateFrequencies] = useState<any[]>([]);
   const [loadingRateMeta, setLoadingRateMeta] = useState(false);
-  type RateRow = { rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
+  type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
   const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
 
   // Documents tab
@@ -189,6 +189,25 @@ const Candidate: React.FC = () => {
         setContractStartDate(firstRelationship.contract_start_date ? firstRelationship.contract_start_date.split('T')[0] : '');
         setContractEndDate(firstRelationship.contract_end_date ? firstRelationship.contract_end_date.split('T')[0] : '');
         console.log('✅ Pre-filled form with existing relationship data');
+        // Load existing rates for this pcc
+        try {
+          const existing = await candidatesAPI.getRatesByPcc(firstRelationship.pcc_id);
+          setRates(
+            existing.length
+              ? existing.map(r => ({
+                  id: r.id,
+                  rate_type: r.rate_type,
+                  rate_frequency: r.rate_frequency,
+                  pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
+                  bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
+                  date_applicable: r.date_applicable || '',
+                  date_end: r.date_end || ''
+                }))
+              : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]
+          );
+        } catch (e) {
+          console.error('❌ Failed to load existing rates for pcc', e);
+        }
       }
       
     } catch (error: any) {
@@ -465,63 +484,85 @@ const Candidate: React.FC = () => {
               Rates
             </Typography>
 
-            {rates.map((row, idx) => (
-              <Grid key={idx} container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} md={3}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Rate Type</Typography>
-                  <TextField select fullWidth value={row.rate_type ?? ''} onChange={(e) => {
-                    const v = e.target.value === '' ? '' : Number(e.target.value);
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_type: v } : r));
-                  }} disabled={loadingRateMeta}>
-                    <MenuItem value=""><em>Select...</em></MenuItem>
-                    {rateTypes.map(rt => (
-                      <MenuItem key={rt.rate_type_id} value={rt.rate_type_id}>{rt.rate_type_name}</MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Frequency</Typography>
-                  <TextField select fullWidth value={row.rate_frequency ?? ''} onChange={(e) => {
-                    const v = e.target.value === '' ? '' : Number(e.target.value);
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_frequency: v } : r));
-                  }} disabled={loadingRateMeta}>
-                    <MenuItem value=""><em>Select...</em></MenuItem>
-                    {rateFrequencies.map(rf => (
-                      <MenuItem key={rf.rate_frequency_id} value={rf.rate_frequency_id}>{rf.rate_frequency_name}</MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Pay Rate</Typography>
-                  <TextField type="number" fullWidth value={row.pay_rate ?? ''} onChange={(e) => {
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, pay_rate: e.target.value } : r));
-                  }} />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Bill Rate</Typography>
-                  <TextField type="number" fullWidth value={row.bill_rate ?? ''} onChange={(e) => {
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, bill_rate: e.target.value } : r));
-                  }} />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Start Date</Typography>
-                  <TextField type="date" fullWidth value={row.date_applicable ?? ''} onChange={(e) => {
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_applicable: e.target.value } : r));
-                  }} InputLabelProps={{ shrink: true }} />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>End Date</Typography>
-                  <TextField type="date" fullWidth value={row.date_end ?? ''} onChange={(e) => {
-                    setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_end: e.target.value } : r));
-                  }} InputLabelProps={{ shrink: true }} />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Button color="error" variant="outlined" onClick={() => {
-                    setRates(prev => prev.filter((_, i) => i !== idx));
-                  }} disabled={rates.length <= 1}>Remove</Button>
-                </Grid>
-              </Grid>
-            ))}
+            {rates.map((row, idx) => {
+              const pay = row.pay_rate ? Number(row.pay_rate) : NaN;
+              const bill = row.bill_rate ? Number(row.bill_rate) : NaN;
+              const margin = !isNaN(pay) && !isNaN(bill) ? String(bill - pay) : '';
+              return (
+                <Box key={idx} sx={{ mb: 2 }}>
+                  <Grid container spacing={2}>
+                    {/* Row 1: Type, Frequency, Start, End */}
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Rate Type</Typography>
+                      <TextField select fullWidth value={row.rate_type ?? ''} onChange={(e) => {
+                        const v = e.target.value === '' ? '' : Number(e.target.value);
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_type: v } : r));
+                      }} disabled={loadingRateMeta}>
+                        <MenuItem value=""><em>Select...</em></MenuItem>
+                        {rateTypes.map(rt => (
+                          <MenuItem key={rt.rate_type_id} value={rt.rate_type_id}>{rt.rate_type_name}</MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Frequency</Typography>
+                      <TextField select fullWidth value={row.rate_frequency ?? ''} onChange={(e) => {
+                        const v = e.target.value === '' ? '' : Number(e.target.value);
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, rate_frequency: v } : r));
+                      }} disabled={loadingRateMeta}>
+                        <MenuItem value=""><em>Select...</em></MenuItem>
+                        {rateFrequencies.map(rf => (
+                          <MenuItem key={rf.rate_frequency_id} value={rf.rate_frequency_id}>{rf.rate_frequency_name}</MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Start Date</Typography>
+                      <TextField type="date" fullWidth value={row.date_applicable ?? ''} onChange={(e) => {
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_applicable: e.target.value } : r));
+                      }} InputLabelProps={{ shrink: true }} />
+                    </Grid>
+
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>End Date</Typography>
+                      <TextField type="date" fullWidth value={row.date_end ?? ''} onChange={(e) => {
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, date_end: e.target.value } : r));
+                      }} InputLabelProps={{ shrink: true }} />
+                    </Grid>
+                  </Grid>
+
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {/* Row 2: Bill, Pay, Margin (readonly), Remove */}
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Bill Rate</Typography>
+                      <TextField type="number" fullWidth value={row.bill_rate ?? ''} onChange={(e) => {
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, bill_rate: e.target.value } : r));
+                      }} />
+                    </Grid>
+
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Pay Rate</Typography>
+                      <TextField type="number" fullWidth value={row.pay_rate ?? ''} onChange={(e) => {
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, pay_rate: e.target.value } : r));
+                      }} />
+                    </Grid>
+
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Margin</Typography>
+                      <TextField fullWidth value={margin} disabled />
+                    </Grid>
+
+                    <Grid item xs={12} md={3} sx={{ display: 'flex', alignItems: 'end' }}>
+                      <Button color="error" variant="outlined" onClick={() => {
+                        setRates(prev => prev.filter((_, i) => i !== idx));
+                      }} disabled={rates.length <= 1}>Remove</Button>
+                    </Grid>
+                  </Grid>
+                </Box>
+              );
+            })}
 
             <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
               <Button variant="outlined" onClick={() => setRates(prev => [...prev, { rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }])}>+ Add Rate</Button>
@@ -542,8 +583,27 @@ const Candidate: React.FC = () => {
                   }
 
                   const pccId = clientRelationships[0].pcc_id;
-                  const payload = rates
-                    .filter(r => r.rate_type && r.rate_frequency)
+                  // Build updates for rows that already exist (have id)
+                  const updates = rates
+                    .filter(r => r.id)
+                    .map(r => candidatesAPI.updateRate(Number(r.id), {
+                      rate_type: r.rate_type === '' ? undefined : Number(r.rate_type),
+                      rate_frequency: r.rate_frequency === '' ? undefined : Number(r.rate_frequency),
+                      pay_rate: r.pay_rate ? Number(r.pay_rate) : undefined,
+                      bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
+                      date_applicable: r.date_applicable || undefined,
+                      date_end: r.date_end || undefined,
+                    }));
+
+                  if (updates.length) {
+                    await Promise.all(updates);
+                  }
+
+                  // Create only rows without id, with valid type/frequency and at least one value
+                  const createPayload = rates
+                    .filter(r => !r.id)
+                    .filter(r => r.rate_type !== '' && r.rate_frequency !== '')
+                    .filter(r => !!(r.pay_rate || r.bill_rate || r.date_applicable || r.date_end))
                     .map(r => ({
                       rate_type: Number(r.rate_type),
                       rate_frequency: Number(r.rate_frequency),
@@ -553,15 +613,27 @@ const Candidate: React.FC = () => {
                       date_end: r.date_end || undefined,
                     }));
 
-                  if (payload.length === 0) {
-                    setToastSev('error');
-                    setToastMsg('Please add at least one valid rate');
-                    setToastOpen(true);
-                    return;
+                  if (createPayload.length) {
+                    await candidatesAPI.createRatesForPcc(pccId, createPayload);
                   }
 
-                  const res = await candidatesAPI.createRatesForPcc(pccId, payload);
-                  console.log('✅ Rates saved:', res);
+                  // Refresh from server to get latest (including ids)
+                  try {
+                    const refreshed = await candidatesAPI.getRatesByPcc(pccId);
+                    setRates(refreshed.length ? refreshed.map(r => ({
+                      id: r.id,
+                      rate_type: r.rate_type,
+                      rate_frequency: r.rate_frequency,
+                      pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
+                      bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
+                      date_applicable: r.date_applicable || '',
+                      date_end: r.date_end || ''
+                    })) : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+                  } catch (e) {
+                    console.error('❌ Failed to refresh rates after save', e);
+                  }
+
+                  console.log('✅ Rates saved (updated and created if needed)');
                   setToastSev('success');
                   setToastMsg('Rates saved successfully!');
                   setToastOpen(true);

@@ -677,3 +677,66 @@ def create_contract_rates(db: Session, pcc_id: str, rates: List[schemas.Contract
         print(f"❌ Error creating contract rates: {e}")
         db.rollback()
         return []
+
+
+def get_active_pcc_id(db: Session, candidate_id: str, client_id: str) -> Optional[str]:
+    try:
+        row = (
+            db.query(models.P_CandidateClient)
+            .filter(models.P_CandidateClient.candidate_id == candidate_id)
+            .filter(models.P_CandidateClient.client_id == client_id)
+            .filter(models.P_CandidateClient.status == 0)
+            .filter(models.P_CandidateClient.deleted_on.is_(None))
+            .first()
+        )
+        return str(row.pcc_id) if row else None
+    except Exception as e:
+        print(f"❌ Error resolving active pcc_id: {e}")
+        return None
+
+
+def create_rates_for_candidate_client(db: Session, candidate_id: str, client_id: str, rates: List[schemas.ContractRateCreate]) -> List[models.ContractRate]:
+    pcc_id = get_active_pcc_id(db, candidate_id, client_id)
+    if not pcc_id:
+        raise ValueError("Active candidate-client relationship not found (status=0)")
+    return create_contract_rates(db, pcc_id, rates)
+
+
+def list_contract_rates_by_pcc(db: Session, pcc_id: str) -> List[models.ContractRate]:
+    try:
+        rows = (
+            db.query(models.ContractRate)
+            .filter(models.ContractRate.pcc_id == pcc_id)
+            .filter(models.ContractRate.deleted_on.is_(None))
+            .order_by(models.ContractRate.created_on.desc())
+            .all()
+        )
+        return rows
+    except Exception as e:
+        print(f"❌ Error listing contract rates by pcc: {e}")
+        return []
+
+
+def list_contract_rates_for_candidate_client(db: Session, candidate_id: str, client_id: str) -> List[models.ContractRate]:
+    pcc_id = get_active_pcc_id(db, candidate_id, client_id)
+    if not pcc_id:
+        return []
+    return list_contract_rates_by_pcc(db, pcc_id)
+
+
+def update_contract_rate(db: Session, tcr_id: int, update: schemas.ContractRateUpdate) -> Optional[models.ContractRate]:
+    try:
+        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).first()
+        if not row:
+            return None
+        data = {k: v for k, v in update.dict(exclude_unset=True).items()}
+        for field, value in data.items():
+            setattr(row, field, value)
+        row.updated_on = func.now()
+        db.commit()
+        db.refresh(row)
+        return row
+    except Exception as e:
+        print(f"❌ Error updating contract rate: {e}")
+        db.rollback()
+        return None
