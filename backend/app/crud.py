@@ -310,6 +310,42 @@ def list_timesheet_summaries(db: Session, month_label: Optional[str] = None):
     return result
 
 
+def get_latest_timesheet(db: Session):
+    """Get the timesheet with the latest month (not by creation date)"""
+    # Get all timesheets and find the one with the latest month
+    all_timesheets = db.query(models.Timesheet).all()
+    if not all_timesheets:
+        return None
+    
+    # Find the timesheet with the latest month by comparing month strings
+    latest_timesheet = None
+    latest_date = None
+    
+    for timesheet in all_timesheets:
+        if timesheet.month:
+            # Parse month like "September 2025" to get a comparable date
+            try:
+                from datetime import datetime
+                month_date = datetime.strptime(timesheet.month + ' 1', '%B %Y %d')
+                if latest_date is None or month_date > latest_date:
+                    latest_date = month_date
+                    latest_timesheet = timesheet
+            except:
+                # If parsing fails, skip this timesheet
+                continue
+    
+    if not latest_timesheet:
+        return None
+    
+    return {
+        "timesheet_id": str(latest_timesheet.timesheet_id),
+        "month": latest_timesheet.month,
+        "week": latest_timesheet.week,
+        "status": latest_timesheet.status,
+        "created_on": latest_timesheet.created_on.isoformat() if latest_timesheet.created_on else None
+    }
+
+
 def get_timesheet_detail(db: Session, timesheet_id: str):
     """Get timesheet with all its entries"""
     timesheet = db.query(models.Timesheet).filter(models.Timesheet.timesheet_id == timesheet_id).first()

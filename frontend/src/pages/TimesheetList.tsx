@@ -39,6 +39,74 @@ const TimesheetList: React.FC = () => {
   const [rows, setRows] = useState<TimesheetSummaryDTO[]>(mock);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  // Function to convert month label to YYYY-MM format
+  const convertMonthLabelToFormat = (monthLabel: string): string => {
+    try {
+      // Parse month label like "September 2025" to extract year and month
+      const parts = monthLabel.split(' ');
+      if (parts.length === 2) {
+        const monthName = parts[0];
+        const year = parseInt(parts[1]);
+        
+        // Create a proper date to get the month index
+        const date = new Date(`${monthName} 1, ${year}`);
+        const monthIndex = date.getMonth() + 1;
+        const result = `${year}-${monthIndex.toString().padStart(2, '0')}`;
+        return result;
+      }
+      return '2025-04'; // Default fallback
+    } catch (error) {
+      return '2025-04'; // Default fallback
+    }
+  };
+
+  // Function to set default month from latest timesheet
+  const setDefaultMonth = async () => {
+    try {
+      // Try the new latest endpoint first
+      try {
+        const latest = await timesheetsAPI.getLatest();
+        if (latest && latest.month) {
+          const monthFormat = convertMonthLabelToFormat(latest.month);
+          setMonth(monthFormat);
+          return;
+        }
+      } catch (error) {
+        // Latest endpoint failed, try fallback method
+      }
+      
+      // Fallback: get all timesheets and find the latest one
+      try {
+        const allTimesheets = await timesheetsAPI.listSummaries();
+        
+        if (allTimesheets && allTimesheets.length > 0) {
+          // Find the timesheet with the latest month
+          const latestTimesheet = allTimesheets.reduce((latest, current) => {
+            if (!latest.monthLabel) return current;
+            if (!current.monthLabel) return latest;
+            
+            // Compare months by parsing them as dates
+            // Format like "September 2025" -> "September 1, 2025"
+            const latestDate = new Date(latest.monthLabel + ' 1, 2000');
+            const currentDate = new Date(current.monthLabel + ' 1, 2000');
+            
+            return currentDate > latestDate ? current : latest;
+          });
+          
+          if (latestTimesheet && latestTimesheet.monthLabel) {
+            const monthFormat = convertMonthLabelToFormat(latestTimesheet.monthLabel);
+            setMonth(monthFormat);
+          }
+        }
+      } catch (error) {
+        // API failed, keep default month
+        console.log('API failed, keeping default month');
+      }
+    } catch (error) {
+      // Keep the default month if no latest timesheet is found
+    }
+  };
+
   const fetchData = async () => {
     try {
       // Convert YYYY-MM format to "Month YYYY" format for API
@@ -52,6 +120,11 @@ const TimesheetList: React.FC = () => {
       setRows(mock);
     }
   };
+
+  useEffect(() => {
+    // Set default month from latest timesheet on component mount
+    setDefaultMonth();
+  }, []);
 
   useEffect(() => {
     fetchData();

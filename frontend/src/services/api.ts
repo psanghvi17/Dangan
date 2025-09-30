@@ -297,6 +297,11 @@ export const timesheetsAPI = {
     return res.data;
   },
   
+  getLatest: async (): Promise<{ timesheet_id: string; month: string; week: string; status: string; created_on: string }> => {
+    const res = await api.get('/api/timesheets/latest');
+    return res.data;
+  },
+  
   create: async (timesheet: TimesheetCreateDTO): Promise<TimesheetDetailDTO> => {
     const res = await api.post('/api/timesheets/', timesheet);
     return res.data;
