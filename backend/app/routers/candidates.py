@@ -415,3 +415,17 @@ def update_rate(tcr_id: int, payload: schemas.ContractRateUpdate, db: Session = 
         print(f"❌ Error updating rate: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.delete("/rates/{tcr_id}")
+def delete_rate(tcr_id: int, db: Session = Depends(get_db)):
+    try:
+        ok = crud.soft_delete_contract_rate(db, tcr_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Rate not found")
+        return {"deleted": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error deleting rate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+

@@ -9,10 +9,12 @@ import {
   Paper,
   MenuItem,
   Snackbar,
+  IconButton,
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckIcon from '@mui/icons-material/Check';
 import { candidatesAPI } from '../services/api';
 import { useSearchParams } from 'react-router-dom';
 
@@ -78,6 +80,7 @@ const Candidate: React.FC = () => {
   const [loadingRateMeta, setLoadingRateMeta] = useState(false);
   type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
   const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
 
   // Documents tab
   const [docs, setDocs] = useState<string[]>([]);
@@ -554,10 +557,48 @@ const Candidate: React.FC = () => {
                       <TextField fullWidth value={margin} disabled />
                     </Grid>
 
-                    <Grid item xs={12} md={3} sx={{ display: 'flex', alignItems: 'end' }}>
-                      <Button color="error" variant="outlined" onClick={() => {
-                        setRates(prev => prev.filter((_, i) => i !== idx));
-                      }} disabled={rates.length <= 1}>Remove</Button>
+                    <Grid item xs={12} md={3} sx={{ display: 'flex', alignItems: 'end', gap: 1 }}>
+                      {confirmDeleteIndex === idx ? (
+                        <>
+                          <IconButton color="success" aria-label="confirm delete" onClick={async () => {
+                            try {
+                              if (row.id) {
+                                await candidatesAPI.deleteRate(Number(row.id));
+                                if (clientRelationships.length > 0) {
+                                  const pccId = clientRelationships[0].pcc_id;
+                                  const refreshed = await candidatesAPI.getRatesByPcc(pccId);
+                                  setRates(refreshed.length ? refreshed.map(r => ({
+                                    id: r.id,
+                                    rate_type: r.rate_type,
+                                    rate_frequency: r.rate_frequency,
+                                    pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
+                                    bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
+                                    date_applicable: r.date_applicable || '',
+                                    date_end: r.date_end || ''
+                                  })) : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+                                } else {
+                                  setRates(prev => prev.filter((_, i) => i !== idx));
+                                }
+                              } else {
+                                setRates(prev => prev.filter((_, i) => i !== idx));
+                              }
+                            } catch (e) {
+                              console.error('❌ Failed to remove rate', e);
+                            } finally {
+                              setConfirmDeleteIndex(null);
+                            }
+                          }}>
+                            <CheckIcon />
+                          </IconButton>
+                          <IconButton color="error" aria-label="cancel delete" onClick={() => setConfirmDeleteIndex(null)}>
+                            <CloseIcon />
+                          </IconButton>
+                        </>
+                      ) : (
+                        <Button color="error" variant="outlined" onClick={() => setConfirmDeleteIndex(idx)} disabled={rates.length <= 1}>
+                          Remove
+                        </Button>
+                      )}
                     </Grid>
                   </Grid>
                 </Box>

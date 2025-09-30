@@ -740,3 +740,17 @@ def update_contract_rate(db: Session, tcr_id: int, update: schemas.ContractRateU
         print(f"❌ Error updating contract rate: {e}")
         db.rollback()
         return None
+
+
+def soft_delete_contract_rate(db: Session, tcr_id: int) -> bool:
+    try:
+        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).first()
+        if not row:
+            return False
+        row.deleted_on = func.now()
+        db.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Error soft-deleting contract rate: {e}")
+        db.rollback()
+        return False

@@ -306,6 +306,11 @@ export const candidatesAPI = {
     const res = await api.put(`/api/candidates/rates/${tcr_id}`, update);
     return res.data;
   },
+
+  deleteRate: async (tcr_id: number): Promise<{ deleted: boolean }> => {
+    const res = await api.delete(`/api/candidates/rates/${tcr_id}`);
+    return res.data;
+  },
 };
 
 export default api;
