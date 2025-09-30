@@ -275,8 +275,11 @@ const Candidate: React.FC = () => {
                   if (isEditMode && user_id) {
                     // Update existing candidate
                     const result = await candidatesAPI.update(user_id, {
+                      first_name: firstName,
+                      last_name: lastName,
+                      email_id: email,
                       invoice_contact_name: `${firstName} ${lastName}`,
-                      invoice_email: email,
+                      invoice_email: email ? [email] : undefined,
                     });
                     setToastSev('success');
                     setToastMsg('Candidate updated successfully!');

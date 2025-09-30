@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, date
 from uuid import UUID
 
@@ -227,7 +227,8 @@ class CandidateUpdate(BaseModel):
     last_name: Optional[str] = None
     email_id: Optional[EmailStr] = None
     invoice_contact_name: Optional[str] = None
-    invoice_email: Optional[List[str]] = None
+    # Accept either a single string or list of strings from the client
+    invoice_email: Optional[Union[str, List[str]]] = None
 
 
 class ClientOption(BaseModel):

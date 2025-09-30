@@ -163,11 +163,11 @@ def get_candidates_list(
 
 
 @router.get("/{user_id}", response_model=schemas.CandidateListItem)
-def get_candidate_by_id(user_id: str, db: Session = Depends(get_db)):
+def get_candidate_by_id(user_id: uuid.UUID, db: Session = Depends(get_db)):
     """Get a specific candidate by user_id"""
     try:
         print(f"🚀 Getting candidate with user_id: {user_id}")
-        m_user, candidate = crud.get_candidate_by_user_id(db, user_id)
+        m_user, candidate = crud.get_candidate_by_user_id(db, str(user_id))
         
         if not m_user:
             print(f"❌ No candidate found with user_id: {user_id}")
@@ -191,7 +191,7 @@ def get_candidate_by_id(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{user_id}", response_model=schemas.CandidateListItem)
-def update_candidate_by_id(user_id: str, candidate_update: schemas.CandidateUpdate, db: Session = Depends(get_db)):
+def update_candidate_by_id(user_id: uuid.UUID, candidate_update: schemas.CandidateUpdate, db: Session = Depends(get_db)):
     """Update a specific candidate by user_id"""
     try:
         print(f"🚀 Updating candidate with user_id: {user_id}")
@@ -211,7 +211,7 @@ def update_candidate_by_id(user_id: str, candidate_update: schemas.CandidateUpda
         if 'email_id' in update_data:
             update_data['invoice_email'] = [update_data['email_id']]
         
-        updated_user = crud.update_candidate(db, user_id, update_data)
+        updated_user = crud.update_candidate(db, str(user_id), update_data)
         
         if not updated_user:
             raise HTTPException(status_code=404, detail="Candidate not found")
@@ -295,12 +295,12 @@ def create_candidate_client_relationship(
 
 
 @router.get("/{user_id}/client-relationships", response_model=List[schemas.CandidateClientOut])
-def get_candidate_client_relationships(user_id: str, db: Session = Depends(get_db)):
+def get_candidate_client_relationships(user_id: uuid.UUID, db: Session = Depends(get_db)):
     """Get all client relationships for a candidate"""
     try:
         print(f"🚀 Getting client relationships for candidate: {user_id}")
         
-        relationships = crud.get_candidate_client_relationships(db, user_id)
+        relationships = crud.get_candidate_client_relationships(db, str(user_id))
         
         client_relationships = []
         for relationship in relationships:

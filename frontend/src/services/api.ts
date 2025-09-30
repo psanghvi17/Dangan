@@ -129,7 +129,7 @@ export const clientsAPI = {
 // Candidates API
 export interface CandidateCreateDTO {
   invoice_contact_name: string;
-  invoice_email?: string;
+  invoice_email?: string | string[];
   invoice_phone?: string;
   address1?: string;
   address2?: string;
@@ -248,7 +248,7 @@ export const candidatesAPI = {
     return res.data;
   },
   
-  update: async (user_id: string, payload: Partial<CandidateCreateDTO>): Promise<CandidateListItemDTO> => {
+  update: async (user_id: string, payload: Partial<CandidateCreateDTO & { first_name?: string; last_name?: string; email_id?: string }>): Promise<CandidateListItemDTO> => {
     const res = await api.put(`/api/candidates/${user_id}`, payload);
     return res.data;
   },

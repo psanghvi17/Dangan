@@ -349,6 +349,17 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
         if 'email_id' in candidate_data:
             m_user.email_id = candidate_data['email_id']
         
+        # Normalize invoice_email to a list if provided
+        if 'invoice_email' in candidate_data:
+            value = candidate_data['invoice_email']
+            if value is None:
+                candidate_data['invoice_email'] = None
+            elif isinstance(value, list):
+                candidate_data['invoice_email'] = value
+            else:
+                # assume string
+                candidate_data['invoice_email'] = [value]
+
         # Update candidate fields if they exist
         candidate = (
             db.query(models.Candidate)
