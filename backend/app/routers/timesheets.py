@@ -22,6 +22,19 @@ def list_timesheets(
         return []
 
 
+@router.get("/latest")
+def get_latest_timesheet(db: Session = Depends(get_db)):
+    """Get the most recently created timesheet"""
+    try:
+        latest = crud.get_latest_timesheet(db)
+        if not latest:
+            raise HTTPException(status_code=404, detail="No timesheets found")
+        return latest
+    except Exception as e:
+        print(f"Error getting latest timesheet: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting latest timesheet: {str(e)}")
+
+
 @router.post("/", response_model=schemas.TimesheetDetail)
 def create_timesheet(timesheet: schemas.TimesheetCreate, db: Session = Depends(get_db)):
     """Create a new timesheet with entries for specified candidates"""
