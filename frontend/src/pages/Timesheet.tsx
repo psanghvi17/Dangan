@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO } from '../services/api';
+import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, RateTypeDTO, RateFrequencyDTO } from '../services/api';
 import {
   Container,
   Box,
@@ -26,55 +26,25 @@ interface TimesheetRow {
   code: string;
   client: string;
   filled: boolean;
-  hours: number[]; // Dynamic: Standard, Rate columns based on contract rates, Holiday, Bank Holiday
-  contractRates?: ContractRateOutDTO[]; // Store contract rates for this row
+  hours: Record<string, number>; // Dynamic hours based on rate combinations
+  candidateRates?: any[]; // Store candidate's specific rates
 }
 
-// Dynamic hour columns will be generated based on contract rates
-const getHourColumns = (rates: ContractRateOutDTO[]): string[] => {
-  const columns = ['Standard\nHours'];
-  
-  // Add rate columns based on contract rates
-  rates.forEach((rate, index) => {
-    columns.push(`Hours\nRate ${index + 2}`);
-  });
-  
-  // Always add holiday columns at the end
-  columns.push('Holiday\nHours', 'Bank Holiday\nHours');
-  
-  return columns;
-};
+interface RateColumn {
+  rateTypeId: number;
+  rateTypeName: string;
+  rateFrequencyId: number;
+  rateFrequencyName: string;
+  key: string; // Unique key for this rate combination
+}
 
-// Helper function to convert TimesheetEntryDTO to TimesheetRow
-const convertEntryToRow = (entry: TimesheetEntryDTO, contractRates: ContractRateOutDTO[] = []): TimesheetRow => {
-  const hours = [entry.standard_hours];
-  
-  // Add rate hours based on contract rates (up to 6 rate columns as per current structure)
-  const rateHours = [
-    entry.rate2_hours,
-    entry.rate3_hours,
-    entry.rate4_hours,
-    entry.rate5_hours,
-    entry.rate6_hours,
-  ];
-  
-  // Add rate hours for the number of contract rates (up to 6)
-  for (let i = 0; i < Math.min(contractRates.length, 6); i++) {
-    hours.push(rateHours[i] || 0);
-  }
-  
-  // Always add holiday hours at the end
-  hours.push(entry.holiday_hours, entry.bank_holiday_hours);
-  
-  return {
-    id: entry.entry_id,
-    employee: entry.employee_name,
-    code: entry.employee_code,
-    client: entry.client_name,
-    filled: entry.filled,
-    hours,
-  };
-};
+interface TableColumn {
+  key: string;
+  label: string;
+  type: string;
+  rateTypeId?: number;
+  rateFrequencyId?: number;
+}
 
 // Helper function to calculate date range for a given week and month
 const calculateDateRange = (week: string, month: string): string => {
@@ -124,7 +94,11 @@ const Timesheet: React.FC = () => {
   const mode = searchParams.get('mode') || 'edit'; // Default to edit mode
   const [timesheetData, setTimesheetData] = useState<TimesheetDetailDTO | null>(null);
   const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
-  const [contractRates, setContractRates] = useState<Map<string, ContractRateOutDTO[]>>(new Map());
+  const [rateTypes, setRateTypes] = useState<RateTypeDTO[]>([]);
+  const [rateFrequencies, setRateFrequencies] = useState<RateFrequencyDTO[]>([]);
+  const [rateColumns, setRateColumns] = useState<RateColumn[]>([]);
+  const [candidateRatesMatrix, setCandidateRatesMatrix] = useState<Record<string, any[]>>({});
+  const [candidateClientInfo, setCandidateClientInfo] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState('');
   const [dateRange, setDateRange] = useState('');
@@ -138,9 +112,48 @@ const Timesheet: React.FC = () => {
       try {
         setLoading(true);
         
+        // Load all rate types and frequencies
+        const [rateTypesData, rateFrequenciesData] = await Promise.all([
+          candidatesAPI.getAllRateTypes(),
+          candidatesAPI.getAllRateFrequencies()
+        ]);
+        
+        setRateTypes(rateTypesData);
+        setRateFrequencies(rateFrequenciesData);
+        
+        // Generate all possible rate combinations, excluding fixed frequency instances and rate types with ID >= 50
+        const allRateColumns: RateColumn[] = [];
+        const excludedFrequencies = ['Fixed']; // Add frequencies to exclude here
+        
+        rateTypesData.forEach(rateType => {
+          // Skip if rate_type_id is >= 50
+          if (rateType.rate_type_id >= 50) {
+            return;
+          }
+          
+          rateFrequenciesData.forEach(rateFrequency => {
+            // Skip if this is a fixed frequency
+            if (excludedFrequencies.includes(rateFrequency.rate_frequency_name || '')) {
+              return;
+            }
+            
+            allRateColumns.push({
+              rateTypeId: rateType.rate_type_id,
+              rateTypeName: rateType.rate_type_name || '',
+              rateFrequencyId: rateFrequency.rate_frequency_id,
+              rateFrequencyName: rateFrequency.rate_frequency_name || '',
+              key: `${rateType.rate_type_id}-${rateFrequency.rate_frequency_id}`
+            });
+          });
+        });
+        
+        setRateColumns(allRateColumns);
+        console.log('🔍 Generated rate columns:', allRateColumns);
+        
         // Load candidates
         const candidatesData = await candidatesAPI.listAll();
         setCandidates(candidatesData);
+        console.log('🔍 Loaded candidates:', candidatesData);
         
         // Load timesheet data if editing
         if (timesheetId) {
@@ -151,38 +164,50 @@ const Timesheet: React.FC = () => {
           const calculatedDateRange = calculateDateRange(data.week || '', data.month || '');
           setDateRange(calculatedDateRange);
           
-          // For now, we'll use a simplified approach since we don't have client_id in timesheet entries
-          // We'll fetch contract rates for each candidate using their first available client relationship
-          const ratesMap = new Map<string, ContractRateOutDTO[]>();
-          const uniqueCandidates = new Set<string>();
-          
           // Get unique candidates from timesheet entries
+          const uniqueCandidates = new Set<string>();
           data.entries.forEach(entry => {
-            const candidate = candidatesData.find(c => c.candidate_id === entry.employee_code);
+            console.log(`🔍 Looking for candidate with employee_code: ${entry.employee_code}`);
+            let candidate = candidatesData.find(c => c.candidate_id === entry.employee_code);
+            
+            // If not found, try to find by name (fallback)
+            if (!candidate) {
+              candidate = candidatesData.find(c => c.invoice_contact_name === entry.employee_name);
+              console.log(`🔍 Fallback: Found candidate by name:`, candidate);
+            }
+            
+            console.log(`🔍 Found candidate:`, candidate);
             if (candidate) {
               uniqueCandidates.add(candidate.candidate_id);
+            } else {
+              console.log(`❌ No candidate found for employee_code: ${entry.employee_code} or name: ${entry.employee_name}`);
             }
           });
           
-          // For each candidate, try to get their contract rates
-          // Since we don't have client_id in the timesheet entries, we'll use a placeholder approach
-          // This is a temporary solution - in a real implementation, you'd need to modify the backend
-          // to either include client_id in timesheet entries or create a new API endpoint
-          Array.from(uniqueCandidates).forEach(candidateId => {
+          // Fetch rates matrix and client info for all candidates
+          const candidateIds = Array.from(uniqueCandidates);
+          console.log('🔍 Fetching rates matrix and client info for candidates:', candidateIds);
+          console.log('🔍 Candidate ID types:', candidateIds.map(id => typeof id));
+          console.log('🔍 Unique candidates set:', uniqueCandidates);
+          
+          if (candidateIds.length > 0) {
             try {
-              // For now, we'll use an empty array as we don't have client_id
-              // In a real implementation, you'd need to:
-              // 1. Add client_id to timesheet entries, or
-              // 2. Create a new API endpoint to get all contract rates for a candidate, or
-              // 3. Modify the existing API to work without client_id
-              ratesMap.set(candidateId, []);
+              const [ratesMatrix, clientInfo] = await Promise.all([
+                candidatesAPI.getCandidateRatesMatrix(candidateIds),
+                candidatesAPI.getCandidateClientInfo(candidateIds)
+              ]);
+              setCandidateRatesMatrix(ratesMatrix);
+              setCandidateClientInfo(clientInfo);
+              console.log('✅ Fetched rates matrix:', ratesMatrix);
+              console.log('✅ Fetched client info:', clientInfo);
+              console.log('🔍 Client info keys:', Object.keys(clientInfo));
+              console.log('🔍 Client info values:', Object.values(clientInfo));
             } catch (error) {
-              console.error(`Error fetching rates for candidate ${candidateId}:`, error);
-              ratesMap.set(candidateId, []);
+              console.error('❌ Error fetching candidate data:', error);
+              setCandidateRatesMatrix({});
+              setCandidateClientInfo({});
             }
-          });
-          
-          setContractRates(ratesMap);
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -197,14 +222,57 @@ const Timesheet: React.FC = () => {
   const rows = useMemo(() => {
     if (!timesheetData) return [];
     
+    console.log('🔍 Converting timesheet entries to rows. Candidate rates matrix:', candidateRatesMatrix);
+    
     const convertedRows = timesheetData.entries.map(entry => {
-      const candidate = candidates.find(c => c.candidate_id === entry.employee_code);
-      const key = candidate ? candidate.candidate_id : '';
-      const rates = contractRates.get(key) || [];
+      // Try to find candidate by employee_code first
+      let candidate = candidates.find(c => c.candidate_id === entry.employee_code);
+      
+      // If not found, try to find by name (fallback)
+      if (!candidate) {
+        candidate = candidates.find(c => c.invoice_contact_name === entry.employee_name);
+        console.log(`🔍 Fallback: Found candidate by name:`, candidate);
+      }
+      
+      const candidateId = candidate ? candidate.candidate_id : '';
+      const candidateRates = candidateRatesMatrix[candidateId] || [];
+      
+      // Use dynamic client name from database, not from timesheet entry
+      const dynamicClientName = candidateClientInfo[candidateId];
+      const clientName = dynamicClientName || 'Unknown Client';
+      
+      console.log(`🔍 Entry ${entry.employee_name} (${entry.employee_code}): candidate=${candidateId}, rates=${candidateRates.length}`);
+      console.log(`🔍 Dynamic client name for candidate ${candidateId}:`, dynamicClientName);
+      console.log(`🔍 Final client name:`, clientName);
+      console.log(`🔍 All client info:`, candidateClientInfo);
+      
+      // Create hours object with only dynamic rate combinations
+      const hours: Record<string, number> = {};
+      
+      // Add hours for each rate combination
+      rateColumns.forEach(column => {
+        const rateKey = column.key;
+        // Check if this candidate has this rate combination and it's not deleted
+        const hasRate = candidateRates.some(rate => 
+          rate.rate_type === column.rateTypeId && 
+          rate.rate_frequency === column.rateFrequencyId &&
+          rate.deleted_on === null // Only include non-deleted rates
+        );
+        
+        if (hasRate) {
+          // For now, use 0 as default - in a real implementation, you'd load existing values
+          hours[rateKey] = 0;
+        }
+      });
       
       return {
-        ...convertEntryToRow(entry, rates),
-        contractRates: rates
+        id: entry.entry_id,
+        employee: entry.employee_name,
+        code: entry.employee_code,
+        client: clientName,
+        filled: entry.filled,
+        hours,
+        candidateRates
       };
     });
     
@@ -216,6 +284,7 @@ const Timesheet: React.FC = () => {
       // Filter by candidate (if not "All Candidate")
       if (candidateFilter !== 'All Candidate') {
         const candidate = candidates.find(c => c.candidate_id === r.code);
+        console.log(`🔍 Filtering candidate: ${r.employee} (${r.code}), looking for: ${candidateFilter}, found: ${candidate?.invoice_contact_name}`);
         if (!candidate || candidate.invoice_contact_name !== candidateFilter) {
           return false;
         }
@@ -225,35 +294,37 @@ const Timesheet: React.FC = () => {
     });
     // Keep alphabetical order by employee name (case-insensitive)
     return filtered.sort((a, b) => a.employee.localeCompare(b.employee, undefined, { sensitivity: 'base' }));
-  }, [timesheetData, showFilled, candidateFilter, candidates, contractRates]);
+  }, [timesheetData, showFilled, candidateFilter, candidates, candidateRatesMatrix, candidateClientInfo, rateColumns]);
 
-  // Get the maximum number of rate columns needed across all rows
-  const maxRateColumns = useMemo(() => {
-    if (rows.length === 0) return 0;
-    return Math.max(...rows.map(r => r.contractRates?.length || 0));
-  }, [rows]);
-
-  // Generate consistent hour columns for the table
-  const tableHourColumns = useMemo(() => {
-    const columns = ['Standard\nHours'];
+  // Generate table columns based on all rate combinations (only dynamic columns)
+  const tableColumns = useMemo((): TableColumn[] => {
+    console.log('🔍 Generating table columns. Rate columns:', rateColumns);
     
-    // Add rate columns based on the maximum number of rates
-    for (let i = 0; i < maxRateColumns; i++) {
-      columns.push(`Hours\nRate ${i + 2}`);
-    }
+    const columns: TableColumn[] = [
+      { key: 'employee', label: 'Employee Details', type: 'employee' }
+    ];
     
-    // Always add holiday columns at the end
-    columns.push('Holiday\nHours', 'Bank Holiday\nHours');
+    // Add all rate combinations as columns (only dynamic rate combinations)
+    rateColumns.forEach(column => {
+      columns.push({
+        key: column.key,
+        label: `${column.rateTypeName}\n${column.rateFrequencyName}`,
+        type: 'hours',
+        rateTypeId: column.rateTypeId,
+        rateFrequencyId: column.rateFrequencyId
+      });
+    });
     
+    console.log('🔍 Final table columns:', columns);
     return columns;
-  }, [maxRateColumns]);
+  }, [rateColumns]);
 
   // Determine if this is editing an existing timesheet or creating a new one
   const isEditing = Boolean(timesheetId);
   const isViewMode = mode === 'view';
   const pageTitle = isViewMode ? 'View Timesheet' : (isEditing ? 'Edit Timesheet' : 'Create New Timesheet');
 
-  const onHourChange = async (rowId: string, colIdx: number, value: string) => {
+  const onHourChange = async (rowId: string, columnKey: string, value: string) => {
     const v = value === '' ? 0 : Number(value);
     if (Number.isNaN(v)) return;
     
@@ -261,32 +332,23 @@ const Timesheet: React.FC = () => {
     const entry = timesheetData?.entries.find(e => e.entry_id === rowId);
     if (!entry) return;
     
-    // Find the row to get contract rates
-    const row = rows.find(r => r.id === rowId);
-    if (!row) return;
+    // For dynamic rate combinations, we need to implement proper mapping
+    // This is a simplified approach - in a real implementation, you'd need to
+    // handle the mapping of rate combinations to the existing rate fields
+    const updateData: Record<string, number> = {};
     
-    // Create update object based on column index
-    const hourFields = ['standard_hours'];
-    
-    // Add rate fields based on contract rates (up to 6)
-    const rateFields = ['rate2_hours', 'rate3_hours', 'rate4_hours', 'rate5_hours', 'rate6_hours'];
-    for (let i = 0; i < Math.min(row.contractRates?.length || 0, 6); i++) {
-      hourFields.push(rateFields[i]);
-    }
-    
-    // Always add holiday fields at the end
-    hourFields.push('holiday_hours', 'bank_holiday_hours');
-    
-    const updateData = {
-      [hourFields[colIdx]]: v
-    };
+    // For rate combinations, we'll need to implement proper mapping
+    // For now, we'll just log it
+    console.log(`Rate combination ${columnKey} changed to ${v}`);
     
     try {
-      await timesheetsAPI.updateEntry(rowId, updateData);
-      // Refresh data after update
-      if (timesheetId) {
-        const updatedData = await timesheetsAPI.getDetail(timesheetId);
-        setTimesheetData(updatedData);
+      if (Object.keys(updateData).length > 0) {
+        await timesheetsAPI.updateEntry(rowId, updateData);
+        // Refresh data after update
+        if (timesheetId) {
+          const updatedData = await timesheetsAPI.getDetail(timesheetId);
+          setTimesheetData(updatedData);
+        }
       }
     } catch (error) {
       console.error('Error updating timesheet entry:', error);
@@ -340,11 +402,14 @@ const Timesheet: React.FC = () => {
             <Grid item>
               <TextField select size="small" value={candidateFilter} onChange={(e) => setCandidateFilter(e.target.value)}>
                 <MenuItem value="All Candidate">All Candidate</MenuItem>
-                {candidates.map((candidate) => (
-                  <MenuItem key={candidate.candidate_id} value={candidate.invoice_contact_name || 'Unknown'}>
-                    {candidate.invoice_contact_name || 'Unknown'}
-                  </MenuItem>
-                ))}
+                {candidates.map((candidate) => {
+                  console.log('🔍 Candidate for dropdown:', candidate);
+                  return (
+                    <MenuItem key={candidate.candidate_id} value={candidate.invoice_contact_name || 'Unknown'}>
+                      {candidate.invoice_contact_name || 'Unknown'}
+                    </MenuItem>
+                  );
+                })}
               </TextField>
             </Grid>
             <Grid item sx={{ flexGrow: 1 }} />
@@ -360,44 +425,97 @@ const Timesheet: React.FC = () => {
         </Box>
 
         <Paper variant="outlined">
-          <TableContainer component={Box}>
-            <Table size="small">
+          <TableContainer component={Box} sx={{ maxHeight: 600, overflowX: 'auto' }}>
+            <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 320 }}>Employee Details</TableCell>
-                  {tableHourColumns.map((c) => (
-                    <TableCell key={c} align="center">
-                      <Typography variant="caption" whiteSpace="pre-line">{c}</Typography>
+                  {tableColumns.map((column) => (
+                    <TableCell 
+                      key={column.key} 
+                      align="center"
+                      sx={{ 
+                        width: column.type === 'employee' ? 250 : 100,
+                        position: column.type === 'employee' ? 'sticky' : 'static',
+                        left: column.type === 'employee' ? 0 : 'auto',
+                        zIndex: column.type === 'employee' ? 2 : 1,
+                        backgroundColor: 'background.paper'
+                      }}
+                    >
+                      <Typography variant="caption" whiteSpace="pre-line">
+                        {column.label}
+                      </Typography>
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.employee}</Typography>
-                      <Typography variant="caption" color="text.secondary">{r.client}</Typography>
-                      <Typography variant="caption" sx={{ display: 'block' }}>
-                        {isViewMode ? 'View sheet' : 'Edit sheet'}
-                      </Typography>
-                    </TableCell>
-                    {r.hours.map((h, i) => (
-                      <TableCell key={i} align="center">
-                        {isViewMode ? (
-                          <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60 }}>
-                            {h}
-                          </Typography>
-                        ) : (
-                          <TextField
-                            size="small"
-                            value={h}
-                            onChange={(e) => onHourChange(r.id, i, e.target.value)}
-                            inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', style: { textAlign: 'center', width: 60 } }}
-                          />
-                        )}
-                      </TableCell>
-                    ))}
+                {rows.map((row) => (
+                  <TableRow key={row.id} hover>
+                    {tableColumns.map((column) => {
+                      if (column.type === 'employee') {
+                        return (
+                          <TableCell 
+                            key={column.key}
+                            sx={{
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 2,
+                              backgroundColor: 'background.paper',
+                              width: 250,
+                              minWidth: 250
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {row.employee}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {row.client}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                              {isViewMode ? 'View sheet' : 'Edit sheet'}
+                            </Typography>
+                          </TableCell>
+                        );
+                      } else {
+                        const value = row.hours[column.key] || 0;
+                        const isEnabled = row.candidateRates && row.candidateRates.some(rate => 
+                          rate.rate_type === column.rateTypeId && 
+                          rate.rate_frequency === column.rateFrequencyId &&
+                          rate.deleted_on === null // Only enable if not deleted
+                        );
+                        
+                        // Set disabled inputs to 0
+                        const displayValue = isEnabled ? value : 0;
+                        
+                        return (
+                          <TableCell key={column.key} align="center">
+                            {isViewMode ? (
+                              <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60 }}>
+                                {isEnabled ? displayValue : '-'}
+                              </Typography>
+                            ) : (
+                              <TextField
+                                size="small"
+                                value={isEnabled ? displayValue : 0}
+                                disabled={!isEnabled}
+                                onChange={(e) => onHourChange(row.id, column.key, e.target.value)}
+                                inputProps={{ 
+                                  inputMode: 'numeric', 
+                                  pattern: '[0-9]*', 
+                                  style: { textAlign: 'center', width: 60 } 
+                                }}
+                                sx={{
+                                  '& .MuiInputBase-input:disabled': {
+                                    color: 'text.disabled',
+                                    backgroundColor: 'action.disabledBackground'
+                                  }
+                                }}
+                              />
+                            )}
+                          </TableCell>
+                        );
+                      }
+                    })}
                   </TableRow>
                 ))}
               </TableBody>

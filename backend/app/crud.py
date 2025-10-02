@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from uuid import uuid4
-from typing import Optional, List
+from typing import Optional, List, Dict
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -894,7 +894,7 @@ def list_contract_rates_for_candidate_client(db: Session, candidate_id: str, cli
 
 def update_contract_rate(db: Session, tcr_id: int, update: schemas.ContractRateUpdate) -> Optional[models.ContractRate]:
     try:
-        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).first()
+        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).filter(models.ContractRate.deleted_on.is_(None)).first()
         if not row:
             return None
         data = {k: v for k, v in update.dict(exclude_unset=True).items()}
@@ -912,7 +912,7 @@ def update_contract_rate(db: Session, tcr_id: int, update: schemas.ContractRateU
 
 def soft_delete_contract_rate(db: Session, tcr_id: int) -> bool:
     try:
-        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).first()
+        row = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).filter(models.ContractRate.deleted_on.is_(None)).first()
         if not row:
             return False
         row.deleted_on = func.now()
@@ -922,3 +922,189 @@ def soft_delete_contract_rate(db: Session, tcr_id: int) -> bool:
         print(f"❌ Error soft-deleting contract rate: {e}")
         db.rollback()
         return False
+
+
+def get_contract_rates_for_candidate(db: Session, candidate_id: str) -> List[models.ContractRate]:
+    """Get all contract rates for a candidate by going through p_candidate_client table"""
+    try:
+        print(f"🔍 Getting contract rates for candidate: {candidate_id}")
+        
+        # First get all active pcc_ids for this candidate
+        pcc_relationships = (
+            db.query(models.P_CandidateClient)
+            .filter(models.P_CandidateClient.candidate_id == candidate_id)
+            .filter(models.P_CandidateClient.deleted_on.is_(None))
+            .all()
+        )
+        
+        print(f"🔍 Found {len(pcc_relationships)} pcc_relationships for candidate: {candidate_id}")
+        for rel in pcc_relationships:
+            print(f"  - PCC ID: {rel.pcc_id}, Client ID: {rel.client_id}, Status: {rel.status}")
+        
+        if not pcc_relationships:
+            print(f"🔍 No active candidate-client relationships found for candidate: {candidate_id}")
+            return []
+        
+        pcc_ids = [str(rel.pcc_id) for rel in pcc_relationships]
+        print(f"🔍 Found {len(pcc_ids)} active pcc_ids for candidate: {candidate_id}")
+        
+        # Get all contract rates for these pcc_ids
+        contract_rates = (
+            db.query(models.ContractRate)
+            .filter(models.ContractRate.pcc_id.in_(pcc_ids))
+            .filter(models.ContractRate.deleted_on.is_(None))
+            .order_by(models.ContractRate.created_on.desc())
+            .all()
+        )
+        
+        print(f"🔍 Found {len(contract_rates)} contract rates for candidate: {candidate_id}")
+        for rate in contract_rates:
+            print(f"  - Rate ID: {rate.id}, Rate Type: {rate.rate_type}, Pay Rate: {rate.pay_rate}, Bill Rate: {rate.bill_rate}")
+        
+        return contract_rates
+        
+    except Exception as e:
+        print(f"❌ Error getting contract rates for candidate: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def get_all_rate_types(db: Session) -> List[models.RateType]:
+    """Get all active rate types"""
+    try:
+        rate_types = (
+            db.query(models.RateType)
+            .filter(models.RateType.deleted_on.is_(None))
+            .order_by(models.RateType.rate_type_name)
+            .all()
+        )
+        return rate_types
+    except Exception as e:
+        print(f"❌ Error getting rate types: {e}")
+        return []
+
+
+def get_all_rate_frequencies(db: Session) -> List[models.RateFrequency]:
+    """Get all active rate frequencies"""
+    try:
+        rate_frequencies = (
+            db.query(models.RateFrequency)
+            .filter(models.RateFrequency.deleted_on.is_(None))
+            .order_by(models.RateFrequency.rate_frequency_name)
+            .all()
+        )
+        return rate_frequencies
+    except Exception as e:
+        print(f"❌ Error getting rate frequencies: {e}")
+        return []
+
+
+def get_candidate_rates_matrix(db: Session, candidate_ids: List[str]) -> Dict[str, List[Dict]]:
+    """Get rates matrix for multiple candidates - returns which rate_type/rate_frequency combinations each candidate has"""
+    try:
+        print(f"🔍 Getting rates matrix for candidates: {candidate_ids}")
+        
+        # Get all pcc_ids for these candidates
+        pcc_relationships = (
+            db.query(models.P_CandidateClient)
+            .filter(models.P_CandidateClient.candidate_id.in_(candidate_ids))
+            .filter(models.P_CandidateClient.deleted_on.is_(None))
+            .all()
+        )
+        
+        if not pcc_relationships:
+            print(f"🔍 No pcc_relationships found for candidates")
+            return {}
+        
+        pcc_ids = [str(rel.pcc_id) for rel in pcc_relationships]
+        print(f"🔍 Found {len(pcc_ids)} pcc_ids")
+        
+        # Get all contract rates for these pcc_ids
+        contract_rates = (
+            db.query(models.ContractRate)
+            .filter(models.ContractRate.pcc_id.in_(pcc_ids))
+            .filter(models.ContractRate.deleted_on.is_(None))
+            .all()
+        )
+        
+        print(f"🔍 Found {len(contract_rates)} contract rates")
+        
+        # Group rates by candidate
+        candidate_rates = {}
+        for rel in pcc_relationships:
+            candidate_id = str(rel.candidate_id)
+            if candidate_id not in candidate_rates:
+                candidate_rates[candidate_id] = []
+        
+        # Add rates to each candidate
+        for rate in contract_rates:
+            # Find which candidate this rate belongs to
+            for rel in pcc_relationships:
+                if str(rel.pcc_id) == str(rate.pcc_id):
+                    candidate_id = str(rel.candidate_id)
+                    candidate_rates[candidate_id].append({
+                        'rate_type': rate.rate_type,
+                        'rate_frequency': rate.rate_frequency,
+                        'pay_rate': rate.pay_rate,
+                        'bill_rate': rate.bill_rate,
+                        'rate_id': rate.id,
+                        'deleted_on': rate.deleted_on.isoformat() if rate.deleted_on else None
+                    })
+                    break
+        
+        print(f"🔍 Candidate rates matrix: {candidate_rates}")
+        return candidate_rates
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate rates matrix: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+def get_candidate_client_info(db: Session, candidate_ids: List[str]) -> Dict[str, str]:
+    """Get client information for multiple candidates using proper joins"""
+    try:
+        print(f"🔍 Getting client info for candidates: {candidate_ids}")
+        
+        # Use proper JOIN to get client names directly
+        from sqlalchemy.orm import aliased
+        
+        # Create aliases for the tables
+        pcc = aliased(models.CandidateClient)
+        mc = aliased(models.Client)
+        
+        # Join p_candidate_client with m_client to get client names
+        results = (
+            db.query(pcc.candidate_id, mc.client_name)
+            .join(mc, pcc.client_id == mc.client_id)
+            .filter(pcc.candidate_id.in_(candidate_ids))
+            .filter(pcc.deleted_on.is_(None))
+            .filter(mc.deleted_on.is_(None))
+            .all()
+        )
+        
+        print(f"🔍 Found {len(results)} candidate-client relationships with client names")
+        
+        # Create mapping of candidate_id to client_name
+        candidate_client_info = {}
+        for candidate_id, client_name in results:
+            candidate_id_str = str(candidate_id)
+            client_name_str = client_name or 'Unknown Client'
+            candidate_client_info[candidate_id_str] = client_name_str
+            print(f"🔍 Mapped candidate {candidate_id_str} to client: {client_name_str}")
+        
+        # Add 'Unknown Client' for candidates not found in relationships
+        for candidate_id in candidate_ids:
+            if str(candidate_id) not in candidate_client_info:
+                candidate_client_info[str(candidate_id)] = 'Unknown Client'
+                print(f"🔍 No relationship found for candidate {candidate_id}")
+        
+        print(f"🔍 Final candidate client info: {candidate_client_info}")
+        return candidate_client_info
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate client info: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}

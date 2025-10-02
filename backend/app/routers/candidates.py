@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 import math
 import uuid
 from ..database import get_db
@@ -470,4 +470,89 @@ def delete_rate(tcr_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"❌ Error deleting rate: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{candidate_id}/rates", response_model=List[schemas.ContractRateOut])
+def get_rates_for_candidate(candidate_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get all contract rates for a candidate"""
+    try:
+        print(f"🚀 Getting contract rates for candidate: {candidate_id}")
+        
+        rates = crud.get_contract_rates_for_candidate(db, str(candidate_id))
+        
+        result = [schemas.ContractRateOut.model_validate(rate) for rate in rates]
+        print(f"✅ Returning {len(result)} contract rates for candidate: {candidate_id}")
+        for rate in result:
+            print(f"  - Rate: {rate}")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting rates for candidate: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-types", response_model=List[schemas.RateTypeOut])
+def get_all_rate_types(db: Session = Depends(get_db)):
+    """Get all active rate types"""
+    try:
+        print(f"🚀 Getting all rate types")
+        
+        rate_types = crud.get_all_rate_types(db)
+        result = [schemas.RateTypeOut.model_validate(rt) for rt in rate_types]
+        
+        print(f"✅ Returning {len(result)} rate types")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting rate types: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-frequencies", response_model=List[schemas.RateFrequencyOut])
+def get_all_rate_frequencies(db: Session = Depends(get_db)):
+    """Get all active rate frequencies"""
+    try:
+        print(f"🚀 Getting all rate frequencies")
+        
+        rate_frequencies = crud.get_all_rate_frequencies(db)
+        result = [schemas.RateFrequencyOut.model_validate(rf) for rf in rate_frequencies]
+        
+        print(f"✅ Returning {len(result)} rate frequencies")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting rate frequencies: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/rates-matrix", response_model=Dict[str, List[Dict]])
+def get_candidate_rates_matrix(candidate_ids: List[str], db: Session = Depends(get_db)):
+    """Get rates matrix for multiple candidates"""
+    try:
+        print(f"🚀 Getting rates matrix for candidates: {candidate_ids}")
+        
+        rates_matrix = crud.get_candidate_rates_matrix(db, candidate_ids)
+        
+        print(f"✅ Returning rates matrix for {len(rates_matrix)} candidates")
+        return rates_matrix
+        
+    except Exception as e:
+        print(f"❌ Error getting rates matrix: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/client-info", response_model=Dict[str, str])
+def get_candidate_client_info(candidate_ids: List[str], db: Session = Depends(get_db)):
+    """Get client information for multiple candidates"""
+    try:
+        print(f"🔍 Getting client info for candidates: {candidate_ids}")
+        client_info = crud.get_candidate_client_info(db, candidate_ids)
+        print(f"✅ Client info result: {client_info}")
+        return client_info
+    except Exception as e:
+        print(f"❌ Error getting client info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 

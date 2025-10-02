@@ -344,6 +344,31 @@ export const candidatesAPI = {
     const res = await api.get(`/api/candidates/client-relationship/rates?candidate_id=${candidateId}&client_id=${clientId}`);
     return res.data;
   },
+
+  getContractRatesForCandidate: async (candidateId: string): Promise<ContractRateOutDTO[]> => {
+    const res = await api.get(`/api/candidates/${candidateId}/rates`);
+    return res.data;
+  },
+
+  getAllRateTypes: async (): Promise<RateTypeDTO[]> => {
+    const res = await api.get('/api/candidates/rate-types');
+    return res.data;
+  },
+
+  getAllRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
+    const res = await api.get('/api/candidates/rate-frequencies');
+    return res.data;
+  },
+
+  getCandidateRatesMatrix: async (candidateIds: string[]): Promise<Record<string, any[]>> => {
+    const res = await api.post('/api/candidates/rates-matrix', candidateIds);
+    return res.data;
+  },
+
+  getCandidateClientInfo: async (candidateIds: string[]): Promise<Record<string, string>> => {
+    const res = await api.post('/api/candidates/client-info', candidateIds);
+    return res.data;
+  },
 };
 
 export default api;
