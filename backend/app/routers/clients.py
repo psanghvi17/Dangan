@@ -27,7 +27,28 @@ def list_clients(
     db: Session = Depends(get_db),
 ):
     try:
-        items = crud.get_clients(db, skip=skip, limit=limit)
+        # Get clients with active contracts count
+        results = crud.get_clients_with_active_contracts_count(db, skip=skip, limit=limit)
+        
+        # Transform results to include active_contracts_count
+        items = []
+        for client, active_contracts_count in results:
+            client_dict = {
+                "client_id": client.client_id,
+                "client_name": client.client_name,
+                "email": client.email,
+                "description": client.description,
+                "contact_email": client.contact_email,
+                "contact_name": client.contact_name,
+                "contact_phone": client.contact_phone,
+                "created_on": client.created_on,
+                "updated_on": client.updated_on,
+                "deleted_on": client.deleted_on,
+                "deleted_by": client.deleted_by,
+                "active_contracts_count": active_contracts_count
+            }
+            items.append(client_dict)
+        
         total = crud.count_clients(db)
         return {"items": items, "total": total}
     except Exception as e:

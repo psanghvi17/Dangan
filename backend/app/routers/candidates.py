@@ -9,21 +9,63 @@ from .. import crud, schemas, models
 router = APIRouter()
 
 
-@router.get("/", response_model=List[schemas.Candidate])
+@router.get("/", response_model=List[schemas.CandidateWithClient])
 def list_candidates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     try:
-        print(f"🔍 DEBUG: Fetching candidates with skip={skip}, limit={limit}")
-        candidates = crud.get_candidates(db, skip=skip, limit=limit)
-        print(f"🔍 DEBUG: Found {len(candidates)} candidates")
+        print(f"🔍 DEBUG: Fetching candidates with client info, skip={skip}, limit={limit}")
+        candidates = crud.get_candidates_with_client_info(db, skip=skip, limit=limit)
+        print(f"🔍 DEBUG: Found {len(candidates)} candidates with client info")
         for candidate in candidates:
-            print(f"🔍 DEBUG: Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id})")
+            print(f"🔍 DEBUG: Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id}) - Client: {candidate.client_name}")
         return candidates
     except Exception as e:
         print(f"🔍 DEBUG: Error fetching candidates: {str(e)}")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+        raise
+
+
+@router.get("/active", response_model=List[schemas.CandidateWithClient])
+def list_active_candidates(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    try:
+        print(f"🔍 DEBUG: Fetching active candidates, skip={skip}, limit={limit}")
+        candidates = crud.get_active_candidates(db, skip=skip, limit=limit)
+        print(f"🔍 DEBUG: Found {len(candidates)} active candidates")
+        for candidate in candidates:
+            print(f"🔍 DEBUG: Active Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id}) - Client: {candidate.client_name}")
+        return candidates
+    except Exception as e:
+        print(f"🔍 DEBUG: Error fetching active candidates: {str(e)}")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+        raise
+
+
+@router.get("/pending", response_model=List[schemas.CandidateWithClient])
+def list_pending_candidates(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    try:
+        print(f"🔍 DEBUG: Fetching pending candidates, skip={skip}, limit={limit}")
+        candidates = crud.get_pending_candidates(db, skip=skip, limit=limit)
+        print(f"🔍 DEBUG: Found {len(candidates)} pending candidates")
+        for candidate in candidates:
+            print(f"🔍 DEBUG: Pending Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id})")
+        return candidates
+    except Exception as e:
+        print(f"🔍 DEBUG: Error fetching pending candidates: {str(e)}")
         print(f"🔍 DEBUG: Error type: {type(e)}")
         import traceback
         print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")

@@ -61,7 +61,7 @@ const ManageClient: React.FC = () => {
         id: i,
         name: c.client_name || '',
         email: c.email || '',
-        activeContractors: 3,
+        activeContractors: c.active_contracts_count || 0,
         description: c.description || '—',
         clientId: c.client_id,
         client: c,

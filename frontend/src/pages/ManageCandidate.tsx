@@ -11,6 +11,8 @@ import {
   CircularProgress,
   Alert,
   Pagination,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -20,7 +22,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Avatar from '@mui/material/Avatar';
 import { useNavigate } from 'react-router-dom';
-import { candidatesAPI, CandidateListItemDTO } from '../services/api';
+import { candidatesAPI, CandidateDTO } from '../services/api';
 
 interface Row {
   id: string;
@@ -37,9 +39,10 @@ const ManageCandidate: React.FC = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [clientFilter, setClientFilter] = useState('Client');
+  const [activeTab, setActiveTab] = useState(0); // 0 for Active, 1 for Pending
   
   // API state
-  const [candidates, setCandidates] = useState<CandidateListItemDTO[]>([]);
+  const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -51,18 +54,28 @@ const ManageCandidate: React.FC = () => {
 
   // Load candidates from API
   const loadCandidates = async (page: number = 1, limit: number = 10) => {
-    console.log('🔄 Loading candidates from API...', { page, limit });
+    console.log('🔄 Loading candidates from API...', { page, limit, activeTab });
     setLoading(true);
     setError(null);
     try {
-      const response = await candidatesAPI.list({ page, limit });
-      console.log('✅ Candidates loaded:', response);
-      setCandidates(response.candidates);
+      let response: CandidateDTO[];
+      
+      if (activeTab === 0) {
+        // Load active candidates
+        response = await candidatesAPI.listActive();
+        console.log('✅ Active candidates loaded:', response);
+      } else {
+        // Load pending candidates
+        response = await candidatesAPI.listPending();
+        console.log('✅ Pending candidates loaded:', response);
+      }
+      
+      setCandidates(response);
       setPagination({
-        page: response.page,
-        limit: response.limit,
-        total: response.total,
-        total_pages: response.total_pages
+        page: 1,
+        limit: response.length,
+        total: response.length,
+        total_pages: 1
       });
     } catch (err) {
       console.error('❌ Error loading candidates:', err);
@@ -78,19 +91,25 @@ const ManageCandidate: React.FC = () => {
     loadCandidates();
   }, []);
 
+  // Reload candidates when tab changes
+  useEffect(() => {
+    console.log('🔄 Tab changed, reloading candidates...', activeTab);
+    loadCandidates();
+  }, [activeTab]);
+
   // Convert API data to table rows
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return candidates
-      .filter((candidate) => !q || candidate.first_name?.toLowerCase().includes(q) || candidate.last_name?.toLowerCase().includes(q))
+      .filter((candidate) => !q || candidate.invoice_contact_name?.toLowerCase().includes(q))
       .map((candidate) => ({
-        id: candidate.user_id,
-        initials: `${candidate.first_name?.[0] || ''}${candidate.last_name?.[0] || ''}`.toUpperCase(),
-        name: `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim(),
-        email: candidate.email_id || '',
-        clientName: 'N/A', // This would come from a separate API call
-        startDate: 'N/A', // This would come from a separate API call
-        finishDate: 'N/A', // This would come from a separate API call
+        id: candidate.candidate_id,
+        initials: candidate.invoice_contact_name ? candidate.invoice_contact_name.split(' ').map(n => n[0]).join('').toUpperCase() : 'N/A',
+        name: candidate.invoice_contact_name || 'N/A',
+        email: candidate.invoice_email || '',
+        clientName: candidate.client_name || 'N/A',
+        startDate: candidate.contract_start_date || 'N/A',
+        finishDate: candidate.contract_end_date || 'N/A',
         managerName: 'N/A', // This would come from a separate API call
       }));
   }, [candidates, query]);
@@ -101,6 +120,27 @@ const ManageCandidate: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           Candidate
         </Typography>
+
+        <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
+          <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
+            <Button
+              variant={activeTab === 0 ? 'contained' : 'outlined'}
+              color={activeTab === 0 ? 'primary' : 'inherit'}
+              onClick={() => setActiveTab(0)}
+              sx={{ borderRadius: 999, px: 3 }}
+            >
+              Active Candidates
+            </Button>
+            <Button
+              variant={activeTab === 1 ? 'contained' : 'outlined'}
+              color={activeTab === 1 ? 'primary' : 'inherit'}
+              onClick={() => setActiveTab(1)}
+              sx={{ borderRadius: 999, px: 3 }}
+            >
+              Pending Candidates
+            </Button>
+          </Box>
+        </Paper>
 
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: 'background.default' }}>
           <Grid container spacing={2} alignItems="center">

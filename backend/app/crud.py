@@ -138,6 +138,33 @@ def soft_delete_client(db: Session, client_id: str, deleted_by: str):
     return db_client
 
 
+def get_clients_with_active_contracts_count(db: Session, skip: int = 0, limit: int = 100):
+    """Get clients with count of active contracts (status=0) from p_candidate_client table"""
+    from sqlalchemy import func, case
+    
+    return (
+        db.query(
+            models.Client,
+            func.count(
+                case(
+                    (models.P_CandidateClient.status == 0, models.P_CandidateClient.pcc_id),
+                    else_=None
+                )
+            ).label('active_contracts_count')
+        )
+        .outerjoin(
+            models.P_CandidateClient, 
+            models.Client.client_id == models.P_CandidateClient.client_id
+        )
+        .filter(models.Client.deleted_on.is_(None))
+        .group_by(models.Client.client_id)
+        .order_by(models.Client.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def create_m_user(db: Session, payload: schemas.MUserCreate):
     # Create user in app.m_user without forcing role_id (to avoid FK violations)
     m_user = models.MUser(
@@ -284,6 +311,147 @@ def get_candidates(db: Session, skip: int = 0, limit: int = 100):
             pps_number=candidate.pps_number,
             date_of_birth=candidate.date_of_birth,
             created_on=candidate.created_on
+        ))
+    
+    return result
+
+
+def get_candidates_with_client_info(db: Session, skip: int = 0, limit: int = 100):
+    """Get candidates with their active client information from p_candidate_client and m_client tables"""
+    from sqlalchemy import func
+    
+    # Get candidates with their active client relationships
+    results = (
+        db.query(
+            models.Candidate,
+            models.Client.client_name,
+            models.P_CandidateClient.contract_start_date,
+            models.P_CandidateClient.contract_end_date
+        )
+        .outerjoin(
+            models.P_CandidateClient,
+            models.Candidate.candidate_id == models.P_CandidateClient.candidate_id
+        )
+        .outerjoin(
+            models.Client,
+            models.P_CandidateClient.client_id == models.Client.client_id
+        )
+        .filter(models.P_CandidateClient.status == 0)  # Only active contracts
+        .order_by(models.Candidate.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    # Convert to proper schema format
+    result = []
+    for candidate, client_name, contract_start_date, contract_end_date in results:
+        result.append(schemas.CandidateWithClient(
+            candidate_id=str(candidate.candidate_id),
+            invoice_contact_name=candidate.invoice_contact_name,
+            invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+            invoice_phone=candidate.invoice_phone,
+            address1=candidate.address1,
+            address2=candidate.address2,
+            town=candidate.town,
+            county=candidate.county,
+            eircode=candidate.eircode,
+            pps_number=candidate.pps_number,
+            date_of_birth=candidate.date_of_birth,
+            created_on=candidate.created_on,
+            client_name=client_name,
+            contract_start_date=contract_start_date,
+            contract_end_date=contract_end_date
+        ))
+    
+    return result
+
+
+def get_active_candidates(db: Session, skip: int = 0, limit: int = 100):
+    """Get candidates who have entries in p_candidate_client table (active candidates)"""
+    from sqlalchemy import func
+    
+    # Get candidates who have entries in p_candidate_client
+    results = (
+        db.query(
+            models.Candidate,
+            models.Client.client_name,
+            models.P_CandidateClient.contract_start_date,
+            models.P_CandidateClient.contract_end_date
+        )
+        .join(
+            models.P_CandidateClient,
+            models.Candidate.candidate_id == models.P_CandidateClient.candidate_id
+        )
+        .outerjoin(
+            models.Client,
+            models.P_CandidateClient.client_id == models.Client.client_id
+        )
+        .order_by(models.Candidate.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    # Convert to proper schema format
+    result = []
+    for candidate, client_name, contract_start_date, contract_end_date in results:
+        result.append(schemas.CandidateWithClient(
+            candidate_id=str(candidate.candidate_id),
+            invoice_contact_name=candidate.invoice_contact_name,
+            invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+            invoice_phone=candidate.invoice_phone,
+            address1=candidate.address1,
+            address2=candidate.address2,
+            town=candidate.town,
+            county=candidate.county,
+            eircode=candidate.eircode,
+            pps_number=candidate.pps_number,
+            date_of_birth=candidate.date_of_birth,
+            created_on=candidate.created_on,
+            client_name=client_name,
+            contract_start_date=contract_start_date,
+            contract_end_date=contract_end_date
+        ))
+    
+    return result
+
+
+def get_pending_candidates(db: Session, skip: int = 0, limit: int = 100):
+    """Get candidates who don't have any entries in p_candidate_client table (pending candidates)"""
+    from sqlalchemy import func
+    
+    # Get candidates who don't have entries in p_candidate_client
+    subquery = db.query(models.P_CandidateClient.candidate_id).subquery()
+    
+    results = (
+        db.query(models.Candidate)
+        .filter(~models.Candidate.candidate_id.in_(subquery))
+        .order_by(models.Candidate.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    # Convert to proper schema format
+    result = []
+    for candidate in results:
+        result.append(schemas.CandidateWithClient(
+            candidate_id=str(candidate.candidate_id),
+            invoice_contact_name=candidate.invoice_contact_name,
+            invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+            invoice_phone=candidate.invoice_phone,
+            address1=candidate.address1,
+            address2=candidate.address2,
+            town=candidate.town,
+            county=candidate.county,
+            eircode=candidate.eircode,
+            pps_number=candidate.pps_number,
+            date_of_birth=candidate.date_of_birth,
+            created_on=candidate.created_on,
+            client_name=None,  # No client for pending candidates
+            contract_start_date=None,
+            contract_end_date=None
         ))
     
     return result

@@ -91,6 +91,18 @@ class Client(ClientBase):
         from_attributes = True
 
 
+class ClientWithActiveContracts(ClientBase):
+    client_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    deleted_on: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+    active_contracts_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 class CandidateBase(BaseModel):
     invoice_contact_name: Optional[str] = None
     invoice_email: Optional[str] = None
@@ -111,6 +123,17 @@ class CandidateCreate(CandidateBase):
 class Candidate(CandidateBase):
     candidate_id: str
     created_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CandidateWithClient(CandidateBase):
+    candidate_id: str
+    created_on: Optional[datetime] = None
+    client_name: Optional[str] = None
+    contract_start_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
 
     class Config:
         from_attributes = True

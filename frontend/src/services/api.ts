@@ -83,6 +83,7 @@ export interface ClientDTO {
   contact_name?: string;
   contact_phone?: string;
   created_on?: string;
+  active_contracts_count?: number;
 }
 
 export interface ClientCreateDTO {
@@ -153,6 +154,9 @@ export interface CandidateDTO {
   pps_number?: string;
   date_of_birth?: string;
   created_on?: string;
+  client_name?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
 }
 
 export interface CandidateListItemDTO {
@@ -231,9 +235,33 @@ export const candidatesAPI = {
   },
 
   listAll: async (): Promise<CandidateDTO[]> => {
-    console.log('Making API call to /api/candidates/ to get all candidates');
+    console.log('Making API call to /api/candidates/ to get all candidates with client info');
     try {
       const res = await api.get('/api/candidates/');
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
+  },
+
+  listActive: async (): Promise<CandidateDTO[]> => {
+    console.log('Making API call to /api/candidates/active to get active candidates');
+    try {
+      const res = await api.get('/api/candidates/active');
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
+  },
+
+  listPending: async (): Promise<CandidateDTO[]> => {
+    console.log('Making API call to /api/candidates/pending to get pending candidates');
+    try {
+      const res = await api.get('/api/candidates/pending');
       console.log('API response:', res.data);
       return res.data;
     } catch (error) {
@@ -309,6 +337,11 @@ export const candidatesAPI = {
 
   deleteRate: async (tcr_id: number): Promise<{ deleted: boolean }> => {
     const res = await api.delete(`/api/candidates/rates/${tcr_id}`);
+    return res.data;
+  },
+
+  getContractRatesForCandidateClient: async (candidateId: string, clientId: string): Promise<ContractRateOutDTO[]> => {
+    const res = await api.get(`/api/candidates/client-relationship/rates?candidate_id=${candidateId}&client_id=${clientId}`);
     return res.data;
   },
 };
