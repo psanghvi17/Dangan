@@ -877,32 +877,58 @@ def upsert_contractor_hours(db: Session, items: List[schemas.ContractorHoursUpse
                 # Handle rate hours for existing contractor hours
                 if payload.rate_hours:
                     print(f"🔍 DEBUG: Processing rate hours for existing tch_id: {payload.tch_id}")
-                    # Soft delete existing rate hours for this tch_id
+                    
+                    # Get existing rate hours for this tch_id
                     existing_rate_hours = db.query(models.ContractorRateHours).filter(
                         models.ContractorRateHours.tch_id == payload.tch_id,
                         models.ContractorRateHours.deleted_on.is_(None)
                     ).all()
                     
-                    print(f"🔍 DEBUG: Found {len(existing_rate_hours)} existing rate hours to soft delete")
-                    for existing_rate in existing_rate_hours:
-                        existing_rate.deleted_on = func.now()
-                        existing_rate.deleted_by = getattr(payload, 'created_by', None)
+                    print(f"🔍 DEBUG: Found {len(existing_rate_hours)} existing rate hours")
                     
-                    # Create new rate hours entries
+                    # Create a map of existing rate hours by rate_type_id and rate_frequency_id
+                    existing_rate_map = {}
+                    for existing_rate in existing_rate_hours:
+                        key = f"{existing_rate.rate_type_id}-{existing_rate.rate_frequency_id}"
+                        existing_rate_map[key] = existing_rate
+                    
+                    # Process new rate hours data
+                    processed_rate_keys = set()
                     for rate_hour in payload.rate_hours:
-                        if rate_hour.quantity and rate_hour.quantity > 0:  # Only save if quantity > 0
-                            print(f"🔍 DEBUG: Creating new rate hour: quantity={rate_hour.quantity}")
-                            new_rate_hour = models.ContractorRateHours(
-                                tch_id=payload.tch_id,
-                                rate_frequency_id=rate_hour.rate_frequency_id,
-                                rate_type_id=rate_hour.rate_type_id,
-                                tcr_id=rate_hour.tcr_id,
-                                quantity=rate_hour.quantity,
-                                pay_rate=rate_hour.pay_rate,
-                                bill_rate=rate_hour.bill_rate,
-                                created_by=getattr(payload, 'created_by', None)
-                            )
-                            db.add(new_rate_hour)
+                        if rate_hour.quantity and rate_hour.quantity > 0:  # Only process if quantity > 0
+                            key = f"{rate_hour.rate_type_id}-{rate_hour.rate_frequency_id}"
+                            processed_rate_keys.add(key)
+                            
+                            if key in existing_rate_map:
+                                # Update existing record
+                                existing_rate = existing_rate_map[key]
+                                print(f"🔍 DEBUG: Updating existing rate hour {key}: quantity {existing_rate.quantity} -> {rate_hour.quantity}")
+                                existing_rate.quantity = rate_hour.quantity
+                                existing_rate.pay_rate = rate_hour.pay_rate
+                                existing_rate.bill_rate = rate_hour.bill_rate
+                                existing_rate.updated_on = func.now()
+                                existing_rate.updated_by = getattr(payload, 'created_by', None)
+                            else:
+                                # Create new record
+                                print(f"🔍 DEBUG: Creating new rate hour {key}: quantity={rate_hour.quantity}")
+                                new_rate_hour = models.ContractorRateHours(
+                                    tch_id=payload.tch_id,
+                                    rate_frequency_id=rate_hour.rate_frequency_id,
+                                    rate_type_id=rate_hour.rate_type_id,
+                                    tcr_id=rate_hour.tcr_id,
+                                    quantity=rate_hour.quantity,
+                                    pay_rate=rate_hour.pay_rate,
+                                    bill_rate=rate_hour.bill_rate,
+                                    created_by=getattr(payload, 'created_by', None)
+                                )
+                                db.add(new_rate_hour)
+                    
+                    # Soft delete rate hours that are no longer in the payload
+                    for key, existing_rate in existing_rate_map.items():
+                        if key not in processed_rate_keys:
+                            print(f"🔍 DEBUG: Soft deleting rate hour {key} (no longer in payload)")
+                            existing_rate.deleted_on = func.now()
+                            existing_rate.deleted_by = getattr(payload, 'created_by', None)
                 continue
         
         # insert new contractor hours
@@ -953,7 +979,8 @@ def upsert_contractor_hours(db: Session, items: List[schemas.ContractorHoursUpse
                 print(f"🔍 DEBUG: Processing rate hours for new tch_id: {row.tch_id}")
                 for rate_hour in payload.rate_hours:
                     if rate_hour.quantity and rate_hour.quantity > 0:  # Only save if quantity > 0
-                        print(f"🔍 DEBUG: Creating new rate hour: quantity={rate_hour.quantity}, tch_id={row.tch_id}")
+                        key = f"{rate_hour.rate_type_id}-{rate_hour.rate_frequency_id}"
+                        print(f"🔍 DEBUG: Creating new rate hour {key}: quantity={rate_hour.quantity}, tch_id={row.tch_id}")
                         new_rate_hour = models.ContractorRateHours(
                             tch_id=row.tch_id,
                             rate_frequency_id=rate_hour.rate_frequency_id,
