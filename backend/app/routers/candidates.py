@@ -556,3 +556,27 @@ def get_candidate_client_info(candidate_ids: List[str], db: Session = Depends(ge
         print(f"❌ Error getting client info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/contract-with-rates", response_model=schemas.ContractWithRatesOut)
+def create_contract_with_rates(
+    contract_data: schemas.ContractWithRatesCreate,
+    db: Session = Depends(get_db)
+):
+    """Create or update contract with rates in a single API call"""
+    try:
+        print(f"🚀 Creating/updating contract with rates: {contract_data}")
+        
+        result = crud.create_contract_with_rates(db, contract_data)
+        
+        print(f"✅ Successfully created/updated contract: {result.pcc_id}")
+        return result
+        
+    except ValueError as ve:
+        print(f"❌ Validation error: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        print(f"❌ Error creating contract with rates: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+

@@ -260,8 +260,29 @@ const Timesheet: React.FC = () => {
         );
         
         if (hasRate) {
-          // For now, use 0 as default - in a real implementation, you'd load existing values
-          hours[rateKey] = 0;
+          // Map rate type to the corresponding database field and get the current value
+          let currentValue = 0;
+          const rateTypeId = column.rateTypeId;
+          
+          if (rateTypeId === 1) { // Standard rate
+            currentValue = entry.standard_hours || 0;
+          } else if (rateTypeId === 2) { // Rate 2
+            currentValue = entry.rate2_hours || 0;
+          } else if (rateTypeId === 3) { // Rate 3
+            currentValue = entry.rate3_hours || 0;
+          } else if (rateTypeId === 4) { // Rate 4
+            currentValue = entry.rate4_hours || 0;
+          } else if (rateTypeId === 5) { // Rate 5
+            currentValue = entry.rate5_hours || 0;
+          } else if (rateTypeId === 6) { // Rate 6
+            currentValue = entry.rate6_hours || 0;
+          } else if (rateTypeId === 7) { // Holiday
+            currentValue = entry.holiday_hours || 0;
+          } else if (rateTypeId === 8) { // Bank Holiday
+            currentValue = entry.bank_holiday_hours || 0;
+          }
+          
+          hours[rateKey] = currentValue;
         }
       });
       
@@ -328,31 +349,99 @@ const Timesheet: React.FC = () => {
     const v = value === '' ? 0 : Number(value);
     if (Number.isNaN(v)) return;
     
-    // Find the entry to update
-    const entry = timesheetData?.entries.find(e => e.entry_id === rowId);
-    if (!entry) return;
-    
-    // For dynamic rate combinations, we need to implement proper mapping
-    // This is a simplified approach - in a real implementation, you'd need to
-    // handle the mapping of rate combinations to the existing rate fields
-    const updateData: Record<string, number> = {};
-    
-    // For rate combinations, we'll need to implement proper mapping
-    // For now, we'll just log it
-    console.log(`Rate combination ${columnKey} changed to ${v}`);
-    
-    try {
-      if (Object.keys(updateData).length > 0) {
-        await timesheetsAPI.updateEntry(rowId, updateData);
-        // Refresh data after update
-        if (timesheetId) {
-          const updatedData = await timesheetsAPI.getDetail(timesheetId);
-          setTimesheetData(updatedData);
+    // Immediately update local state for instant UI feedback
+    if (timesheetData) {
+      const updatedEntries = timesheetData.entries.map(entry => {
+        if (entry.entry_id === rowId) {
+          // Find the rate column to get the rate type
+          const rateColumn = rateColumns.find(col => col.key === columnKey);
+          if (rateColumn) {
+            const rateTypeId = rateColumn.rateTypeId;
+            
+            // Create a new entry object with updated hours
+            const updatedEntry = { ...entry };
+            
+            // Update the appropriate field based on rate type
+            if (rateTypeId === 1) { // Standard rate
+              updatedEntry.standard_hours = v;
+            } else if (rateTypeId === 2) { // Rate 2
+              updatedEntry.rate2_hours = v;
+            } else if (rateTypeId === 3) { // Rate 3
+              updatedEntry.rate3_hours = v;
+            } else if (rateTypeId === 4) { // Rate 4
+              updatedEntry.rate4_hours = v;
+            } else if (rateTypeId === 5) { // Rate 5
+              updatedEntry.rate5_hours = v;
+            } else if (rateTypeId === 6) { // Rate 6
+              updatedEntry.rate6_hours = v;
+            } else if (rateTypeId === 7) { // Holiday
+              updatedEntry.holiday_hours = v;
+            } else if (rateTypeId === 8) { // Bank Holiday
+              updatedEntry.bank_holiday_hours = v;
+            }
+            
+            return updatedEntry;
+          }
         }
-      }
-    } catch (error) {
-      console.error('Error updating timesheet entry:', error);
+        return entry;
+      });
+      
+      // Update the timesheet data immediately
+      setTimesheetData({
+        ...timesheetData,
+        entries: updatedEntries
+      });
     }
+    
+    // Debounced server update (update after 1 second of no changes)
+    const updateServer = async () => {
+      try {
+        const updateData: Record<string, number> = {};
+        const rateColumn = rateColumns.find(col => col.key === columnKey);
+        
+        if (rateColumn) {
+          const rateTypeId = rateColumn.rateTypeId;
+          
+          // Map to the appropriate database field
+          if (rateTypeId === 1) {
+            updateData.standard_hours = v;
+          } else if (rateTypeId === 2) {
+            updateData.rate2_hours = v;
+          } else if (rateTypeId === 3) {
+            updateData.rate3_hours = v;
+          } else if (rateTypeId === 4) {
+            updateData.rate4_hours = v;
+          } else if (rateTypeId === 5) {
+            updateData.rate5_hours = v;
+          } else if (rateTypeId === 6) {
+            updateData.rate6_hours = v;
+          } else if (rateTypeId === 7) {
+            updateData.holiday_hours = v;
+          } else if (rateTypeId === 8) {
+            updateData.bank_holiday_hours = v;
+          }
+          
+          if (Object.keys(updateData).length > 0) {
+            await timesheetsAPI.updateEntry(rowId, updateData);
+            console.log(`✅ Server updated: ${columnKey} = ${v}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating timesheet entry:', error);
+        // Optionally show error message to user
+      }
+    };
+    
+    // Clear any existing timeout for this field
+    const timeoutKey = `${rowId}-${columnKey}`;
+    if ((window as any).updateTimeouts) {
+      clearTimeout((window as any).updateTimeouts[timeoutKey]);
+    } else {
+      (window as any).updateTimeouts = {};
+    }
+    
+    // Set new timeout for server update
+    (window as any).updateTimeouts[timeoutKey] = setTimeout(updateServer, 1000);
   };
 
   const FilterButton: React.FC<{ active: boolean; onClick: () => void; label: string }>
@@ -484,19 +573,16 @@ const Timesheet: React.FC = () => {
                           rate.deleted_on === null // Only enable if not deleted
                         );
                         
-                        // Set disabled inputs to 0
-                        const displayValue = isEnabled ? value : 0;
-                        
                         return (
                           <TableCell key={column.key} align="center">
                             {isViewMode ? (
                               <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60 }}>
-                                {isEnabled ? displayValue : '-'}
+                                {isEnabled ? value : '-'}
                               </Typography>
                             ) : (
                               <TextField
                                 size="small"
-                                value={isEnabled ? displayValue : 0}
+                                value={value}
                                 disabled={!isEnabled}
                                 onChange={(e) => onHourChange(row.id, column.key, e.target.value)}
                                 inputProps={{ 

@@ -221,6 +221,30 @@ export interface ContractRateUpdateDTO {
   date_end?: string;
 }
 
+export interface ContractWithRatesCreateDTO {
+  candidate_id: string;
+  client_id: string;
+  placement_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  status?: number;
+  rates: ContractRateCreateDTO[];
+  pcc_id?: string;  // If provided, update existing relationship
+  tcr_ids?: number[];  // If provided, update existing rates
+}
+
+export interface ContractWithRatesOutDTO {
+  pcc_id: string;
+  candidate_id: string;
+  client_id: string;
+  placement_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  status?: number;
+  created_on?: string;
+  rates: ContractRateOutDTO[];
+}
+
 export const candidatesAPI = {
   list: async (params?: { page?: number; limit?: number }): Promise<CandidateListResponseDTO> => {
     console.log('Making API call to /api/candidates/list with params:', params);
@@ -367,6 +391,11 @@ export const candidatesAPI = {
 
   getCandidateClientInfo: async (candidateIds: string[]): Promise<Record<string, string>> => {
     const res = await api.post('/api/candidates/client-info', candidateIds);
+    return res.data;
+  },
+
+  createContractWithRates: async (contractData: ContractWithRatesCreateDTO): Promise<ContractWithRatesOutDTO> => {
+    const res = await api.post('/api/candidates/contract-with-rates', contractData);
     return res.data;
   },
 };

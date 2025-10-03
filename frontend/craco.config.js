@@ -1,8 +1,9 @@
 module.exports = {
   devServer: {
+    port: 3001,
     allowedHosts: 'all',
     client: {
-      webSocketURL: 'ws://localhost:3000/ws',
+      webSocketURL: 'ws://localhost:3001/ws',
     },
   },
 };

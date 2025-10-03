@@ -1108,3 +1108,146 @@ def get_candidate_client_info(db: Session, candidate_ids: List[str]) -> Dict[str
         import traceback
         traceback.print_exc()
         return {}
+
+
+def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithRatesCreate) -> schemas.ContractWithRatesOut:
+    """Create or update contract with rates in a single transaction"""
+    try:
+        print(f"🚀 Creating/updating contract with rates: {contract_data}")
+        
+        # Check if pcc_id is provided
+        if contract_data.pcc_id:
+            # Update existing relationship
+            print(f"🔄 Updating existing relationship: {contract_data.pcc_id}")
+            pcc = db.query(models.P_CandidateClient).filter(models.P_CandidateClient.pcc_id == contract_data.pcc_id).first()
+            if not pcc:
+                raise ValueError(f"Contract relationship {contract_data.pcc_id} not found")
+            
+            # Update relationship fields
+            pcc.placement_date = contract_data.placement_date
+            pcc.contract_start_date = contract_data.contract_start_date
+            pcc.contract_end_date = contract_data.contract_end_date
+            pcc.status = contract_data.status
+            pcc.updated_on = func.now()
+            
+            pcc_id = pcc.pcc_id
+            print(f"✅ Updated existing relationship: {pcc_id}")
+        else:
+            # Create new relationship
+            print(f"🆕 Creating new relationship")
+            pcc = models.P_CandidateClient(
+                candidate_id=contract_data.candidate_id,
+                client_id=contract_data.client_id,
+                placement_date=contract_data.placement_date,
+                contract_start_date=contract_data.contract_start_date,
+                contract_end_date=contract_data.contract_end_date,
+                status=contract_data.status
+            )
+            db.add(pcc)
+            db.flush()  # Get the pcc_id
+            pcc_id = pcc.pcc_id
+            print(f"✅ Created new relationship: {pcc_id}")
+        
+        # Handle rates - only if rates are provided
+        created_rates = []
+        if contract_data.rates and len(contract_data.rates) > 0:
+            print(f"🔄 Processing {len(contract_data.rates)} rates")
+            
+            # If tcr_ids provided, update existing rates
+            if contract_data.tcr_ids and len(contract_data.tcr_ids) > 0:
+                print(f"🔄 Updating existing rates: {contract_data.tcr_ids}")
+                for i, rate_data in enumerate(contract_data.rates):
+                    if i < len(contract_data.tcr_ids) and contract_data.tcr_ids[i]:
+                        # Update existing rate using the correct field name 'id'
+                        tcr_id = contract_data.tcr_ids[i]
+                        existing_rate = db.query(models.ContractRate).filter(models.ContractRate.id == tcr_id).first()
+                        if existing_rate:
+                            existing_rate.rate_type = rate_data.rate_type
+                            existing_rate.rate_frequency = rate_data.rate_frequency
+                            existing_rate.pay_rate = rate_data.pay_rate
+                            existing_rate.bill_rate = rate_data.bill_rate
+                            existing_rate.date_applicable = rate_data.date_applicable
+                            existing_rate.date_end = rate_data.date_end
+                            existing_rate.updated_on = func.now()
+                            created_rates.append(existing_rate)
+                            print(f"✅ Updated existing rate: {tcr_id}")
+                        else:
+                            print(f"⚠️ Rate with id {tcr_id} not found, creating new rate")
+                            # Create new rate if existing not found
+                            new_rate = models.ContractRate(
+                                pcc_id=pcc_id,
+                                rate_type=rate_data.rate_type,
+                                rate_frequency=rate_data.rate_frequency,
+                                pay_rate=rate_data.pay_rate,
+                                bill_rate=rate_data.bill_rate,
+                                date_applicable=rate_data.date_applicable,
+                                date_end=rate_data.date_end
+                            )
+                            db.add(new_rate)
+                            db.flush()
+                            created_rates.append(new_rate)
+                            print(f"✅ Created new rate for pcc: {pcc_id}")
+                    else:
+                        # Create new rate for this pcc_id
+                        new_rate = models.ContractRate(
+                            pcc_id=pcc_id,
+                            rate_type=rate_data.rate_type,
+                            rate_frequency=rate_data.rate_frequency,
+                            pay_rate=rate_data.pay_rate,
+                            bill_rate=rate_data.bill_rate,
+                            date_applicable=rate_data.date_applicable,
+                            date_end=rate_data.date_end
+                        )
+                        db.add(new_rate)
+                        db.flush()
+                        created_rates.append(new_rate)
+                        print(f"✅ Created new rate for pcc: {pcc_id}")
+            else:
+                # Create all new rates for this pcc_id
+                print(f"🆕 Creating all new rates for pcc: {pcc_id}")
+                for rate_data in contract_data.rates:
+                    new_rate = models.ContractRate(
+                        pcc_id=pcc_id,
+                        rate_type=rate_data.rate_type,
+                        rate_frequency=rate_data.rate_frequency,
+                        pay_rate=rate_data.pay_rate,
+                        bill_rate=rate_data.bill_rate,
+                        date_applicable=rate_data.date_applicable,
+                        date_end=rate_data.date_end
+                    )
+                    db.add(new_rate)
+                    db.flush()
+                    created_rates.append(new_rate)
+                print(f"✅ Created {len(contract_data.rates)} new rates for pcc: {pcc_id}")
+        else:
+            print("ℹ️ No rates provided, skipping rate creation/update")
+        
+        # Commit transaction
+        db.commit()
+        db.refresh(pcc)
+        
+        # Refresh rates to get latest data
+        for rate in created_rates:
+            db.refresh(rate)
+        
+        print(f"✅ Successfully created/updated contract with {len(created_rates)} rates")
+        
+        # Return the result
+        return schemas.ContractWithRatesOut(
+            pcc_id=pcc.pcc_id,
+            candidate_id=pcc.candidate_id,
+            client_id=pcc.client_id,
+            placement_date=pcc.placement_date,
+            contract_start_date=pcc.contract_start_date,
+            contract_end_date=pcc.contract_end_date,
+            status=pcc.status,
+            created_on=pcc.created_on,
+            rates=[schemas.ContractRateOut.model_validate(rate) for rate in created_rates]
+        )
+        
+    except Exception as e:
+        print(f"❌ Error creating contract with rates: {e}")
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise e

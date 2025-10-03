@@ -616,75 +616,73 @@ const Candidate: React.FC = () => {
                     setToastOpen(true);
                     return;
                   }
-                  if (clientRelationships.length === 0) {
+                  if (!selectedClientId) {
                     setToastSev('error');
-                    setToastMsg('Please create and save client relationship first');
+                    setToastMsg('Please select a client first');
                     setToastOpen(true);
                     return;
                   }
 
-                  const pccId = clientRelationships[0].pcc_id;
-                  // Build updates for rows that already exist (have id)
-                  const updates = rates
-                    .filter(r => r.id)
-                    .map(r => candidatesAPI.updateRate(Number(r.id), {
-                      rate_type: r.rate_type === '' ? undefined : Number(r.rate_type),
-                      rate_frequency: r.rate_frequency === '' ? undefined : Number(r.rate_frequency),
-                      pay_rate: r.pay_rate ? Number(r.pay_rate) : undefined,
-                      bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
-                      date_applicable: r.date_applicable || undefined,
-                      date_end: r.date_end || undefined,
-                    }));
+                  // Prepare contract data
+                  const contractData = {
+                    candidate_id: user_id,
+                    client_id: selectedClientId,
+                    placement_date: placementDate || undefined,
+                    contract_start_date: contractStartDate || undefined,
+                    contract_end_date: contractEndDate || undefined,
+                    status: 0,
+                    rates: rates
+                      .filter(r => r.rate_type !== '' && r.rate_frequency !== '')
+                      .filter(r => !!(r.pay_rate || r.bill_rate || r.date_applicable || r.date_end))
+                      .map(r => ({
+                        rate_type: Number(r.rate_type),
+                        rate_frequency: Number(r.rate_frequency),
+                        pay_rate: r.pay_rate ? Number(r.pay_rate) : undefined,
+                        bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
+                        date_applicable: r.date_applicable || undefined,
+                        date_end: r.date_end || undefined,
+                      })),
+                    pcc_id: clientRelationships.length > 0 ? clientRelationships[0].pcc_id : undefined,
+                    tcr_ids: rates.filter(r => r.id).map(r => r.id).filter((id): id is number => typeof id === 'number')
+                  };
 
-                  if (updates.length) {
-                    await Promise.all(updates);
-                  }
+                  console.log('🚀 Creating/updating contract with rates:', contractData);
+                  const result = await candidatesAPI.createContractWithRates(contractData);
+                  
+                  // Update local state with the result
+                  setClientRelationships([{
+                    pcc_id: result.pcc_id,
+                    candidate_id: result.candidate_id,
+                    client_id: result.client_id,
+                    placement_date: result.placement_date,
+                    contract_start_date: result.contract_start_date,
+                    contract_end_date: result.contract_end_date,
+                    status: result.status,
+                    created_on: result.created_on
+                  }]);
 
-                  // Create only rows without id, with valid type/frequency and at least one value
-                  const createPayload = rates
-                    .filter(r => !r.id)
-                    .filter(r => r.rate_type !== '' && r.rate_frequency !== '')
-                    .filter(r => !!(r.pay_rate || r.bill_rate || r.date_applicable || r.date_end))
-                    .map(r => ({
-                      rate_type: Number(r.rate_type),
-                      rate_frequency: Number(r.rate_frequency),
-                      pay_rate: r.pay_rate ? Number(r.pay_rate) : undefined,
-                      bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
-                      date_applicable: r.date_applicable || undefined,
-                      date_end: r.date_end || undefined,
-                    }));
+                  // Update rates with the returned data
+                  setRates(result.rates.length ? result.rates.map(r => ({
+                    id: r.id,
+                    rate_type: r.rate_type,
+                    rate_frequency: r.rate_frequency,
+                    pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
+                    bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
+                    date_applicable: r.date_applicable || '',
+                    date_end: r.date_end || ''
+                  })) : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
 
-                  if (createPayload.length) {
-                    await candidatesAPI.createRatesForPcc(pccId, createPayload);
-                  }
-
-                  // Refresh from server to get latest (including ids)
-                  try {
-                    const refreshed = await candidatesAPI.getRatesByPcc(pccId);
-                    setRates(refreshed.length ? refreshed.map(r => ({
-                      id: r.id,
-                      rate_type: r.rate_type,
-                      rate_frequency: r.rate_frequency,
-                      pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
-                      bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
-                      date_applicable: r.date_applicable || '',
-                      date_end: r.date_end || ''
-                    })) : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
-                  } catch (e) {
-                    console.error('❌ Failed to refresh rates after save', e);
-                  }
-
-                  console.log('✅ Rates saved (updated and created if needed)');
+                  console.log('✅ Contract and rates saved successfully');
                   setToastSev('success');
-                  setToastMsg('Rates saved successfully!');
+                  setToastMsg('Contract and rates saved successfully!');
                   setToastOpen(true);
                 } catch (e) {
-                  console.error('❌ Failed to save rates', e);
+                  console.error('❌ Failed to save contract and rates', e);
                   setToastSev('error');
-                  setToastMsg('Failed to save rates');
+                  setToastMsg('Failed to save contract and rates');
                   setToastOpen(true);
                 }
-              }}>Save Rates</Button>
+              }}>Save Contract & Rates</Button>
             </Box>
           </Paper>
         )}

@@ -338,3 +338,32 @@ class ContractRateUpdate(BaseModel):
     bill_rate: Optional[float] = None
     date_applicable: Optional[date] = None
     date_end: Optional[date] = None
+
+
+class ContractWithRatesCreate(BaseModel):
+    """Unified schema for creating contract with rates in one API call"""
+    candidate_id: UUID
+    client_id: UUID
+    placement_date: Optional[date] = None
+    contract_start_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
+    status: int = 0
+    rates: List[ContractRateCreate] = []
+    pcc_id: Optional[UUID] = None  # If provided, update existing relationship
+    tcr_ids: Optional[List[int]] = None  # If provided, update existing rates (using 'id' field)
+
+
+class ContractWithRatesOut(BaseModel):
+    """Response schema for unified contract creation"""
+    pcc_id: UUID
+    candidate_id: UUID
+    client_id: UUID
+    placement_date: Optional[date]
+    contract_start_date: Optional[date]
+    contract_end_date: Optional[date]
+    status: Optional[int]
+    created_on: Optional[datetime]
+    rates: List[ContractRateOut] = []
+    
+    class Config:
+        from_attributes = True
