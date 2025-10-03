@@ -148,6 +148,41 @@ def update_timesheet_entry(
     return crud.update_timesheet_entry(db, entry_id, entry_update)
 
 
+@router.post("/{timesheet_id}/contractor-hours", response_model=List[schemas.ContractorHoursOut])
+def save_contractor_hours(
+    timesheet_id: str,
+    items: List[schemas.ContractorHoursCreate],
+    db: Session = Depends(get_db)
+):
+    """Bulk save contractor hours rows for a timesheet."""
+    normalized: List[schemas.ContractorHoursCreate] = []
+    for item in items:
+        data = item.model_dump()
+        data["timesheet_id"] = timesheet_id
+        normalized.append(schemas.ContractorHoursCreate(**data))
+    rows = crud.bulk_create_contractor_hours(db, normalized)
+    return rows
+
+
+@router.get("/{timesheet_id}/contractor-hours", response_model=List[schemas.ContractorHoursOut])
+def list_contractor_hours(timesheet_id: str, db: Session = Depends(get_db)):
+    return crud.list_contractor_hours_by_timesheet(db, timesheet_id)
+
+
+@router.post("/{timesheet_id}/contractor-hours/upsert", response_model=List[schemas.ContractorHoursOut])
+def upsert_contractor_hours(
+    timesheet_id: str,
+    items: List[schemas.ContractorHoursUpsert],
+    db: Session = Depends(get_db)
+):
+    normalized: List[schemas.ContractorHoursUpsert] = []
+    for item in items:
+        data = item.model_dump()
+        data["timesheet_id"] = timesheet_id
+        normalized.append(schemas.ContractorHoursUpsert(**data))
+    return crud.upsert_contractor_hours(db, normalized)
+
+
 @router.post("/seed")
 def seed_timesheets(db: Session = Depends(get_db)):
     try:
@@ -252,5 +287,107 @@ def seed_timesheets(db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error in seed_timesheets: {e}")
         return {"error": str(e)}
+
+
+# Contractor Rate Hours endpoints
+@router.post("/contractor-rate-hours/", response_model=List[schemas.ContractorRateHoursOut])
+def create_contractor_rate_hours(
+    multiple_rates: schemas.MultipleRateHoursCreate,
+    db: Session = Depends(get_db)
+):
+    """Create multiple contractor rate hours entries for a single tch_id"""
+    try:
+        created_rates = crud.create_multiple_contractor_rate_hours(db, multiple_rates)
+        return [schemas.ContractorRateHoursOut.model_validate(rate) for rate in created_rates]
+    except Exception as e:
+        print(f"Error creating contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating contractor rate hours: {str(e)}")
+
+
+@router.post("/contractor-rate-hours/upsert", response_model=List[schemas.ContractorRateHoursOut])
+def upsert_contractor_rate_hours(
+    multiple_rates: schemas.MultipleRateHoursCreate,
+    db: Session = Depends(get_db)
+):
+    """Upsert multiple contractor rate hours entries for a single tch_id"""
+    try:
+        upserted_rates = crud.upsert_multiple_contractor_rate_hours(db, multiple_rates)
+        return [schemas.ContractorRateHoursOut.model_validate(rate) for rate in upserted_rates]
+    except Exception as e:
+        print(f"Error upserting contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error upserting contractor rate hours: {str(e)}")
+
+
+@router.get("/contractor-rate-hours/{tch_id}", response_model=List[schemas.ContractorRateHoursOut])
+def get_contractor_rate_hours(
+    tch_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get all rate hours entries for a specific contractor hours record"""
+    try:
+        tch_uuid = uuid.UUID(tch_id)
+        rate_hours = crud.get_contractor_rate_hours_by_tch_id(db, tch_uuid)
+        return [schemas.ContractorRateHoursOut.model_validate(rate) for rate in rate_hours]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        print(f"Error getting contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting contractor rate hours: {str(e)}")
+
+
+@router.put("/contractor-rate-hours/{tcrh_id}", response_model=schemas.ContractorRateHoursOut)
+def update_contractor_rate_hours(
+    tcrh_id: int,
+    rate_hours_update: schemas.ContractorRateHoursUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a contractor rate hours entry"""
+    try:
+        updated_rate = crud.update_contractor_rate_hours(db, tcrh_id, rate_hours_update)
+        if not updated_rate:
+            raise HTTPException(status_code=404, detail="Contractor rate hours not found")
+        return schemas.ContractorRateHoursOut.model_validate(updated_rate)
+    except Exception as e:
+        print(f"Error updating contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error updating contractor rate hours: {str(e)}")
+
+
+@router.delete("/contractor-rate-hours/{tcrh_id}")
+def delete_contractor_rate_hours(
+    tcrh_id: int,
+    deleted_by: str = Query(..., description="UUID of user performing deletion"),
+    db: Session = Depends(get_db)
+):
+    """Soft delete a contractor rate hours entry"""
+    try:
+        deleted_by_uuid = uuid.UUID(deleted_by)
+        deleted_rate = crud.delete_contractor_rate_hours(db, tcrh_id, deleted_by_uuid)
+        if not deleted_rate:
+            raise HTTPException(status_code=404, detail="Contractor rate hours not found")
+        return {"message": "Contractor rate hours deleted successfully"}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        print(f"Error deleting contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting contractor rate hours: {str(e)}")
+
+
+@router.delete("/contractor-rate-hours/tch/{tch_id}/all")
+def delete_all_contractor_rate_hours_for_tch(
+    tch_id: str,
+    deleted_by: str = Query(..., description="UUID of user performing deletion"),
+    db: Session = Depends(get_db)
+):
+    """Soft delete all rate hours entries for a specific contractor hours record"""
+    try:
+        tch_uuid = uuid.UUID(tch_id)
+        deleted_by_uuid = uuid.UUID(deleted_by)
+        deleted_count = crud.delete_all_contractor_rate_hours_for_tch(db, tch_uuid, deleted_by_uuid)
+        return {"message": f"Deleted {deleted_count} contractor rate hours entries"}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        print(f"Error deleting contractor rate hours: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting contractor rate hours: {str(e)}")
 
 

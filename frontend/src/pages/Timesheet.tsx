@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, RateTypeDTO, RateFrequencyDTO } from '../services/api';
+import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, RateTypeDTO, RateFrequencyDTO, ContractorHoursCreateDTO, ContractorHoursDTO, ContractorHoursUpsertDTO, ContractorRateHoursCreateDTO, ContractorRateHoursOutDTO, MultipleRateHoursCreateDTO } from '../services/api';
 import {
   Container,
   Box,
@@ -28,6 +28,7 @@ interface TimesheetRow {
   filled: boolean;
   hours: Record<string, number>; // Dynamic hours based on rate combinations
   candidateRates?: any[]; // Store candidate's specific rates
+  candidateId?: string; // full UUID for contractor_id
 }
 
 interface RateColumn {
@@ -102,9 +103,11 @@ const Timesheet: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState('');
   const [dateRange, setDateRange] = useState('');
+  const [saving, setSaving] = useState(false);
   const [clientFilter, setClientFilter] = useState('All Client');
   const [candidateFilter, setCandidateFilter] = useState('All Candidate');
   const [showFilled, setShowFilled] = useState<'filled' | 'notfilled' | 'all'>('all');
+  const [contractorHoursMap, setContractorHoursMap] = useState<Record<string, ContractorHoursDTO>>({});
 
   // Load candidates and timesheet data
   useEffect(() => {
@@ -208,6 +211,18 @@ const Timesheet: React.FC = () => {
               setCandidateClientInfo({});
             }
           }
+
+          // Fetch existing contractor hours for this timesheet and map by contractor_id
+          try {
+            const tchList = await timesheetsAPI.listContractorHours(timesheetId);
+            const map: Record<string, ContractorHoursDTO> = {};
+            tchList.forEach(t => { if (t.contractor_id) map[t.contractor_id] = t; });
+            setContractorHoursMap(map);
+            console.log('✅ Loaded contractor hours count:', tchList.length);
+          } catch (err) {
+            console.error('❌ Error loading contractor hours:', err);
+            setContractorHoursMap({});
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -236,6 +251,7 @@ const Timesheet: React.FC = () => {
       
       const candidateId = candidate ? candidate.candidate_id : '';
       const candidateRates = candidateRatesMatrix[candidateId] || [];
+      const existingTch = contractorHoursMap[candidateId];
       
       // Use dynamic client name from database, not from timesheet entry
       const dynamicClientName = candidateClientInfo[candidateId];
@@ -265,7 +281,8 @@ const Timesheet: React.FC = () => {
           const rateTypeId = column.rateTypeId;
           
           if (rateTypeId === 1) { // Standard rate
-            currentValue = entry.standard_hours || 0;
+            // Prefer the live edited entry value over previously saved contractor-hours
+            currentValue = (entry.standard_hours ?? existingTch?.standard_hours ?? 0);
           } else if (rateTypeId === 2) { // Rate 2
             currentValue = entry.rate2_hours || 0;
           } else if (rateTypeId === 3) { // Rate 3
@@ -277,9 +294,11 @@ const Timesheet: React.FC = () => {
           } else if (rateTypeId === 6) { // Rate 6
             currentValue = entry.rate6_hours || 0;
           } else if (rateTypeId === 7) { // Holiday
-            currentValue = entry.holiday_hours || 0;
+            // Prefer entry.holiday_hours the user edits; fallback to saved weekend_hours
+            currentValue = (entry.holiday_hours ?? existingTch?.weekend_hours ?? 0);
           } else if (rateTypeId === 8) { // Bank Holiday
-            currentValue = entry.bank_holiday_hours || 0;
+            // Prefer entry.bank_holiday_hours; fallback to saved bank_holiday_hours
+            currentValue = (entry.bank_holiday_hours ?? existingTch?.bank_holiday_hours ?? 0);
           }
           
           hours[rateKey] = currentValue;
@@ -293,7 +312,8 @@ const Timesheet: React.FC = () => {
         client: clientName,
         filled: entry.filled,
         hours,
-        candidateRates
+        candidateRates,
+        candidateId
       };
     });
     
@@ -468,6 +488,131 @@ const Timesheet: React.FC = () => {
     );
   }
 
+  // Helper to derive a work_date (YYYY-MM-DD) from current week/dateRange
+  const getWeekStartDateISO = (): string => {
+    // dateRange looks like "7 Apr - 13 Apr" or similar; fallback to today
+    try {
+      if (dateRange) {
+        const part = dateRange.split('-')[0].trim();
+        const withYear = `${part} ${new Date().getFullYear()}`;
+        const d = new Date(withYear);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      }
+    } catch {}
+    const today = new Date();
+    return today.toISOString().slice(0, 10);
+  };
+
+  const getWeekEndDateISO = (): string => {
+    try {
+      if (dateRange && dateRange.includes('-')) {
+        const parts = dateRange.split('-');
+        const endPart = parts[parts.length - 1].trim();
+        const withYear = `${endPart} ${new Date().getFullYear()}`;
+        const d = new Date(withYear);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      }
+    } catch {}
+    const today = new Date();
+    return today.toISOString().slice(0, 10);
+  };
+
+  const getWeekNumber = (): number | null => {
+    if (!week) return null;
+    const m = week.match(/(\d+)/);
+    return m ? Number(m[1]) : null;
+  };
+
+  const refreshContractorHoursData = async () => {
+    if (!timesheetData?.timesheet_id) return;
+    
+    try {
+      const tchList = await timesheetsAPI.listContractorHours(timesheetData.timesheet_id);
+      const map: Record<string, ContractorHoursDTO> = {};
+      tchList.forEach(t => { if (t.contractor_id) map[t.contractor_id] = t; });
+      setContractorHoursMap(map);
+      console.log('✅ Refreshed contractor hours data, count:', tchList.length);
+    } catch (err) {
+      console.error('❌ Failed to refresh contractor hours:', err);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!timesheetData) return;
+    setSaving(true);
+    try {
+      const workDate = getWeekStartDateISO();
+      const weekEnd = getWeekEndDateISO();
+      const weekNumber = getWeekNumber();
+      
+      // Build upsert payload for contractor hours (include tch_id if exists)
+      const payload: ContractorHoursUpsertDTO[] = rows.map((row) => {
+        // contractor_id is candidate_id; in our rows, `code` holds candidate_id when available
+        const contractorId = row.candidateId || '';
+        const existingTch = contractorHoursMap[contractorId];
+        // Sum all enabled hours for this row
+        const total = Object.values(row.hours).reduce((a, b) => a + (b || 0), 0);
+        
+        // Build rate hours data for this contractor
+        let rateHours: ContractorRateHoursCreateDTO[] = [];
+        if (row.candidateRates && row.candidateRates.length > 0) {
+          console.log(`🔍 DEBUG: Building rate hours for contractor ${contractorId}, candidateRates:`, row.candidateRates);
+          rateHours = row.candidateRates.map((rate: any) => {
+            // Fix: Use the correct field names from backend
+            const rateTypeId = rate.rate_type_id || rate.rate_type;
+            const rateFrequencyId = rate.rate_frequency_id || rate.rate_frequency;
+            const quantity = row.hours[`${rateTypeId}-${rateFrequencyId}`] || 0;
+            console.log(`🔍 DEBUG: Rate ${rateTypeId}-${rateFrequencyId}: quantity=${quantity}, hours object:`, row.hours);
+            return {
+              tch_id: existingTch?.tch_id || '', // Will be updated after tch is created
+              rate_frequency_id: rateFrequencyId,
+              rate_type_id: rateTypeId,
+              tcr_id: rate.rate_id || rate.id, // Using the correct contract rate ID field
+              quantity: quantity,
+              pay_rate: rate.pay_rate,
+              bill_rate: rate.bill_rate,
+            };
+          }).filter(entry => entry.quantity > 0); // Only save entries with hours > 0
+          console.log(`🔍 DEBUG: Filtered rate hours for contractor ${contractorId}:`, rateHours);
+        } else {
+          console.log(`🔍 DEBUG: No candidate rates found for contractor ${contractorId}`);
+        }
+        
+        const payloadItem = {
+          tch_id: existingTch?.tch_id,
+          contractor_id: contractorId,
+          work_date: workDate,
+          timesheet_id: timesheetData.timesheet_id,
+          standard_hours: row.hours["1-1"] ?? 0,
+          weekend_hours: row.hours["1-3"] ?? undefined,
+          bank_holiday_hours: row.hours["8-1"] ?? undefined,
+          total_hours: total,
+          day: weekEnd,
+          week: weekNumber ?? undefined,
+          rate_hours: rateHours.length > 0 ? rateHours : undefined,
+        };
+        
+        console.log(`🔍 DEBUG: Built payload item for contractor ${contractorId}:`, payloadItem);
+        return payloadItem;
+      }).filter(p => !!p.contractor_id);
+
+      if (payload.length > 0) {
+        console.log('🔍 DEBUG: Sending payload to backend:', JSON.stringify(payload, null, 2));
+        const savedContractorHours = await timesheetsAPI.upsertContractorHours(timesheetData.timesheet_id, payload);
+        console.log(`✅ Saved contractor hours and rate hours for ${savedContractorHours.length} contractors`);
+      }
+      
+      // Refresh the contractor hours data to get the latest tch_ids
+      await refreshContractorHoursData();
+      
+      console.log('✅ Contractor hours and rate hours saved');
+    } catch (e) {
+      console.error('❌ Failed to save contractor hours and rate hours', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
@@ -611,7 +756,7 @@ const Timesheet: React.FC = () => {
 
         {!isViewMode && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Button variant="contained">Save</Button>
+            <Button variant="contained" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
           </Box>
         )}
       </Box>

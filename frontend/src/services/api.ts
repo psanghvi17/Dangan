@@ -442,6 +442,93 @@ export interface TimesheetDetailDTO {
   entries: TimesheetEntryDTO[];
 }
 
+export interface ContractorHoursCreateDTO {
+  contractor_id: string; // candidate_id
+  work_date: string; // YYYY-MM-DD for week date
+  timesheet_id: string; // server enforces from path but we send for clarity
+  standard_hours?: number;
+  on_call_hours?: number;
+  status?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  week?: number | null;
+  day?: string | null;
+  weekend_hours?: number | null;
+  bank_holiday_hours?: number | null;
+  total_hours?: number | null;
+  project_no?: string | null;
+  standard_bill_rate?: number | null;
+  standard_pay_rate?: number | null;
+  oncall_pay_rate?: number | null;
+  oncall_bill_rate?: number | null;
+  weekend_pay_rate?: number | null;
+  weekend_bill_rate?: number | null;
+  bankholiday_pay_rate?: number | null;
+  bankholiday_bill_rate?: number | null;
+  double_hours?: string | null;
+  triple_hours?: string | null;
+  dedh_hours?: string | null;
+  tcr_id?: number | null;
+  double_pay_rate?: number | null;
+  double_bill_rate?: number | null;
+  triple_bill_rate?: number | null;
+  triple_pay_rate?: number | null;
+  dedh_pay_rate?: number | null;
+  dedh_bill_rate?: number | null;
+}
+
+export interface ContractorHoursDTO extends ContractorHoursCreateDTO {
+  tch_id: string;
+  created_on?: string;
+  updated_on?: string;
+}
+
+export interface ContractorHoursUpsertDTO extends Partial<ContractorHoursCreateDTO> {
+  tch_id?: string;
+  rate_hours?: ContractorRateHoursCreateDTO[];
+}
+
+// Contractor Rate Hours DTOs
+export interface ContractorRateHoursBaseDTO {
+  tch_id?: string;  // Made optional for upsert operations
+  rate_frequency_id: number;
+  rate_type_id: number;
+  tcr_id: number;
+  quantity?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+}
+
+export interface ContractorRateHoursCreateDTO extends ContractorRateHoursBaseDTO {
+  created_by?: string;
+}
+
+export interface ContractorRateHoursUpdateDTO {
+  rate_frequency_id?: number;
+  rate_type_id?: number;
+  tcr_id?: number;
+  quantity?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+  updated_by?: string;
+}
+
+export interface ContractorRateHoursOutDTO extends ContractorRateHoursBaseDTO {
+  tcrh_id: number;
+  created_on?: string;
+  updated_on?: string;
+  created_by?: string;
+  updated_by?: string;
+  deleted_by?: string;
+  deleted_on?: string;
+}
+
+export interface MultipleRateHoursCreateDTO {
+  tch_id: string;
+  rate_entries: ContractorRateHoursCreateDTO[];
+  created_by?: string;
+}
+
 export interface TimesheetEntryCreateDTO {
   timesheet_id: string;
   employee_name: string;
@@ -510,9 +597,52 @@ export const timesheetsAPI = {
     const res = await api.put(`/api/timesheets/entries/${entryId}`, entry);
     return res.data;
   },
+  saveContractorHours: async (timesheetId: string, rows: ContractorHoursCreateDTO[]) => {
+    const res = await api.post(`/api/timesheets/${timesheetId}/contractor-hours`, rows);
+    return res.data as any[];
+  },
+  listContractorHours: async (timesheetId: string): Promise<ContractorHoursDTO[]> => {
+    const res = await api.get(`/api/timesheets/${timesheetId}/contractor-hours`);
+    return res.data;
+  },
+  upsertContractorHours: async (timesheetId: string, rows: ContractorHoursUpsertDTO[]): Promise<ContractorHoursDTO[]> => {
+    const res = await api.post(`/api/timesheets/${timesheetId}/contractor-hours/upsert`, rows);
+    return res.data;
+  },
   
   seedData: async (): Promise<{ seeded: boolean; message?: string; error?: string }> => {
     const res = await api.post('/api/timesheets/seed');
+    return res.data;
+  },
+  
+  // Contractor Rate Hours API
+  createContractorRateHours: async (multipleRates: MultipleRateHoursCreateDTO): Promise<ContractorRateHoursOutDTO[]> => {
+    const res = await api.post('/api/timesheets/contractor-rate-hours/', multipleRates);
+    return res.data;
+  },
+  
+  upsertContractorRateHours: async (multipleRates: MultipleRateHoursCreateDTO): Promise<ContractorRateHoursOutDTO[]> => {
+    const res = await api.post('/api/timesheets/contractor-rate-hours/upsert', multipleRates);
+    return res.data;
+  },
+  
+  getContractorRateHours: async (tchId: string): Promise<ContractorRateHoursOutDTO[]> => {
+    const res = await api.get(`/api/timesheets/contractor-rate-hours/${tchId}`);
+    return res.data;
+  },
+  
+  updateContractorRateHours: async (tcrhId: number, update: ContractorRateHoursUpdateDTO): Promise<ContractorRateHoursOutDTO> => {
+    const res = await api.put(`/api/timesheets/contractor-rate-hours/${tcrhId}`, update);
+    return res.data;
+  },
+  
+  deleteContractorRateHours: async (tcrhId: number, deletedBy: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/api/timesheets/contractor-rate-hours/${tcrhId}?deleted_by=${deletedBy}`);
+    return res.data;
+  },
+  
+  deleteAllContractorRateHoursForTch: async (tchId: string, deletedBy: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/api/timesheets/contractor-rate-hours/tch/${tchId}/all?deleted_by=${deletedBy}`);
     return res.data;
   },
 };

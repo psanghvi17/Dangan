@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from uuid import uuid4
+from uuid import uuid4, UUID
 from typing import Optional, List, Dict
 from . import models, schemas
 from .auth import get_password_hash
@@ -751,6 +751,227 @@ def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.Tim
     return db_entry
 
 
+def create_contractor_hours(db: Session, payload: schemas.ContractorHoursCreate):
+    """Insert a record into app.t_contractor_hours"""
+    row = models.ContractorHours(
+        contractor_id=payload.contractor_id,
+        work_date=payload.work_date,
+        timesheet_id=payload.timesheet_id,
+        standard_hours=payload.standard_hours,
+        on_call_hours=payload.on_call_hours,
+        created_by=payload.created_by,
+        status=payload.status,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        week=payload.week,
+        day=payload.day,
+        weekend_hours=payload.weekend_hours,
+        bank_holiday_hours=payload.bank_holiday_hours,
+        total_hours=payload.total_hours,
+        project_no=payload.project_no,
+        standard_bill_rate=payload.standard_bill_rate,
+        standard_pay_rate=payload.standard_pay_rate,
+        oncall_pay_rate=payload.oncall_pay_rate,
+        oncall_bill_rate=payload.oncall_bill_rate,
+        weekend_pay_rate=payload.weekend_pay_rate,
+        weekend_bill_rate=payload.weekend_bill_rate,
+        bankholiday_pay_rate=payload.bankholiday_pay_rate,
+        bankholiday_bill_rate=payload.bankholiday_bill_rate,
+        double_hours=payload.double_hours,
+        triple_hours=payload.triple_hours,
+        dedh_hours=payload.dedh_hours,
+        tcr_id=payload.tcr_id,
+        double_pay_rate=payload.double_pay_rate,
+        double_bill_rate=payload.double_bill_rate,
+        triple_bill_rate=payload.triple_bill_rate,
+        triple_pay_rate=payload.triple_pay_rate,
+        dedh_pay_rate=payload.dedh_pay_rate,
+        dedh_bill_rate=payload.dedh_bill_rate,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def bulk_create_contractor_hours(db: Session, items: List[schemas.ContractorHoursCreate]):
+    rows = []
+    for payload in items:
+        row = models.ContractorHours(
+            contractor_id=payload.contractor_id,
+            work_date=payload.work_date,
+            timesheet_id=payload.timesheet_id,
+            standard_hours=payload.standard_hours,
+            on_call_hours=payload.on_call_hours,
+            created_by=payload.created_by,
+            status=payload.status,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            week=payload.week,
+            day=payload.day,
+            weekend_hours=payload.weekend_hours,
+            bank_holiday_hours=payload.bank_holiday_hours,
+            total_hours=payload.total_hours,
+            project_no=payload.project_no,
+            standard_bill_rate=payload.standard_bill_rate,
+            standard_pay_rate=payload.standard_pay_rate,
+            oncall_pay_rate=payload.oncall_pay_rate,
+            oncall_bill_rate=payload.oncall_bill_rate,
+            weekend_pay_rate=payload.weekend_pay_rate,
+            weekend_bill_rate=payload.weekend_bill_rate,
+            bankholiday_pay_rate=payload.bankholiday_pay_rate,
+            bankholiday_bill_rate=payload.bankholiday_bill_rate,
+            double_hours=payload.double_hours,
+            triple_hours=payload.triple_hours,
+            dedh_hours=payload.dedh_hours,
+            tcr_id=payload.tcr_id,
+            double_pay_rate=payload.double_pay_rate,
+            double_bill_rate=payload.double_bill_rate,
+            triple_bill_rate=payload.triple_bill_rate,
+            triple_pay_rate=payload.triple_pay_rate,
+            dedh_pay_rate=payload.dedh_pay_rate,
+            dedh_bill_rate=payload.dedh_bill_rate,
+        )
+        db.add(row)
+        rows.append(row)
+    db.commit()
+    for r in rows:
+        db.refresh(r)
+    return rows
+
+
+def list_contractor_hours_by_timesheet(db: Session, timesheet_id: str):
+    return (
+        db.query(models.ContractorHours)
+        .filter(models.ContractorHours.timesheet_id == timesheet_id)
+        .filter(models.ContractorHours.deleted_on.is_(None))
+        .all()
+    )
+
+
+def upsert_contractor_hours(db: Session, items: List[schemas.ContractorHoursUpsert]):
+    result = []
+    for payload in items:
+        print(f"🔍 DEBUG: Processing payload for contractor_id: {payload.contractor_id}")
+        print(f"🔍 DEBUG: Has tch_id: {payload.tch_id is not None}")
+        print(f"🔍 DEBUG: Has rate_hours: {payload.rate_hours is not None}")
+        if payload.rate_hours:
+            print(f"🔍 DEBUG: Rate hours count: {len(payload.rate_hours)}")
+            for i, rate_hour in enumerate(payload.rate_hours):
+                print(f"🔍 DEBUG: Rate hour {i}: quantity={rate_hour.quantity}, rate_type_id={rate_hour.rate_type_id}, rate_frequency_id={rate_hour.rate_frequency_id}")
+        
+        is_update = False
+        if payload.tch_id:
+            row = db.query(models.ContractorHours).filter(models.ContractorHours.tch_id == payload.tch_id).first()
+            if row:
+                print(f"🔍 DEBUG: Updating existing contractor hours with tch_id: {payload.tch_id}")
+                data = payload.dict(exclude_unset=True)
+                data.pop('tch_id', None)
+                data.pop('rate_hours', None)  # Remove rate_hours from contractor hours data
+                for k, v in data.items():
+                    setattr(row, k, v)
+                row.updated_on = func.now()
+                result.append(row)
+                is_update = True
+                
+                # Handle rate hours for existing contractor hours
+                if payload.rate_hours:
+                    print(f"🔍 DEBUG: Processing rate hours for existing tch_id: {payload.tch_id}")
+                    # Soft delete existing rate hours for this tch_id
+                    existing_rate_hours = db.query(models.ContractorRateHours).filter(
+                        models.ContractorRateHours.tch_id == payload.tch_id,
+                        models.ContractorRateHours.deleted_on.is_(None)
+                    ).all()
+                    
+                    print(f"🔍 DEBUG: Found {len(existing_rate_hours)} existing rate hours to soft delete")
+                    for existing_rate in existing_rate_hours:
+                        existing_rate.deleted_on = func.now()
+                        existing_rate.deleted_by = getattr(payload, 'created_by', None)
+                    
+                    # Create new rate hours entries
+                    for rate_hour in payload.rate_hours:
+                        if rate_hour.quantity and rate_hour.quantity > 0:  # Only save if quantity > 0
+                            print(f"🔍 DEBUG: Creating new rate hour: quantity={rate_hour.quantity}")
+                            new_rate_hour = models.ContractorRateHours(
+                                tch_id=payload.tch_id,
+                                rate_frequency_id=rate_hour.rate_frequency_id,
+                                rate_type_id=rate_hour.rate_type_id,
+                                tcr_id=rate_hour.tcr_id,
+                                quantity=rate_hour.quantity,
+                                pay_rate=rate_hour.pay_rate,
+                                bill_rate=rate_hour.bill_rate,
+                                created_by=getattr(payload, 'created_by', None)
+                            )
+                            db.add(new_rate_hour)
+                continue
+        
+        # insert new contractor hours
+        if not is_update:
+            print(f"🔍 DEBUG: Creating new contractor hours for contractor_id: {payload.contractor_id}")
+            row = models.ContractorHours(
+                contractor_id=payload.contractor_id,
+                work_date=payload.work_date,
+                timesheet_id=payload.timesheet_id,
+                standard_hours=payload.standard_hours,
+                on_call_hours=payload.on_call_hours,
+                created_by=getattr(payload, 'created_by', None),
+                status=payload.status,
+                start_time=payload.start_time,
+                end_time=payload.end_time,
+                week=payload.week,
+                day=payload.day,
+                weekend_hours=payload.weekend_hours,
+                bank_holiday_hours=payload.bank_holiday_hours,
+                total_hours=payload.total_hours,
+                project_no=payload.project_no,
+                standard_bill_rate=payload.standard_bill_rate,
+                standard_pay_rate=payload.standard_pay_rate,
+                oncall_pay_rate=payload.oncall_pay_rate,
+                oncall_bill_rate=payload.oncall_bill_rate,
+                weekend_pay_rate=payload.weekend_pay_rate,
+                weekend_bill_rate=payload.weekend_bill_rate,
+                bankholiday_pay_rate=payload.bankholiday_pay_rate,
+                bankholiday_bill_rate=payload.bankholiday_bill_rate,
+                double_hours=payload.double_hours,
+                triple_hours=payload.triple_hours,
+                dedh_hours=payload.dedh_hours,
+                tcr_id=payload.tcr_id,
+                double_pay_rate=payload.double_pay_rate,
+                double_bill_rate=payload.double_bill_rate,
+                triple_bill_rate=payload.triple_bill_rate,
+                triple_pay_rate=payload.triple_pay_rate,
+                dedh_pay_rate=payload.dedh_pay_rate,
+                dedh_bill_rate=payload.dedh_bill_rate,
+            )
+            db.add(row)
+            db.flush()  # Flush to get the tch_id
+            print(f"🔍 DEBUG: Created new contractor hours with tch_id: {row.tch_id}")
+            result.append(row)
+            
+            # Handle rate hours for new contractor hours
+            if payload.rate_hours:
+                print(f"🔍 DEBUG: Processing rate hours for new tch_id: {row.tch_id}")
+                for rate_hour in payload.rate_hours:
+                    if rate_hour.quantity and rate_hour.quantity > 0:  # Only save if quantity > 0
+                        print(f"🔍 DEBUG: Creating new rate hour: quantity={rate_hour.quantity}, tch_id={row.tch_id}")
+                        new_rate_hour = models.ContractorRateHours(
+                            tch_id=row.tch_id,
+                            rate_frequency_id=rate_hour.rate_frequency_id,
+                            rate_type_id=rate_hour.rate_type_id,
+                            tcr_id=rate_hour.tcr_id,
+                            quantity=rate_hour.quantity,
+                            pay_rate=rate_hour.pay_rate,
+                            bill_rate=rate_hour.bill_rate,
+                            created_by=getattr(payload, 'created_by', None)
+                        )
+                        db.add(new_rate_hour)
+    
+    db.commit()
+    for r in result:
+        db.refresh(r)
+    return result
+
+
 def get_or_create_timesheet_entries_for_candidates(db: Session, timesheet_id: str):
     """Get or create timesheet entries for all candidates"""
     # Get all candidates
@@ -1071,7 +1292,7 @@ def get_candidate_client_info(db: Session, candidate_ids: List[str]) -> Dict[str
         from sqlalchemy.orm import aliased
         
         # Create aliases for the tables
-        pcc = aliased(models.CandidateClient)
+        pcc = aliased(models.P_CandidateClient)
         mc = aliased(models.Client)
         
         # Join p_candidate_client with m_client to get client names
@@ -1251,3 +1472,147 @@ def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithR
         import traceback
         traceback.print_exc()
         raise e
+
+
+# Contractor Rate Hours CRUD operations
+def create_contractor_rate_hours(db: Session, rate_hours: schemas.ContractorRateHoursCreate):
+    """Create a single contractor rate hours entry"""
+    db_rate_hours = models.ContractorRateHours(
+        tch_id=rate_hours.tch_id,
+        rate_frequency_id=rate_hours.rate_frequency_id,
+        rate_type_id=rate_hours.rate_type_id,
+        tcr_id=rate_hours.tcr_id,
+        quantity=rate_hours.quantity,
+        pay_rate=rate_hours.pay_rate,
+        bill_rate=rate_hours.bill_rate,
+        created_by=rate_hours.created_by
+    )
+    db.add(db_rate_hours)
+    db.commit()
+    db.refresh(db_rate_hours)
+    return db_rate_hours
+
+
+def create_multiple_contractor_rate_hours(db: Session, multiple_rates: schemas.MultipleRateHoursCreate):
+    """Create multiple contractor rate hours entries for a single tch_id"""
+    created_rates = []
+    
+    for rate_entry in multiple_rates.rate_entries:
+        db_rate_hours = models.ContractorRateHours(
+            tch_id=multiple_rates.tch_id,
+            rate_frequency_id=rate_entry.rate_frequency_id,
+            rate_type_id=rate_entry.rate_type_id,
+            tcr_id=rate_entry.tcr_id,
+            quantity=rate_entry.quantity,
+            pay_rate=rate_entry.pay_rate,
+            bill_rate=rate_entry.bill_rate,
+            created_by=multiple_rates.created_by
+        )
+        db.add(db_rate_hours)
+        created_rates.append(db_rate_hours)
+    
+    db.commit()
+    
+    # Refresh all created records
+    for rate in created_rates:
+        db.refresh(rate)
+    
+    return created_rates
+
+
+def upsert_multiple_contractor_rate_hours(db: Session, multiple_rates: schemas.MultipleRateHoursCreate):
+    """Upsert multiple contractor rate hours entries for a single tch_id"""
+    result_rates = []
+    
+    # First, soft delete all existing rate hours for this tch_id
+    existing_rates = db.query(models.ContractorRateHours).filter(
+        models.ContractorRateHours.tch_id == multiple_rates.tch_id,
+        models.ContractorRateHours.deleted_on.is_(None)
+    ).all()
+    
+    for existing_rate in existing_rates:
+        existing_rate.deleted_on = func.now()
+        existing_rate.deleted_by = multiple_rates.created_by
+    
+    # Then create new entries
+    for rate_entry in multiple_rates.rate_entries:
+        db_rate_hours = models.ContractorRateHours(
+            tch_id=multiple_rates.tch_id,
+            rate_frequency_id=rate_entry.rate_frequency_id,
+            rate_type_id=rate_entry.rate_type_id,
+            tcr_id=rate_entry.tcr_id,
+            quantity=rate_entry.quantity,
+            pay_rate=rate_entry.pay_rate,
+            bill_rate=rate_entry.bill_rate,
+            created_by=multiple_rates.created_by
+        )
+        db.add(db_rate_hours)
+        result_rates.append(db_rate_hours)
+    
+    db.commit()
+    
+    # Refresh all created records
+    for rate in result_rates:
+        db.refresh(rate)
+    
+    return result_rates
+
+
+def get_contractor_rate_hours_by_tch_id(db: Session, tch_id: UUID):
+    """Get all rate hours entries for a specific contractor hours record"""
+    return db.query(models.ContractorRateHours).filter(
+        models.ContractorRateHours.tch_id == tch_id,
+        models.ContractorRateHours.deleted_on.is_(None)
+    ).all()
+
+
+def update_contractor_rate_hours(db: Session, tcrh_id: int, rate_hours_update: schemas.ContractorRateHoursUpdate):
+    """Update a contractor rate hours entry"""
+    db_rate_hours = db.query(models.ContractorRateHours).filter(
+        models.ContractorRateHours.tcrh_id == tcrh_id,
+        models.ContractorRateHours.deleted_on.is_(None)
+    ).first()
+    
+    if not db_rate_hours:
+        return None
+    
+    update_data = rate_hours_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_rate_hours, field, value)
+    
+    db_rate_hours.updated_on = func.now()
+    db.commit()
+    db.refresh(db_rate_hours)
+    return db_rate_hours
+
+
+def delete_contractor_rate_hours(db: Session, tcrh_id: int, deleted_by: UUID):
+    """Soft delete a contractor rate hours entry"""
+    db_rate_hours = db.query(models.ContractorRateHours).filter(
+        models.ContractorRateHours.tcrh_id == tcrh_id,
+        models.ContractorRateHours.deleted_on.is_(None)
+    ).first()
+    
+    if not db_rate_hours:
+        return None
+    
+    db_rate_hours.deleted_on = func.now()
+    db_rate_hours.deleted_by = deleted_by
+    db.commit()
+    db.refresh(db_rate_hours)
+    return db_rate_hours
+
+
+def delete_all_contractor_rate_hours_for_tch(db: Session, tch_id: UUID, deleted_by: UUID):
+    """Soft delete all rate hours entries for a specific contractor hours record"""
+    db_rate_hours = db.query(models.ContractorRateHours).filter(
+        models.ContractorRateHours.tch_id == tch_id,
+        models.ContractorRateHours.deleted_on.is_(None)
+    ).all()
+    
+    for rate_hours in db_rate_hours:
+        rate_hours.deleted_on = func.now()
+        rate_hours.deleted_by = deleted_by
+    
+    db.commit()
+    return len(db_rate_hours)

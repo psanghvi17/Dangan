@@ -367,3 +367,99 @@ class ContractWithRatesOut(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ContractorHoursBase(BaseModel):
+    contractor_id: UUID
+    work_date: date
+    timesheet_id: Optional[UUID] = None
+    standard_hours: Optional[float] = None
+    on_call_hours: Optional[float] = None
+    status: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    week: Optional[int] = None
+    day: Optional[str] = None
+    weekend_hours: Optional[float] = None
+    bank_holiday_hours: Optional[float] = None
+    total_hours: Optional[float] = None
+    project_no: Optional[UUID] = None
+    standard_bill_rate: Optional[float] = None
+    standard_pay_rate: Optional[float] = None
+    oncall_pay_rate: Optional[float] = None
+    oncall_bill_rate: Optional[float] = None
+    weekend_pay_rate: Optional[float] = None
+    weekend_bill_rate: Optional[float] = None
+    bankholiday_pay_rate: Optional[float] = None
+    bankholiday_bill_rate: Optional[float] = None
+    double_hours: Optional[str] = None
+    triple_hours: Optional[str] = None
+    dedh_hours: Optional[str] = None
+    tcr_id: Optional[int] = None
+    double_pay_rate: Optional[float] = None
+    double_bill_rate: Optional[float] = None
+    triple_bill_rate: Optional[float] = None
+    triple_pay_rate: Optional[float] = None
+    dedh_pay_rate: Optional[float] = None
+    dedh_bill_rate: Optional[float] = None
+
+
+class ContractorHoursCreate(ContractorHoursBase):
+    created_by: Optional[UUID] = None
+
+
+class ContractorHoursOut(ContractorHoursBase):
+    tch_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ContractorHoursUpsert(ContractorHoursBase):
+    tch_id: Optional[UUID] = None
+    rate_hours: Optional[List['ContractorRateHoursCreate']] = None  # Add rate hours data
+
+
+class ContractorRateHoursBase(BaseModel):
+    tch_id: Optional[UUID] = None  # Made optional for upsert operations
+    rate_frequency_id: int
+    rate_type_id: int
+    tcr_id: int
+    quantity: Optional[float] = None
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+
+
+class ContractorRateHoursCreate(ContractorRateHoursBase):
+    created_by: Optional[UUID] = None
+
+
+class ContractorRateHoursUpdate(BaseModel):
+    rate_frequency_id: Optional[int] = None
+    rate_type_id: Optional[int] = None
+    tcr_id: Optional[int] = None
+    quantity: Optional[float] = None
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+    updated_by: Optional[UUID] = None
+
+
+class ContractorRateHoursOut(ContractorRateHoursBase):
+    tcrh_id: int
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+    deleted_by: Optional[UUID] = None
+    deleted_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MultipleRateHoursCreate(BaseModel):
+    tch_id: UUID
+    rate_entries: List[ContractorRateHoursCreate]
+    created_by: Optional[UUID] = None
