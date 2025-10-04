@@ -14,12 +14,16 @@ import {
   Chip,
   Button,
   Fab,
+  IconButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { invoicesAPI, InvoiceDTO, GenerateInvoiceRequestDTO } from '../services/api';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
+import { useNavigate } from 'react-router-dom';
 
 const Invoice: React.FC = () => {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<InvoiceDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +73,7 @@ const Invoice: React.FC = () => {
     }
   };
 
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -116,6 +121,7 @@ const Invoice: React.FC = () => {
                 <TableCell align="right">Amount</TableCell>
                 <TableCell align="right">Total Amount</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -140,6 +146,15 @@ const Invoice: React.FC = () => {
                       size="small"
                     />
                   </TableCell>
+                  <TableCell align="center">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => navigate(`/invoice/view-invoice/${invoice.invoice_id}`)}
+                      title="View Invoice"
+                    >
+                      <VisibilityIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -150,7 +165,7 @@ const Invoice: React.FC = () => {
       <GenerateInvoiceModal
         open={generateModalOpen}
         onClose={() => setGenerateModalOpen(false)}
-        onGenerate={async (data) => {
+        onGenerate={async (data: GenerateInvoiceRequestDTO) => {
           try {
             console.log('Generating invoice with data:', data);
             

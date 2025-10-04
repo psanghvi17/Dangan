@@ -44,6 +44,82 @@ def get_invoice(invoice_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error fetching invoice: {str(e)}")
 
 
+@router.get("/{invoice_id}/details", response_model=schemas.InvoiceWithLineItems)
+def get_invoice_with_line_items(invoice_id: str, db: Session = Depends(get_db)):
+    """Get invoice with its line items"""
+    try:
+        # Get invoice
+        invoice = db.query(models.Invoice).filter(
+            models.Invoice.invoice_id == invoice_id,
+            models.Invoice.deleted_on.is_(None)
+        ).first()
+        
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        # Get line items for this invoice with rate type and frequency names
+        line_items_query = (
+            db.query(
+                models.InvoiceLineItem,
+                models.RateType.rate_type_name,
+                models.RateFrequency.rate_frequency_name
+            )
+            .outerjoin(
+                models.RateType, 
+                models.InvoiceLineItem.type == models.RateType.rate_type_id
+            )
+            .outerjoin(
+                models.ContractRate,
+                models.InvoiceLineItem.tcr_id == models.ContractRate.id
+            )
+            .outerjoin(
+                models.RateFrequency,
+                models.ContractRate.rate_frequency == models.RateFrequency.rate_frequency_id
+            )
+            .filter(
+                models.InvoiceLineItem.invoice_id == invoice_id,
+                models.InvoiceLineItem.deleted_on.is_(None)
+            )
+        )
+        
+        line_items_with_details = line_items_query.all()
+        
+        # Transform the results to include rate type and frequency names
+        line_items = []
+        for line_item, rate_type_name, rate_frequency_name in line_items_with_details:
+            # Create a new object with additional fields
+            line_item_dict = {
+                'pili_id': line_item.pili_id,
+                'invoice_id': line_item.invoice_id,
+                'type': line_item.type,
+                'quantity': line_item.quantity,
+                'rate': line_item.rate,
+                'timesheet_id': line_item.timesheet_id,
+                'm_rate_name': line_item.m_rate_name,
+                'total': line_item.total,
+                'tcr_id': line_item.tcr_id,
+                'created_on': line_item.created_on,
+                'updated_on': line_item.updated_on,
+                'created_by': line_item.created_by,
+                'updated_by': line_item.updated_by,
+                'deleted_by': line_item.deleted_by,
+                'deleted_on': line_item.deleted_on,
+                'rate_type_name': rate_type_name,
+                'rate_frequency_name': rate_frequency_name
+            }
+            line_items.append(line_item_dict)
+        
+        return schemas.InvoiceWithLineItems(
+            invoice=invoice,
+            line_items=line_items
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_invoice_with_line_items: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching invoice details: {str(e)}")
+
+
 @router.post("/generate", response_model=schemas.GenerateInvoiceResponse)
 def generate_invoice(
     request: schemas.GenerateInvoiceRequest,
@@ -201,6 +277,29 @@ def generate_invoice(
                 
                 print(f"🔍 DEBUG: Calculated total: {total}")
                 
+                # Get candidate name, client name for m_rate_name
+                m_rate_name = ""
+                if tch.pcc_id:
+                    # Get candidate and client info through pcc_id
+                    pcc_info = db.query(models.P_CandidateClient, models.Candidate, models.Client).join(
+                        models.Candidate, models.P_CandidateClient.candidate_id == models.Candidate.candidate_id
+                    ).join(
+                        models.Client, models.P_CandidateClient.client_id == models.Client.client_id
+                    ).filter(models.P_CandidateClient.pcc_id == tch.pcc_id).first()
+                    
+                    if pcc_info:
+                        pcc, candidate, client = pcc_info
+                        candidate_name = candidate.invoice_contact_name or "Unknown Candidate"
+                        client_name = client.client_name or "Unknown Client"
+                        m_rate_name = f"{candidate_name} - {client_name} - {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+                        print(f"🔍 DEBUG: Generated m_rate_name: {m_rate_name}")
+                    else:
+                        m_rate_name = f"Unknown - Unknown - {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+                        print(f"🔍 DEBUG: Could not find candidate/client info, using default m_rate_name: {m_rate_name}")
+                else:
+                    m_rate_name = f"Unknown - Unknown - {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+                    print(f"🔍 DEBUG: No pcc_id found, using default m_rate_name: {m_rate_name}")
+                
                 # Create line item with dynamic values from tcrh
                 line_item = models.InvoiceLineItem(
                     invoice_id=invoice_id,
@@ -209,11 +308,12 @@ def generate_invoice(
                     rate=rate_hour.bill_rate,      # Dynamic rate from tcrh
                     timesheet_id=tch.timesheet_id,  # Store the timesheet_id from contractor hours
                     total=total,
-                    tcr_id=rate_hour.tcr_id
+                    tcr_id=rate_hour.tcr_id,
+                    m_rate_name=m_rate_name  # Add the formatted rate name
                 )
                 db.add(line_item)
                 line_items.append(line_item)
-                print(f"🔍 DEBUG: Created line item - type: {rate_hour.rate_type_id}, quantity: {rate_hour.quantity}, rate: {rate_hour.bill_rate}, timesheet_id: {tch.timesheet_id}, total: {total}")
+                print(f"🔍 DEBUG: Created line item - type: {rate_hour.rate_type_id}, quantity: {rate_hour.quantity}, rate: {rate_hour.bill_rate}, timesheet_id: {tch.timesheet_id}, total: {total}, m_rate_name: {m_rate_name}")
         
         print(f"🔍 DEBUG: Total line items created: {len(line_items)}")
         print(f"🔍 DEBUG: Total amount: {total_amount}")
@@ -228,6 +328,9 @@ def generate_invoice(
             print(f"🔍 DEBUG: Sample TCH found: {sample_tch}")
             print(f"🔍 DEBUG: Sample timesheet_id: {sample_timesheet_id}")
             
+            # Generate sample m_rate_name
+            sample_m_rate_name = f"Sample Candidate - Sample Client - {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+            
             sample_line_item = models.InvoiceLineItem(
                 invoice_id=invoice_id,
                 type=1,  # Sample rate type
@@ -235,12 +338,13 @@ def generate_invoice(
                 rate=100.0,
                 timesheet_id=sample_timesheet_id,  # Use actual timesheet_id if available
                 total=100.0,
-                tcr_id=None
+                tcr_id=None,
+                m_rate_name=sample_m_rate_name  # Add sample rate name
             )
             db.add(sample_line_item)
             line_items.append(sample_line_item)
             total_amount = 100.0
-            print(f"🔍 DEBUG: Created sample line item with timesheet_id: {sample_timesheet_id}")
+            print(f"🔍 DEBUG: Created sample line item with timesheet_id: {sample_timesheet_id}, m_rate_name: {sample_m_rate_name}")
         
         # 4. Update invoice with total amount
         new_invoice.total_amount = total_amount

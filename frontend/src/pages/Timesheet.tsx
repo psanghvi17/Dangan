@@ -99,6 +99,7 @@ const Timesheet: React.FC = () => {
   const [rateColumns, setRateColumns] = useState<RateColumn[]>([]);
   const [candidateRatesMatrix, setCandidateRatesMatrix] = useState<Record<string, any[]>>({});
   const [candidateClientInfo, setCandidateClientInfo] = useState<Record<string, string>>({});
+  const [candidatePccInfo, setCandidatePccInfo] = useState<Record<string, { client_name: string; pcc_id: string }>>({});
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState('');
   const [dateRange, setDateRange] = useState('');
@@ -191,20 +192,24 @@ const Timesheet: React.FC = () => {
           
           if (candidateIds.length > 0) {
             try {
-              const [ratesMatrix, clientInfo] = await Promise.all([
+              const [ratesMatrix, clientInfo, pccInfo] = await Promise.all([
                 candidatesAPI.getCandidateRatesMatrix(candidateIds),
-                candidatesAPI.getCandidateClientInfo(candidateIds)
+                candidatesAPI.getCandidateClientInfo(candidateIds),
+                candidatesAPI.getCandidatePccInfo(candidateIds)
               ]);
               setCandidateRatesMatrix(ratesMatrix);
               setCandidateClientInfo(clientInfo);
+              setCandidatePccInfo(pccInfo);
               console.log('✅ Fetched rates matrix:', ratesMatrix);
               console.log('✅ Fetched client info:', clientInfo);
+              console.log('✅ Fetched pcc info:', pccInfo);
               console.log('🔍 Client info keys:', Object.keys(clientInfo));
               console.log('🔍 Client info values:', Object.values(clientInfo));
             } catch (error) {
               console.error('❌ Error fetching candidate data:', error);
               setCandidateRatesMatrix({});
               setCandidateClientInfo({});
+              setCandidatePccInfo({});
             }
           }
 
@@ -315,7 +320,7 @@ const Timesheet: React.FC = () => {
     
     // Keep alphabetical order by employee name (case-insensitive)
     return convertedRows.sort((a, b) => a.employee.localeCompare(b.employee, undefined, { sensitivity: 'base' }));
-  }, [timesheetData, candidates, candidateRatesMatrix, candidateClientInfo, rateColumns]);
+  }, [timesheetData, candidates, candidateRatesMatrix, candidateClientInfo, candidatePccInfo, rateColumns]);
 
   // Generate table columns based on all rate combinations (only dynamic columns)
   const tableColumns = useMemo((): TableColumn[] => {
@@ -592,11 +597,16 @@ const Timesheet: React.FC = () => {
           console.log(`🔍 DEBUG: No candidate rates found for contractor ${contractorId}`);
         }
         
+        // Get pcc_id for this contractor
+        const pccInfo = candidatePccInfo[contractorId];
+        const pccId = pccInfo?.pcc_id;
+        
         const payloadItem = {
           tch_id: existingTch?.tch_id,
           contractor_id: contractorId,
           work_date: workDate,
           timesheet_id: timesheetData.timesheet_id,
+          pcc_id: pccId,
           standard_hours: row.hours["1-1"] ?? 0,
           weekend_hours: row.hours["1-3"] ?? undefined,
           bank_holiday_hours: row.hours["8-1"] ?? undefined,

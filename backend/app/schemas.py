@@ -373,6 +373,7 @@ class ContractorHoursBase(BaseModel):
     contractor_id: UUID
     work_date: date
     timesheet_id: Optional[UUID] = None
+    pcc_id: Optional[UUID] = None
     standard_hours: Optional[float] = None
     on_call_hours: Optional[float] = None
     status: Optional[str] = None
@@ -422,6 +423,7 @@ class ContractorHoursUpsert(BaseModel):
     contractor_id: Optional[UUID] = None
     work_date: Optional[date] = None
     timesheet_id: Optional[UUID] = None
+    pcc_id: Optional[UUID] = None
     standard_hours: Optional[float] = None
     on_call_hours: Optional[float] = None
     status: Optional[str] = None
@@ -547,6 +549,8 @@ class InvoiceLineItem(InvoiceLineItemBase):
     updated_by: Optional[UUID] = None
     deleted_by: Optional[UUID] = None
     deleted_on: Optional[datetime] = None
+    rate_type_name: Optional[str] = None
+    rate_frequency_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -558,3 +562,8 @@ class GenerateInvoiceResponse(BaseModel):
     invoice_date: date
     line_items: List[InvoiceLineItem]
     total_amount: float
+
+
+class InvoiceWithLineItems(BaseModel):
+    invoice: Invoice
+    line_items: List[InvoiceLineItem]

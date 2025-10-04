@@ -557,6 +557,19 @@ def get_candidate_client_info(candidate_ids: List[str], db: Session = Depends(ge
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/pcc-info", response_model=Dict[str, Dict[str, str]])
+def get_candidate_pcc_info(candidate_ids: List[str], db: Session = Depends(get_db)):
+    """Get client information and pcc_id for multiple candidates"""
+    try:
+        print(f"🔍 Getting pcc info for candidates: {candidate_ids}")
+        pcc_info = crud.get_candidate_pcc_info(db, candidate_ids)
+        print(f"✅ PCC info result: {pcc_info}")
+        return pcc_info
+    except Exception as e:
+        print(f"❌ Error getting pcc info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/contract-with-rates", response_model=schemas.ContractWithRatesOut)
 def create_contract_with_rates(
     contract_data: schemas.ContractWithRatesCreate,

@@ -394,6 +394,11 @@ export const candidatesAPI = {
     return res.data;
   },
 
+  getCandidatePccInfo: async (candidateIds: string[]): Promise<Record<string, { client_name: string; pcc_id: string }>> => {
+    const res = await api.post('/api/candidates/pcc-info', candidateIds);
+    return res.data;
+  },
+
   createContractWithRates: async (contractData: ContractWithRatesCreateDTO): Promise<ContractWithRatesOutDTO> => {
     const res = await api.post('/api/candidates/contract-with-rates', contractData);
     return res.data;
@@ -688,6 +693,8 @@ export interface InvoiceLineItemDTO {
   updated_by?: string;
   deleted_by?: string;
   deleted_on?: string;
+  rate_type_name?: string;
+  rate_frequency_name?: string;
 }
 
 export interface GenerateInvoiceResponseDTO {
@@ -698,6 +705,11 @@ export interface GenerateInvoiceResponseDTO {
   total_amount: number;
 }
 
+export interface InvoiceWithLineItemsDTO {
+  invoice: InvoiceDTO;
+  line_items: InvoiceLineItemDTO[];
+}
+
 export const invoicesAPI = {
   list: async (): Promise<InvoiceDTO[]> => {
     const res = await api.get('/api/invoices/');
@@ -706,6 +718,11 @@ export const invoicesAPI = {
   
   get: async (invoiceId: string): Promise<InvoiceDTO> => {
     const res = await api.get(`/api/invoices/${invoiceId}`);
+    return res.data;
+  },
+  
+  getWithLineItems: async (invoiceId: string): Promise<InvoiceWithLineItemsDTO> => {
+    const res = await api.get(`/api/invoices/${invoiceId}/details`);
     return res.data;
   },
   

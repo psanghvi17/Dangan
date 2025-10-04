@@ -757,6 +757,7 @@ def create_contractor_hours(db: Session, payload: schemas.ContractorHoursCreate)
         contractor_id=payload.contractor_id,
         work_date=payload.work_date,
         timesheet_id=payload.timesheet_id,
+        pcc_id=payload.pcc_id,
         standard_hours=payload.standard_hours,
         on_call_hours=payload.on_call_hours,
         created_by=payload.created_by,
@@ -801,6 +802,7 @@ def bulk_create_contractor_hours(db: Session, items: List[schemas.ContractorHour
             contractor_id=payload.contractor_id,
             work_date=payload.work_date,
             timesheet_id=payload.timesheet_id,
+            pcc_id=payload.pcc_id,
             standard_hours=payload.standard_hours,
             on_call_hours=payload.on_call_hours,
             created_by=payload.created_by,
@@ -938,6 +940,7 @@ def upsert_contractor_hours(db: Session, items: List[schemas.ContractorHoursUpse
                 contractor_id=payload.contractor_id,
                 work_date=payload.work_date,
                 timesheet_id=payload.timesheet_id,
+                pcc_id=payload.pcc_id,
                 standard_hours=payload.standard_hours,
                 on_call_hours=payload.on_call_hours,
                 created_by=getattr(payload, 'created_by', None),
@@ -1353,6 +1356,50 @@ def get_candidate_client_info(db: Session, candidate_ids: List[str]) -> Dict[str
         
     except Exception as e:
         print(f"❌ Error getting candidate client info: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
+def get_candidate_pcc_info(db: Session, candidate_ids: List[str]) -> Dict[str, Dict[str, str]]:
+    """Get client information and pcc_id for multiple candidates using proper joins"""
+    try:
+        print(f"🔍 Getting pcc info for candidates: {candidate_ids}")
+        
+        # Use proper JOIN to get client names and pcc_id
+        from sqlalchemy.orm import aliased
+        
+        # Create aliases for the tables
+        pcc = aliased(models.P_CandidateClient)
+        mc = aliased(models.Client)
+        
+        # Join p_candidate_client with m_client to get client names and pcc_id
+        results = (
+            db.query(pcc.candidate_id, mc.client_name, pcc.pcc_id)
+            .join(mc, pcc.client_id == mc.client_id)
+            .filter(pcc.candidate_id.in_(candidate_ids))
+            .filter(pcc.deleted_on.is_(None))
+            .filter(mc.deleted_on.is_(None))
+            .all()
+        )
+        
+        print(f"🔍 Found {len(results)} candidate-client relationships with client names and pcc_id")
+        
+        # Create mapping of candidate_id to {client_name, pcc_id}
+        candidate_pcc_info = {}
+        for candidate_id, client_name, pcc_id in results:
+            candidate_id_str = str(candidate_id)
+            client_name_str = client_name or 'Unknown Client'
+            pcc_id_str = str(pcc_id) if pcc_id else None
+            candidate_pcc_info[candidate_id_str] = {
+                'client_name': client_name_str,
+                'pcc_id': pcc_id_str
+            }
+        
+        print(f"✅ Candidate pcc info result: {candidate_pcc_info}")
+        return candidate_pcc_info
+    except Exception as e:
+        print(f"❌ Error getting candidate pcc info: {e}")
         import traceback
         traceback.print_exc()
         return {}

@@ -226,6 +226,7 @@ class ContractorHours(Base):
     triple_pay_rate = Column(Float, nullable=True)
     dedh_pay_rate = Column(Float, nullable=True)
     dedh_bill_rate = Column(Float, nullable=True)
+    pcc_id = Column(UUID(as_uuid=True), ForeignKey("app.p_candidate_client.pcc_id"), nullable=True)
 
 
 class ContractorRateHours(Base):

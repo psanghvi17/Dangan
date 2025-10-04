@@ -33,6 +33,7 @@ export const ROUTES = {
   // Invoice routes
   INVOICE: {
     LIST: '/invoices',
+    VIEW: (invoiceId: string) => `/invoice/view-invoice/${invoiceId}`,
   },
 } as const;
 
