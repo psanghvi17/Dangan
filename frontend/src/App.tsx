@@ -13,6 +13,7 @@ import Holiday from './pages/Holiday';
 import ManageClient from './pages/ManageClient';
 import ManageCandidate from './pages/ManageCandidate';
 import TimesheetList from './pages/TimesheetList';
+import Invoice from './pages/Invoice';
 import { AuthProvider } from './contexts/AuthContext';
 // Removed ProtectedRoute for now to make routes public
 
@@ -38,6 +39,7 @@ function App() {
           <Route path="/timesheet" element={<TimesheetList />} />
           <Route path="/timesheet/manage-timesheet" element={<Timesheet />} />
           <Route path="/timesheet/manage-timesheet/:timesheetId" element={<Timesheet />} />
+          <Route path="/invoices" element={<Invoice />} />
           <Route path="/holiday" element={<Holiday />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

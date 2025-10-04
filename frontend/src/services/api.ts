@@ -646,3 +646,33 @@ export const timesheetsAPI = {
     return res.data;
   },
 };
+
+// Invoice API
+export interface InvoiceDTO {
+  invoice_id: string;
+  invoice_num?: string;
+  invoice_date?: string;
+  amount?: number;
+  total_amount?: number;
+  status?: string;
+  pcc_id?: string;
+  timesheet_id?: string;
+  created_on?: string;
+  updated_on?: string;
+  deleted_on?: string;
+  created_by?: string;
+  updated_by?: string;
+  deleted_by?: string;
+}
+
+export const invoicesAPI = {
+  list: async (): Promise<InvoiceDTO[]> => {
+    const res = await api.get('/api/invoices/');
+    return res.data;
+  },
+  
+  get: async (invoiceId: string): Promise<InvoiceDTO> => {
+    const res = await api.get(`/api/invoices/${invoiceId}`);
+    return res.data;
+  },
+};

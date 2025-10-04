@@ -29,6 +29,11 @@ export const ROUTES = {
     VIEW: (timesheetId: string | number) => `/timesheet/manage-timesheet/${timesheetId}?mode=view`,
     EDIT: (timesheetId: string | number) => `/timesheet/manage-timesheet/${timesheetId}?mode=edit`,
   },
+  
+  // Invoice routes
+  INVOICE: {
+    LIST: '/invoices',
+  },
 } as const;
 
 // Navigation helper functions

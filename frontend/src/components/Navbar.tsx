@@ -28,18 +28,19 @@ const Navbar: React.FC = () => {
           <Button color="inherit" onClick={() => navigate('/')}>
             Home
           </Button>
+          <Button color="inherit" onClick={() => navigate('/items')}>
+            Items
+          </Button>
+          <Button color="inherit" onClick={() => navigate('/client')}>
+            Client
+          </Button>
+          <Button color="inherit" onClick={() => navigate('/invoices')}>
+            Invoice
+          </Button>
           {user ? (
-            <>
-              <Button color="inherit" onClick={() => navigate('/items')}>
-                Items
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/client')}>
-                Client
-              </Button>
-              <Button color="inherit" onClick={handleLogout}>
-                Logout ({user.username})
-              </Button>
-            </>
+            <Button color="inherit" onClick={handleLogout}>
+              Logout ({user.username})
+            </Button>
           ) : (
             <>
               <Button color="inherit" onClick={() => navigate('/login')}>

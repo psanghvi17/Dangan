@@ -9,7 +9,6 @@ import {
   Paper,
   Grid,
   TextField,
-  MenuItem,
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
@@ -104,9 +103,6 @@ const Timesheet: React.FC = () => {
   const [week, setWeek] = useState('');
   const [dateRange, setDateRange] = useState('');
   const [saving, setSaving] = useState(false);
-  const [clientFilter, setClientFilter] = useState('All Client');
-  const [candidateFilter, setCandidateFilter] = useState('All Candidate');
-  const [showFilled, setShowFilled] = useState<'filled' | 'notfilled' | 'all'>('all');
   const [contractorHoursMap, setContractorHoursMap] = useState<Record<string, ContractorHoursDTO>>({});
 
   // Load candidates and timesheet data
@@ -317,25 +313,9 @@ const Timesheet: React.FC = () => {
       };
     });
     
-    const filtered = convertedRows.filter((r) => {
-      // Filter by filled status
-      if (showFilled === 'filled' && !r.filled) return false;
-      if (showFilled === 'notfilled' && r.filled) return false;
-      
-      // Filter by candidate (if not "All Candidate")
-      if (candidateFilter !== 'All Candidate') {
-        const candidate = candidates.find(c => c.candidate_id === r.code);
-        console.log(`🔍 Filtering candidate: ${r.employee} (${r.code}), looking for: ${candidateFilter}, found: ${candidate?.invoice_contact_name}`);
-        if (!candidate || candidate.invoice_contact_name !== candidateFilter) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
     // Keep alphabetical order by employee name (case-insensitive)
-    return filtered.sort((a, b) => a.employee.localeCompare(b.employee, undefined, { sensitivity: 'base' }));
-  }, [timesheetData, showFilled, candidateFilter, candidates, candidateRatesMatrix, candidateClientInfo, rateColumns]);
+    return convertedRows.sort((a, b) => a.employee.localeCompare(b.employee, undefined, { sensitivity: 'base' }));
+  }, [timesheetData, candidates, candidateRatesMatrix, candidateClientInfo, rateColumns]);
 
   // Generate table columns based on all rate combinations (only dynamic columns)
   const tableColumns = useMemo((): TableColumn[] => {
@@ -464,17 +444,6 @@ const Timesheet: React.FC = () => {
     (window as any).updateTimeouts[timeoutKey] = setTimeout(updateServer, 1000);
   };
 
-  const FilterButton: React.FC<{ active: boolean; onClick: () => void; label: string }>
-    = ({ active, onClick, label }) => (
-      <Button
-        variant={active ? 'contained' : 'outlined'}
-        color={active ? 'primary' : 'inherit'}
-        onClick={onClick}
-        sx={{ borderRadius: 999 }}
-      >
-        {label}
-      </Button>
-    );
 
   if (loading) {
     return (
@@ -628,24 +597,6 @@ const Timesheet: React.FC = () => {
             <Grid item>
               <Button variant="outlined" sx={{ borderRadius: 999 }}>{dateRange}</Button>
             </Grid>
-            <Grid item>
-              <TextField select size="small" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
-                {['All Client', 'Client'].map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item>
-              <TextField select size="small" value={candidateFilter} onChange={(e) => setCandidateFilter(e.target.value)}>
-                <MenuItem value="All Candidate">All Candidate</MenuItem>
-                {candidates.map((candidate) => {
-                  console.log('🔍 Candidate for dropdown:', candidate);
-                  return (
-                    <MenuItem key={candidate.candidate_id} value={candidate.invoice_contact_name || 'Unknown'}>
-                      {candidate.invoice_contact_name || 'Unknown'}
-                    </MenuItem>
-                  );
-                })}
-              </TextField>
-            </Grid>
             <Grid item sx={{ flexGrow: 1 }} />
             <Grid item>
               <Button variant="contained">Upload CSV</Button>
@@ -653,10 +604,6 @@ const Timesheet: React.FC = () => {
           </Grid>
         </Paper>
 
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-          <FilterButton active={showFilled === 'filled'} onClick={() => setShowFilled('filled')} label="Filled" />
-          <FilterButton active={showFilled === 'notfilled'} onClick={() => setShowFilled('notfilled')} label="Not Filled" />
-        </Box>
 
         <Paper variant="outlined">
           <TableContainer component={Box} sx={{ maxHeight: 600, overflowX: 'auto' }}>

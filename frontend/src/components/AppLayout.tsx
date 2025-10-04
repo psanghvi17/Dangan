@@ -17,6 +17,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import PaidIcon from '@mui/icons-material/Paid';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -42,6 +43,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
     { label: 'Client', icon: <WorkOutlineIcon />, path: '/client' },
     { label: 'Candidate', icon: <PersonIcon />, path: '/candidate' },
     { label: 'Timesheet', icon: <AssignmentIcon />, path: '/timesheet' },
+    { label: 'Invoice', icon: <ReceiptIcon />, path: '/invoices' },
     { label: 'Payroll', icon: <PaidIcon />, path: '#' },
     { label: 'Holiday', icon: <BeachAccessIcon />, path: '/holiday' },
     { label: 'Report', icon: <BarChartIcon />, path: '#' },

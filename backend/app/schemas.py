@@ -463,3 +463,27 @@ class MultipleRateHoursCreate(BaseModel):
     tch_id: UUID
     rate_entries: List[ContractorRateHoursCreate]
     created_by: Optional[UUID] = None
+
+
+# Invoice schemas
+class InvoiceBase(BaseModel):
+    invoice_num: Optional[str] = None
+    invoice_date: Optional[date] = None
+    amount: Optional[float] = None
+    total_amount: Optional[float] = None
+    status: Optional[str] = None
+
+
+class Invoice(InvoiceBase):
+    invoice_id: UUID
+    pcc_id: Optional[UUID] = None
+    timesheet_id: Optional[UUID] = None
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    deleted_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+    deleted_by: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
