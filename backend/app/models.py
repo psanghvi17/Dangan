@@ -295,3 +295,24 @@ class Invoice(Base):
     inv_client_id = Column(UUID(as_uuid=True), nullable=True)
     company_id = Column(Integer, nullable=True)
     inv_payment_terms = Column(String, nullable=True)
+
+
+class InvoiceLineItem(Base):
+    __tablename__ = "p_invoice_line_items"
+    __table_args__ = {"schema": "app"}
+
+    pili_id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("app.t_invoice.invoice_id"), nullable=False)
+    type = Column(Integer, nullable=True)
+    quantity = Column(Float, nullable=True)
+    rate = Column(Float, nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
+    timesheet_id = Column(UUID(as_uuid=True), nullable=True)
+    m_rate_name = Column(String, nullable=True)
+    total = Column(Float, nullable=True)
+    tcr_id = Column(Integer, nullable=True)

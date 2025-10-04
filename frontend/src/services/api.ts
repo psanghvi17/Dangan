@@ -665,6 +665,39 @@ export interface InvoiceDTO {
   deleted_by?: string;
 }
 
+export interface GenerateInvoiceRequestDTO {
+  candidateId: string;
+  clientId: string;
+  week: string;
+  invoiceDate: string;
+}
+
+export interface InvoiceLineItemDTO {
+  pili_id: number;
+  invoice_id: string;
+  type?: number;
+  quantity?: number;
+  rate?: number;
+  timesheet_id?: string;
+  m_rate_name?: string;
+  total?: number;
+  tcr_id?: number;
+  created_on?: string;
+  updated_on?: string;
+  created_by?: string;
+  updated_by?: string;
+  deleted_by?: string;
+  deleted_on?: string;
+}
+
+export interface GenerateInvoiceResponseDTO {
+  invoice_id: string;
+  invoice_num: string;
+  invoice_date: string;
+  line_items: InvoiceLineItemDTO[];
+  total_amount: number;
+}
+
 export const invoicesAPI = {
   list: async (): Promise<InvoiceDTO[]> => {
     const res = await api.get('/api/invoices/');
@@ -673,6 +706,11 @@ export const invoicesAPI = {
   
   get: async (invoiceId: string): Promise<InvoiceDTO> => {
     const res = await api.get(`/api/invoices/${invoiceId}`);
+    return res.data;
+  },
+  
+  generate: async (request: GenerateInvoiceRequestDTO): Promise<GenerateInvoiceResponseDTO> => {
+    const res = await api.post('/api/invoices/generate', request);
     return res.data;
   },
 };

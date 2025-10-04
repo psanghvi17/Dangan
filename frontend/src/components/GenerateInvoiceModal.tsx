@@ -44,7 +44,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Generate week options (flexible date range)
+  // Generate week options (Monday to Sunday, like CreateTimesheetModal)
   const generateWeekOptions = () => {
     const weeks = [];
     const today = new Date();
@@ -54,21 +54,26 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       const weekDate = new Date(today);
       weekDate.setDate(today.getDate() + (i * 7));
       
+      // Find the Monday of this week
       const weekStart = new Date(weekDate);
-      weekStart.setDate(weekDate.getDate() - weekDate.getDay()); // Start of week (Sunday)
+      const dayOfWeek = weekDate.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so 6 days to Monday
+      weekStart.setDate(weekDate.getDate() - daysToMonday);
       
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
+      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Sunday)
       
-      const weekLabel = `Week of ${weekStart.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
+      const startDate = weekStart.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short' 
+      });
+      const endDate = weekEnd.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short',
         year: 'numeric'
-      })} - ${weekEnd.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      })}`;
+      });
+      
+      const weekLabel = `Week of ${startDate} - ${endDate}`;
       
       weeks.push({
         value: weekStart.toISOString().split('T')[0],

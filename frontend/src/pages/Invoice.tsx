@@ -16,7 +16,7 @@ import {
   Fab,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { invoicesAPI, InvoiceDTO } from '../services/api';
+import { invoicesAPI, InvoiceDTO, GenerateInvoiceRequestDTO } from '../services/api';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 
 const Invoice: React.FC = () => {
@@ -150,14 +150,32 @@ const Invoice: React.FC = () => {
       <GenerateInvoiceModal
         open={generateModalOpen}
         onClose={() => setGenerateModalOpen(false)}
-        onGenerate={(data) => {
-          console.log('Generate invoice with data:', data);
-          console.log('Candidate:', data.candidateId === 'all' ? 'All Candidates' : data.candidateId);
-          console.log('Client:', data.clientId === 'all' ? 'All Clients' : data.clientId);
-          console.log('Week:', data.week);
-          console.log('Invoice Date:', data.invoiceDate);
-          setGenerateModalOpen(false);
-          // TODO: Implement invoice generation logic
+        onGenerate={async (data) => {
+          try {
+            console.log('Generating invoice with data:', data);
+            
+            const request: GenerateInvoiceRequestDTO = {
+              candidateId: data.candidateId,
+              clientId: data.clientId,
+              week: data.week,
+              invoiceDate: data.invoiceDate,
+            };
+            
+            const response = await invoicesAPI.generate(request);
+            console.log('Invoice generated successfully:', response);
+            
+            // Refresh the invoice list
+            await fetchInvoices();
+            
+            setGenerateModalOpen(false);
+            
+            // Show success message (you can add a toast notification here)
+            alert(`Invoice generated successfully! Invoice #${response.invoice_num} with total amount $${response.total_amount.toFixed(2)}`);
+            
+          } catch (error) {
+            console.error('Error generating invoice:', error);
+            alert('Failed to generate invoice. Please try again.');
+          }
         }}
       />
     </Box>

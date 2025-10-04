@@ -417,9 +417,41 @@ class ContractorHoursOut(ContractorHoursBase):
         from_attributes = True
 
 
-class ContractorHoursUpsert(ContractorHoursBase):
+class ContractorHoursUpsert(BaseModel):
     tch_id: Optional[UUID] = None
-    rate_hours: Optional[List['ContractorRateHoursCreate']] = None  # Add rate hours data
+    contractor_id: Optional[UUID] = None
+    work_date: Optional[date] = None
+    timesheet_id: Optional[UUID] = None
+    standard_hours: Optional[float] = None
+    on_call_hours: Optional[float] = None
+    status: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    week: Optional[int] = None
+    day: Optional[str] = None
+    weekend_hours: Optional[float] = None
+    bank_holiday_hours: Optional[float] = None
+    total_hours: Optional[float] = None
+    project_no: Optional[UUID] = None
+    standard_bill_rate: Optional[float] = None
+    standard_pay_rate: Optional[float] = None
+    oncall_pay_rate: Optional[float] = None
+    oncall_bill_rate: Optional[float] = None
+    weekend_pay_rate: Optional[float] = None
+    weekend_bill_rate: Optional[float] = None
+    bankholiday_pay_rate: Optional[float] = None
+    bankholiday_bill_rate: Optional[float] = None
+    double_hours: Optional[str] = None
+    triple_hours: Optional[str] = None
+    dedh_hours: Optional[str] = None
+    tcr_id: Optional[int] = None
+    double_pay_rate: Optional[float] = None
+    double_bill_rate: Optional[float] = None
+    triple_bill_rate: Optional[float] = None
+    triple_pay_rate: Optional[float] = None
+    dedh_pay_rate: Optional[float] = None
+    dedh_bill_rate: Optional[float] = None
+    rate_hours: Optional[List['ContractorRateHoursCreate']] = None
 
 
 class ContractorRateHoursBase(BaseModel):
@@ -487,3 +519,42 @@ class Invoice(InvoiceBase):
 
     class Config:
         from_attributes = True
+
+
+class GenerateInvoiceRequest(BaseModel):
+    candidateId: str  # Can be 'all' or specific candidate ID
+    clientId: str     # Can be 'all' or specific client ID
+    week: str         # Week start date in YYYY-MM-DD format
+    invoiceDate: str   # Invoice date in YYYY-MM-DD format
+
+
+class InvoiceLineItemBase(BaseModel):
+    type: Optional[int] = None
+    quantity: Optional[float] = None
+    rate: Optional[float] = None
+    timesheet_id: Optional[UUID] = None
+    m_rate_name: Optional[str] = None
+    total: Optional[float] = None
+    tcr_id: Optional[int] = None
+
+
+class InvoiceLineItem(InvoiceLineItemBase):
+    pili_id: int
+    invoice_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+    deleted_by: Optional[UUID] = None
+    deleted_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class GenerateInvoiceResponse(BaseModel):
+    invoice_id: UUID
+    invoice_num: str
+    invoice_date: date
+    line_items: List[InvoiceLineItem]
+    total_amount: float

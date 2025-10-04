@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
 from .. import crud, schemas, models
 from sqlalchemy.sql import func
 import uuid
+import json
 
 router = APIRouter()
 
@@ -169,18 +170,92 @@ def list_contractor_hours(timesheet_id: str, db: Session = Depends(get_db)):
     return crud.list_contractor_hours_by_timesheet(db, timesheet_id)
 
 
-@router.post("/{timesheet_id}/contractor-hours/upsert", response_model=List[schemas.ContractorHoursOut])
-def upsert_contractor_hours(
+@router.post("/{timesheet_id}/contractor-hours/upsert-debug")
+async def upsert_contractor_hours_debug(
     timesheet_id: str,
-    items: List[schemas.ContractorHoursUpsert],
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    normalized: List[schemas.ContractorHoursUpsert] = []
-    for item in items:
-        data = item.model_dump()
-        data["timesheet_id"] = timesheet_id
-        normalized.append(schemas.ContractorHoursUpsert(**data))
-    return crud.upsert_contractor_hours(db, normalized)
+    """Debug endpoint to see raw request data"""
+    try:
+        body = await request.body()
+        print(f"🔍 DEBUG: Raw request body: {body}")
+        
+        json_data = await request.json()
+        print(f"🔍 DEBUG: Parsed JSON: {json.dumps(json_data, indent=2)}")
+        
+        return {"message": "Debug data logged", "data": json_data}
+    except Exception as e:
+        print(f"🔍 DEBUG: Error in debug endpoint: {e}")
+        return {"error": str(e)}
+
+
+@router.post("/{timesheet_id}/contractor-hours/upsert", response_model=List[schemas.ContractorHoursOut])
+async def upsert_contractor_hours(
+    timesheet_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get raw JSON data
+        json_data = await request.json()
+        print(f"🔍 DEBUG: Received raw JSON data: {json.dumps(json_data, indent=2)}")
+        print(f"🔍 DEBUG: Timesheet ID: {timesheet_id}")
+        
+        if not isinstance(json_data, list):
+            raise HTTPException(status_code=400, detail="Expected array of items")
+        
+        print(f"🔍 DEBUG: Processing {len(json_data)} items")
+        
+        normalized: List[schemas.ContractorHoursUpsert] = []
+        for i, item_data in enumerate(json_data):
+            try:
+                # Clean the data
+                data = item_data.copy()
+                data["timesheet_id"] = timesheet_id
+                
+                # Handle empty tch_id strings
+                if data.get("tch_id") == "":
+                    data["tch_id"] = None
+                
+                # Convert string dates to date objects
+                if data.get("work_date"):
+                    if isinstance(data["work_date"], str):
+                        from datetime import datetime
+                        data["work_date"] = datetime.strptime(data["work_date"], "%Y-%m-%d").date()
+                
+                # Handle empty tch_id in rate_hours
+                if data.get("rate_hours"):
+                    for rate_hour in data["rate_hours"]:
+                        if rate_hour.get("tch_id") == "":
+                            rate_hour["tch_id"] = None
+                
+                print(f"🔍 DEBUG: Processing item {i}: {data}")
+                
+                # Create the schema object
+                schema_item = schemas.ContractorHoursUpsert(**data)
+                normalized.append(schema_item)
+                
+            except Exception as e:
+                print(f"🔍 DEBUG: Error processing item {i}: {e}")
+                print(f"🔍 DEBUG: Item data: {item_data}")
+                import traceback
+                print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+                raise HTTPException(status_code=422, detail=f"Error processing item {i}: {str(e)}")
+        
+        print(f"🔍 DEBUG: Successfully normalized {len(normalized)} items")
+        result = crud.upsert_contractor_hours(db, normalized)
+        print(f"🔍 DEBUG: Upsert completed, returning {len(result)} results")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔍 DEBUG: Error in upsert_contractor_hours: {e}")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/seed")

@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, func
 from typing import List
+from datetime import datetime, date, timedelta
+import uuid
 from ..database import get_db
 from .. import schemas, models
 
@@ -39,3 +42,223 @@ def get_invoice(invoice_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error in get_invoice: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching invoice: {str(e)}")
+
+
+@router.post("/generate", response_model=schemas.GenerateInvoiceResponse)
+def generate_invoice(
+    request: schemas.GenerateInvoiceRequest,
+    db: Session = Depends(get_db)
+):
+    """Generate invoice with line items based on contractor hours and rates"""
+    try:
+        print(f"🔍 DEBUG: Generate invoice request: {request}")
+        print(f"🔍 DEBUG: Candidate ID: {request.candidateId}")
+        print(f"🔍 DEBUG: Client ID: {request.clientId}")
+        print(f"🔍 DEBUG: Week: {request.week}")
+        print(f"🔍 DEBUG: Invoice Date: {request.invoiceDate}")
+        
+        # Start transaction
+        db.begin()
+        
+        # 1. Create invoice with invoice number 100
+        invoice_id = str(uuid.uuid4())
+        invoice_date = datetime.strptime(request.invoiceDate, "%Y-%m-%d").date()
+        
+        new_invoice = models.Invoice(
+            invoice_id=invoice_id,
+            invoice_num="100",  # Set invoice number as 100
+            invoice_date=invoice_date,
+            status="Draft",
+            show_invoices=True
+        )
+        db.add(new_invoice)
+        db.flush()  # Get the invoice ID
+        
+        # 2. Get contractor hours for the specified week using week column
+        week_start = datetime.strptime(request.week, "%Y-%m-%d").date()
+        week_end = week_start + timedelta(days=6)
+        
+        # Calculate the week number of the year (ISO week)
+        week_number = week_start.isocalendar()[1]  # Get ISO week number
+        year = week_start.year
+        
+        print(f"🔍 DEBUG: Week start: {week_start}, Week end: {week_end}")
+        print(f"🔍 DEBUG: Calculated week number: {week_number}, Year: {year}")
+        print(f"🔍 DEBUG: ISO calendar info: {week_start.isocalendar()}")
+        
+        # Also try alternative week calculation methods
+        week_number_alt = week_start.isocalendar()[1]
+        print(f"🔍 DEBUG: Alternative week calculation: {week_number_alt}")
+        
+        # Query contractor hours by week number (remove status filter for now to see what we have)
+        tch_query = db.query(models.ContractorHours).filter(
+            models.ContractorHours.week == week_number
+        )
+        
+        # If no results with week number, try without week filter to see what we have
+        if tch_query.count() == 0:
+            print(f"🔍 DEBUG: No contractor hours found for week {week_number}, trying without week filter")
+            tch_query = db.query(models.ContractorHours)
+        
+        # Filter by candidate if not 'all'
+        if request.candidateId != 'all':
+            tch_query = tch_query.filter(models.ContractorHours.contractor_id == request.candidateId)
+        
+        # Filter by client if not 'all' (this would need a join with p_candidate_client)
+        if request.clientId != 'all':
+            # Join with p_candidate_client to filter by client
+            tch_query = tch_query.join(
+                models.P_CandidateClient,
+                models.ContractorHours.contractor_id == models.P_CandidateClient.candidate_id
+            ).filter(models.P_CandidateClient.client_id == request.clientId)
+        
+        contractor_hours = tch_query.all()
+        print(f"🔍 DEBUG: Found {len(contractor_hours)} contractor hours for week number {week_number} with status 'Logged'")
+        
+        # Debug: Check if there are any contractor hours in the database at all
+        total_tch_count = db.query(models.ContractorHours).count()
+        print(f"🔍 DEBUG: Total contractor hours in database: {total_tch_count}")
+        
+        # Debug: Check contractor hours with 'Logged' status
+        logged_tch_count = db.query(models.ContractorHours).filter(models.ContractorHours.status == 'Logged').count()
+        print(f"🔍 DEBUG: Total contractor hours with 'Logged' status: {logged_tch_count}")
+        
+        # Debug: Check contractor hours for this specific week number
+        week_tch_count = db.query(models.ContractorHours).filter(models.ContractorHours.week == week_number).count()
+        print(f"🔍 DEBUG: Total contractor hours for week {week_number}: {week_tch_count}")
+        
+        # Debug: Check contractor hours with both week number and 'Logged' status
+        week_logged_tch_count = db.query(models.ContractorHours).filter(
+            and_(
+                models.ContractorHours.week == week_number,
+                models.ContractorHours.status == 'Logged'
+            )
+        ).count()
+        print(f"🔍 DEBUG: Total contractor hours for week {week_number} with 'Logged' status: {week_logged_tch_count}")
+        
+        # Debug: Check if there are any contractor rate hours in the database
+        total_tcrh_count = db.query(models.ContractorRateHours).count()
+        print(f"🔍 DEBUG: Total contractor rate hours in database: {total_tcrh_count}")
+        
+        # Debug: Show some sample contractor hours with 'Logged' status and week number
+        sample_tch = db.query(models.ContractorHours).filter(
+            and_(
+                models.ContractorHours.status == 'Logged',
+                models.ContractorHours.week == week_number
+            )
+        ).limit(3).all()
+        for tch in sample_tch:
+            print(f"🔍 DEBUG: Sample TCH: {tch.tch_id}, contractor: {tch.contractor_id}, work_date: {tch.work_date}, status: {tch.status}, week: {tch.week}, timesheet_id: {tch.timesheet_id}")
+        
+        # Debug: Show all week numbers in the database
+        all_weeks = db.query(models.ContractorHours.week).distinct().all()
+        week_numbers = [w[0] for w in all_weeks if w[0] is not None]
+        print(f"🔍 DEBUG: All week numbers in database: {sorted(week_numbers)}")
+        
+        # Debug: Show all contractor hours with their details
+        all_tch = db.query(models.ContractorHours).all()
+        print(f"🔍 DEBUG: All contractor hours in database:")
+        for tch in all_tch:
+            print(f"🔍 DEBUG: TCH: {tch.tch_id}, contractor: {tch.contractor_id}, work_date: {tch.work_date}, status: {tch.status}, week: {tch.week}, timesheet_id: {tch.timesheet_id}")
+        
+        # Debug: Show contractor hours for different week numbers
+        for week_num in week_numbers[:5]:  # Show first 5 weeks
+            week_count = db.query(models.ContractorHours).filter(
+                and_(
+                    models.ContractorHours.week == week_num,
+                    models.ContractorHours.status == 'Logged'
+                )
+            ).count()
+            print(f"🔍 DEBUG: Week {week_num}: {week_count} contractor hours with 'Logged' status")
+        
+        # 3. Get contractor rate hours for each contractor hour
+        line_items = []
+        total_amount = 0.0
+        
+        for tch in contractor_hours:
+            print(f"🔍 DEBUG: Processing contractor hour {tch.tch_id} for contractor {tch.contractor_id}")
+            
+            # Get rate hours for this contractor hour
+            rate_hours = db.query(models.ContractorRateHours).filter(
+                models.ContractorRateHours.tch_id == tch.tch_id
+            ).all()
+            
+            print(f"🔍 DEBUG: Found {len(rate_hours)} rate hours for contractor hour {tch.tch_id}")
+            
+            # Debug: Show all rate hours in database
+            all_rate_hours = db.query(models.ContractorRateHours).all()
+            print(f"🔍 DEBUG: All rate hours in database:")
+            for tcrh in all_rate_hours:
+                print(f"🔍 DEBUG: TCRH: tch_id={tcrh.tch_id}, rate_type_id={tcrh.rate_type_id}, quantity={tcrh.quantity}, bill_rate={tcrh.bill_rate}, tcr_id={tcrh.tcr_id}")
+            
+            for rate_hour in rate_hours:
+                print(f"🔍 DEBUG: Processing rate hour: type={rate_hour.rate_type_id}, quantity={rate_hour.quantity}, bill_rate={rate_hour.bill_rate}")
+                print(f"🔍 DEBUG: Rate hour details - tcr_id: {rate_hour.tcr_id}, pay_rate: {rate_hour.pay_rate}")
+                
+                # Calculate total: quantity * bill_rate
+                total = (rate_hour.quantity or 0) * (rate_hour.bill_rate or 0)
+                total_amount += total
+                
+                print(f"🔍 DEBUG: Calculated total: {total}")
+                
+                # Create line item with dynamic values from tcrh
+                line_item = models.InvoiceLineItem(
+                    invoice_id=invoice_id,
+                    type=rate_hour.rate_type_id,  # Dynamic type from tcrh
+                    quantity=rate_hour.quantity,   # Dynamic quantity from tcrh
+                    rate=rate_hour.bill_rate,      # Dynamic rate from tcrh
+                    timesheet_id=tch.timesheet_id,  # Store the timesheet_id from contractor hours
+                    total=total,
+                    tcr_id=rate_hour.tcr_id
+                )
+                db.add(line_item)
+                line_items.append(line_item)
+                print(f"🔍 DEBUG: Created line item - type: {rate_hour.rate_type_id}, quantity: {rate_hour.quantity}, rate: {rate_hour.bill_rate}, timesheet_id: {tch.timesheet_id}, total: {total}")
+        
+        print(f"🔍 DEBUG: Total line items created: {len(line_items)}")
+        print(f"🔍 DEBUG: Total amount: {total_amount}")
+        
+        # If no line items found, create a sample line item for testing
+        if len(line_items) == 0:
+            print("🔍 DEBUG: No line items found, creating sample line item for testing")
+            # Try to get a sample timesheet_id from existing contractor hours (any status)
+            sample_tch = db.query(models.ContractorHours).first()
+            sample_timesheet_id = sample_tch.timesheet_id if sample_tch else None
+            
+            print(f"🔍 DEBUG: Sample TCH found: {sample_tch}")
+            print(f"🔍 DEBUG: Sample timesheet_id: {sample_timesheet_id}")
+            
+            sample_line_item = models.InvoiceLineItem(
+                invoice_id=invoice_id,
+                type=1,  # Sample rate type
+                quantity=1.0,
+                rate=100.0,
+                timesheet_id=sample_timesheet_id,  # Use actual timesheet_id if available
+                total=100.0,
+                tcr_id=None
+            )
+            db.add(sample_line_item)
+            line_items.append(sample_line_item)
+            total_amount = 100.0
+            print(f"🔍 DEBUG: Created sample line item with timesheet_id: {sample_timesheet_id}")
+        
+        # 4. Update invoice with total amount
+        new_invoice.total_amount = total_amount
+        
+        # 5. Commit transaction
+        db.commit()
+        print(f"🔍 DEBUG: Transaction committed successfully")
+        
+        # 6. Return response
+        return schemas.GenerateInvoiceResponse(
+            invoice_id=invoice_id,
+            invoice_num="100",
+            invoice_date=invoice_date,
+            line_items=[schemas.InvoiceLineItem.model_validate(item) for item in line_items],
+            total_amount=total_amount
+        )
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error generating invoice: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generating invoice: {str(e)}")

@@ -486,10 +486,53 @@ const Timesheet: React.FC = () => {
     return today.toISOString().slice(0, 10);
   };
 
+  // Helper function to calculate ISO week number (1-52)
+  const getISOWeekNumber = (date: Date): number => {
+    const target = new Date(date.valueOf());
+    const dayNr = (date.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const firstThursday = target.valueOf();
+    target.setMonth(0, 1);
+    if (target.getDay() !== 4) {
+      target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+    }
+    return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+  };
+
   const getWeekNumber = (): number | null => {
-    if (!week) return null;
-    const m = week.match(/(\d+)/);
-    return m ? Number(m[1]) : null;
+    console.log('🔍 DEBUG: getWeekNumber called with week:', week);
+    console.log('🔍 DEBUG: dateRange:', dateRange);
+    console.log('🔍 DEBUG: timesheetData month:', timesheetData?.month);
+    
+    // Calculate ISO week number based on the work date
+    try {
+      const workDate = getWeekStartDateISO();
+      console.log('🔍 DEBUG: Work date for week calculation:', workDate);
+      
+      if (workDate) {
+        const date = new Date(workDate);
+        if (!isNaN(date.getTime())) {
+          const isoWeekNumber = getISOWeekNumber(date);
+          console.log('🔍 DEBUG: Calculated ISO week number:', isoWeekNumber);
+          return isoWeekNumber;
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating ISO week number:', error);
+    }
+    
+    // Fallback: try to extract from week string if available
+    if (week) {
+      const m = week.match(/Week\s+(\d+)/);
+      if (m) {
+        const weekNumber = Number(m[1]);
+        console.log('🔍 DEBUG: Extracted week number from string as fallback:', weekNumber);
+        return weekNumber;
+      }
+    }
+    
+    console.log('🔍 DEBUG: Could not calculate week number, returning null');
+    return null;
   };
 
   const refreshContractorHoursData = async () => {
@@ -513,6 +556,8 @@ const Timesheet: React.FC = () => {
       const workDate = getWeekStartDateISO();
       const weekEnd = getWeekEndDateISO();
       const weekNumber = getWeekNumber();
+      
+      console.log('🔍 DEBUG: Save data - workDate:', workDate, 'weekEnd:', weekEnd, 'weekNumber:', weekNumber);
       
       // Build upsert payload for contractor hours (include tch_id if exists)
       const payload: ContractorHoursUpsertDTO[] = rows.map((row) => {
