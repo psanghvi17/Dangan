@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from uuid import uuid4, UUID
 from typing import Optional, List, Dict
+from datetime import datetime, timedelta
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -1690,3 +1691,85 @@ def delete_all_contractor_rate_hours_for_tch(db: Session, tch_id: UUID, deleted_
     
     db.commit()
     return len(db_rate_hours)
+
+
+# MUser Authentication CRUD
+def get_m_user_by_email(db: Session, email: str):
+    """Get MUser by email"""
+    return db.query(models.MUser).filter(models.MUser.email_id == email).filter(models.MUser.deleted_on.is_(None)).first()
+
+
+def create_m_user_auth(db: Session, user_data: schemas.MUserSignup):
+    """Create a new MUser for authentication"""
+    hashed_password = get_password_hash(user_data.password)
+    db_user = models.MUser(
+        first_name=user_data.first_name,
+        email_id=user_data.email_id,
+        pass_=hashed_password
+        # No role_id required - removed role-based access
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def create_password_reset_token(db: Session, email: str) -> Optional[str]:
+    """Create a password reset token for a user"""
+    user = get_m_user_by_email(db, email)
+    if not user:
+        return None
+    
+    # Generate a new UUID token
+    reset_token = uuid4()
+    
+    # Set token expiry to 1 hour from now
+    expiry = datetime.now() + timedelta(hours=1)
+    
+    user.pass_reset_token = reset_token
+    user.pass_reset_token_expiry = expiry
+    
+    db.commit()
+    db.refresh(user)
+    
+    return str(reset_token)
+
+
+def verify_password_reset_token(db: Session, token: str) -> Optional[models.MUser]:
+    """Verify password reset token and return user if valid"""
+    try:
+        token_uuid = UUID(token)
+    except ValueError:
+        return None
+    
+    user = db.query(models.MUser).filter(
+        models.MUser.pass_reset_token == token_uuid,
+        models.MUser.deleted_on.is_(None)
+    ).first()
+    
+    if not user:
+        return None
+    
+    # Check if token has expired
+    if user.pass_reset_token_expiry and user.pass_reset_token_expiry < datetime.now():
+        return None
+    
+    return user
+
+
+def reset_user_password(db: Session, token: str, new_password: str) -> bool:
+    """Reset user password using reset token"""
+    user = verify_password_reset_token(db, token)
+    if not user:
+        return False
+    
+    # Update password
+    user.pass_ = get_password_hash(new_password)
+    
+    # Clear reset token
+    user.pass_reset_token = None
+    user.pass_reset_token_expiry = None
+    user.force_reset_pass = False
+    
+    db.commit()
+    return True

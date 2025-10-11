@@ -27,6 +27,39 @@ export interface RegisterData {
   password: string;
 }
 
+// MUser types
+export interface MUser {
+  user_id: string;
+  first_name?: string;
+  last_name?: string;
+  email_id: string;
+  created_on?: string;
+}
+
+export interface MUserSignup {
+  first_name: string;
+  email_id: string;
+  password: string;
+}
+
+export interface MUserLogin {
+  email_id: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email_id: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -34,4 +67,10 @@ export interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  // MUser methods
+  mUser: MUser | null;
+  loginMUser: (credentials: MUserLogin) => Promise<void>;
+  signupMUser: (data: MUserSignup) => Promise<void>;
+  forgotPassword: (email: string) => Promise<PasswordResetResponse>;
+  resetPassword: (token: string, newPassword: string) => Promise<PasswordResetResponse>;
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginCredentials, RegisterData, User, Item } from '../types';
+import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -41,6 +41,32 @@ export const authAPI = {
 
   getCurrentUser: async (): Promise<User> => {
     const response = await api.get('/api/auth/me');
+    return response.data;
+  },
+
+  // MUser Auth endpoints
+  signupMUser: async (data: MUserSignup): Promise<MUser> => {
+    const response = await api.post('/api/auth/signup', data);
+    return response.data;
+  },
+
+  loginMUser: async (credentials: MUserLogin) => {
+    const response = await api.post('/api/auth/login', credentials);
+    return response.data;
+  },
+
+  getCurrentMUser: async (): Promise<MUser> => {
+    const response = await api.get('/api/auth/me-m');
+    return response.data;
+  },
+
+  forgotPassword: async (email: string): Promise<PasswordResetResponse> => {
+    const response = await api.post('/api/auth/forgot-password', { email_id: email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, new_password: string): Promise<PasswordResetResponse> => {
+    const response = await api.post('/api/auth/reset-password', { token, new_password });
     return response.data;
   },
 };

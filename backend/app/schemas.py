@@ -567,3 +567,39 @@ class GenerateInvoiceResponse(BaseModel):
 class InvoiceWithLineItems(BaseModel):
     invoice: Invoice
     line_items: List[InvoiceLineItem]
+
+
+# MUser Authentication Schemas
+class MUserSignup(BaseModel):
+    first_name: str
+    email_id: EmailStr
+    password: str
+
+
+class MUserLogin(BaseModel):
+    email_id: EmailStr
+    password: str
+
+
+class MUserAuth(BaseModel):
+    user_id: UUID
+    first_name: Optional[str]
+    last_name: Optional[str]
+    email_id: Optional[EmailStr]
+    created_on: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class ForgotPasswordRequest(BaseModel):
+    email_id: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class PasswordResetResponse(BaseModel):
+    message: str

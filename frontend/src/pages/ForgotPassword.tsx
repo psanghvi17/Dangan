@@ -13,23 +13,20 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { MUserSignup } from '../types';
 
 const schema = yup.object({
-  first_name: yup.string().required('Name is required'),
   email_id: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
-  confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm password is required'),
 });
 
-interface FormData extends MUserSignup {
-  confirmPassword: string;
+interface FormData {
+  email_id: string;
 }
 
-const Register: React.FC = () => {
-  const { signupMUser } = useAuth();
+const ForgotPassword: React.FC = () => {
+  const { forgotPassword } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
 
   const {
     register,
@@ -42,11 +39,11 @@ const Register: React.FC = () => {
   const onSubmit = async (data: FormData) => {
     try {
       setError('');
-      const { confirmPassword, ...signupData } = data;
-      await signupMUser(signupData);
-      navigate('/'); // Redirect to dashboard (Home page)
+      setSuccess('');
+      const response = await forgotPassword(data.email_id);
+      setSuccess(response.message);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      setError(err.response?.data?.detail || 'Failed to send reset email');
     }
   };
 
@@ -62,7 +59,11 @@ const Register: React.FC = () => {
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
-            Sign Up
+            Forgot Password
+          </Typography>
+          
+          <Typography variant="body2" align="center" sx={{ mb: 3, color: 'text.secondary' }}>
+            Enter your email address and we'll send you a link to reset your password.
           </Typography>
           
           {error && (
@@ -71,19 +72,13 @@ const Register: React.FC = () => {
             </Alert>
           )}
 
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="first_name"
-              label="Full Name"
-              autoComplete="name"
-              autoFocus
-              {...register('first_name')}
-              error={!!errors.first_name}
-              helperText={errors.first_name?.message}
-            />
             <TextField
               margin="normal"
               required
@@ -91,33 +86,10 @@ const Register: React.FC = () => {
               id="email_id"
               label="Email Address"
               autoComplete="email"
+              autoFocus
               {...register('email_id')}
               error={!!errors.email_id}
               helperText={errors.email_id?.message}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="new-password"
-              {...register('password')}
-              error={!!errors.password}
-              helperText={errors.password?.message}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              label="Confirm Password"
-              type="password"
-              id="confirmPassword"
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-              error={!!errors.confirmPassword}
-              helperText={errors.confirmPassword?.message}
             />
             <Button
               type="submit"
@@ -126,14 +98,14 @@ const Register: React.FC = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating Account...' : 'Sign Up'}
+              {isSubmitting ? 'Sending...' : 'Send Reset Link'}
             </Button>
             <Button
               fullWidth
               variant="text"
               onClick={() => navigate('/login')}
             >
-              Already have an account? Sign In
+              Back to Login
             </Button>
           </Box>
         </Paper>
@@ -142,4 +114,5 @@ const Register: React.FC = () => {
   );
 };
 
-export default Register;
+export default ForgotPassword;
+

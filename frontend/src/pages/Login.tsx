@@ -7,21 +7,22 @@ import {
   Typography,
   Box,
   Alert,
+  Link,
 } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LoginCredentials } from '../types';
+import { MUserLogin } from '../types';
 
 const schema = yup.object({
-  username: yup.string().required('Username is required'),
+  email_id: yup.string().email('Invalid email').required('Email is required'),
   password: yup.string().required('Password is required'),
 });
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { loginMUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
 
@@ -29,15 +30,15 @@ const Login: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginCredentials>({
+  } = useForm<MUserLogin>({
     resolver: yupResolver(schema),
   });
 
-  const onSubmit = async (data: LoginCredentials) => {
+  const onSubmit = async (data: MUserLogin) => {
     try {
       setError('');
-      await login(data);
-      navigate('/items');
+      await loginMUser(data);
+      navigate('/'); // Redirect to dashboard (Home page)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
     }
@@ -69,13 +70,13 @@ const Login: React.FC = () => {
               margin="normal"
               required
               fullWidth
-              id="username"
-              label="Username"
-              autoComplete="username"
+              id="email_id"
+              label="Email Address"
+              autoComplete="email"
               autoFocus
-              {...register('username')}
-              error={!!errors.username}
-              helperText={errors.username?.message}
+              {...register('email_id')}
+              error={!!errors.email_id}
+              helperText={errors.email_id?.message}
             />
             <TextField
               margin="normal"
@@ -89,6 +90,17 @@ const Login: React.FC = () => {
               error={!!errors.password}
               helperText={errors.password?.message}
             />
+            <Box sx={{ textAlign: 'right', mt: 1 }}>
+              <Link
+                component="button"
+                variant="body2"
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                sx={{ textDecoration: 'none' }}
+              >
+                Forgot Password?
+              </Link>
+            </Box>
             <Button
               type="submit"
               fullWidth

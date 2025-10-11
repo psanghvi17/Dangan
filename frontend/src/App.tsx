@@ -1,9 +1,12 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/AppLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Items from './pages/Items';
 import Client from './pages/Client';
 import EditClient from './pages/EditClient';
@@ -16,36 +19,93 @@ import TimesheetList from './pages/TimesheetList';
 import Invoice from './pages/Invoice';
 import ViewInvoice from './pages/ViewInvoice';
 import { AuthProvider } from './contexts/AuthContext';
-// Removed ProtectedRoute for now to make routes public
 
 function App() {
   return (
     <AuthProvider>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/items" element={<Items />} />
-          {/** Client: list at /client, manage at /client/manage-client, edit at /client/edit/:clientId */}
-          <Route path="/client" element={<ManageClient />} />
-          <Route path="/client/manage-client" element={<Client />} />
-          <Route path="/client/edit/:clientId" element={<EditClient />} />
+      <Routes>
+        {/* Authentication routes without sidebar */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        
+        {/* Dashboard and other routes with sidebar - Protected */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <AppLayout><Home /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/items" element={
+          <ProtectedRoute>
+            <AppLayout><Items /></AppLayout>
+          </ProtectedRoute>
+        } />
+        
+        {/** Client: list at /client, manage at /client/manage-client, edit at /client/edit/:clientId */}
+        <Route path="/client" element={
+          <ProtectedRoute>
+            <AppLayout><ManageClient /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/client/manage-client" element={
+          <ProtectedRoute>
+            <AppLayout><Client /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/client/edit/:clientId" element={
+          <ProtectedRoute>
+            <AppLayout><EditClient /></AppLayout>
+          </ProtectedRoute>
+        } />
 
-          {/** Candidate: list at /candidate, manage at /candidate/manage-candidate */}
-          <Route path="/candidate" element={<ManageCandidate />} />
-          <Route path="/candidate/manage-candidate" element={<Candidate />} />
+        {/** Candidate: list at /candidate, manage at /candidate/manage-candidate */}
+        <Route path="/candidate" element={
+          <ProtectedRoute>
+            <AppLayout><ManageCandidate /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/candidate/manage-candidate" element={
+          <ProtectedRoute>
+            <AppLayout><Candidate /></AppLayout>
+          </ProtectedRoute>
+        } />
 
-          {/** Timesheet: list at /timesheet, manage at /timesheet/manage-timesheet/:timesheetId? */}
-          <Route path="/timesheet" element={<TimesheetList />} />
-          <Route path="/timesheet/manage-timesheet" element={<Timesheet />} />
-          <Route path="/timesheet/manage-timesheet/:timesheetId" element={<Timesheet />} />
-          <Route path="/invoices" element={<Invoice />} />
-          <Route path="/invoice/view-invoice/:invoiceId" element={<ViewInvoice />} />
-          <Route path="/holiday" element={<Holiday />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
+        {/** Timesheet: list at /timesheet, manage at /timesheet/manage-timesheet/:timesheetId? */}
+        <Route path="/timesheet" element={
+          <ProtectedRoute>
+            <AppLayout><TimesheetList /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/timesheet/manage-timesheet" element={
+          <ProtectedRoute>
+            <AppLayout><Timesheet /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/timesheet/manage-timesheet/:timesheetId" element={
+          <ProtectedRoute>
+            <AppLayout><Timesheet /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/invoices" element={
+          <ProtectedRoute>
+            <AppLayout><Invoice /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/invoice/view-invoice/:invoiceId" element={
+          <ProtectedRoute>
+            <AppLayout><ViewInvoice /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/holiday" element={
+          <ProtectedRoute>
+            <AppLayout><Holiday /></AppLayout>
+          </ProtectedRoute>
+        } />
+        
+        {/* Redirect root to login if not authenticated */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
     </AuthProvider>
   );
 }

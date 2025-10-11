@@ -12,6 +12,23 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
+    # Email Settings
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "Dangan"
+    
+    # Alternative email settings (to match your .env file)
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    smtp_sender_name: str = "Dangan"
+    smtp_sender_email: str = ""
+    
+    # Frontend URL for password reset links
+    frontend_url: str = "http://localhost:3000"
+
     # pydantic-settings v2 configuration
     model_config = SettingsConfigDict(
         env_file=".env",

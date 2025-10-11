@@ -10,13 +10,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, mUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
+
+  // Check if user is logged in (either old user or mUser)
+  const isLoggedIn = user || mUser;
+  const displayName = mUser?.first_name || user?.username || 'User';
 
   return (
     <AppBar position="static">
@@ -37,9 +41,9 @@ const Navbar: React.FC = () => {
           <Button color="inherit" onClick={() => navigate('/invoices')}>
             Invoice
           </Button>
-          {user ? (
+          {isLoggedIn ? (
             <Button color="inherit" onClick={handleLogout}>
-              Logout ({user.username})
+              Logout ({displayName})
             </Button>
           ) : (
             <>

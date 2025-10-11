@@ -107,9 +107,12 @@ class MUser(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     first_name = Column(String(100))
     last_name = Column(String(100))
-    email_id = Column(String(254))
+    email_id = Column(String(254), unique=True, index=True)
     role_id = Column(Integer)
     pass_ = Column("pass", String(256), nullable=True)
+    pass_reset_token = Column(UUID(as_uuid=True), nullable=True)
+    pass_reset_token_expiry = Column(DateTime(timezone=False), nullable=True)
+    force_reset_pass = Column(Boolean, default=False)
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     deleted_on = Column(DateTime(timezone=False), nullable=True)
 

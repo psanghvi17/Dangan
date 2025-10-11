@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -15,11 +16,25 @@ security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # Use bcrypt directly for verification
+    password_bytes = plain_password.encode('utf-8')
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    # Use bcrypt directly to avoid passlib compatibility issues
+    # Ensure password is encoded as bytes
+    password_bytes = password.encode('utf-8')
+    # Truncate if too long (bcrypt has 72 byte limit)
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    # Hash the password
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -64,6 +79,48 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     user = get_user(db, username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+# MUser Authentication Functions
+def get_m_user_by_email(db: Session, email: str):
+    from .models import MUser
+    return db.query(MUser).filter(MUser.email_id == email).filter(MUser.deleted_on.is_(None)).first()
+
+
+def authenticate_m_user(db: Session, email: str, password: str):
+    """Authenticate MUser by email and password"""
+    user = get_m_user_by_email(db, email)
+    if not user:
+        return False
+    if not user.pass_:
+        return False
+    if not verify_password(password, user.pass_):
+        return False
+    return user
+
+
+async def get_current_m_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Get current MUser from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.algorithm])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = get_m_user_by_email(db, email)
     if user is None:
         raise credentials_exception
     return user
