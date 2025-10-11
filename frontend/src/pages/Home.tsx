@@ -10,15 +10,17 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 
 const Home: React.FC = () => {
-  const { user } = useAuth();
+  const { user, mUser } = useAuth();
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    return mUser?.first_name || user?.username || 'User';
+  };
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom align="center">
-          Welcome to Dangan
-        </Typography>
-        <Typography variant="h6" component="p" gutterBottom align="center" color="text.secondary">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" component="p" gutterBottom color="text.secondary" sx={{ mb: 3 }}>
           A modern web application built with React, FastAPI, and PostgreSQL
         </Typography>
         
@@ -63,10 +65,10 @@ const Home: React.FC = () => {
           </Grid>
         </Grid>
 
-        {user && (
+        {(user || mUser) && (
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Typography variant="h6" gutterBottom>
-              Hello, {user.username}!
+              Hello, {getUserDisplayName()}!
             </Typography>
             <Typography variant="body1" color="text.secondary">
               You are successfully logged in. Navigate to the Items page to manage your data.

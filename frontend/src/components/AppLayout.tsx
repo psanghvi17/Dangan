@@ -5,25 +5,14 @@ import {
   Typography,
   Box,
   Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  IconButton,
-  Divider,
+  Avatar,
+  Menu,
+  MenuItem,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import PersonIcon from '@mui/icons-material/Person';
-import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import ReceiptIcon from '@mui/icons-material/Receipt';
-import PaidIcon from '@mui/icons-material/Paid';
-import BeachAccessIcon from '@mui/icons-material/BeachAccess';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import Sidebar from './Sidebar';
 
 const drawerWidth = 220;
 
@@ -34,63 +23,97 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = React.useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, mUser, logout } = useAuth();
 
-  const navItems = [
-    { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { label: 'Client', icon: <WorkOutlineIcon />, path: '/client' },
-    { label: 'Candidate', icon: <PersonIcon />, path: '/candidate' },
-    { label: 'Timesheet', icon: <AssignmentIcon />, path: '/timesheet' },
-    { label: 'Invoice', icon: <ReceiptIcon />, path: '/invoices' },
-    { label: 'Payroll', icon: <PaidIcon />, path: '#' },
-    { label: 'Holiday', icon: <BeachAccessIcon />, path: '/holiday' },
-    { label: 'Report', icon: <BarChartIcon />, path: '#' },
-  ];
+  // Get current page name
+  const getCurrentPageName = () => {
+    const navItems = [
+      { label: 'Dashboard', path: '/' },
+      { label: 'Client', path: '/client' },
+      { label: 'Candidate', path: '/candidate' },
+      { label: 'Timesheet', path: '/timesheet' },
+      { label: 'Invoice', path: '/invoices' },
+      { label: 'Payroll', path: '#' },
+      { label: 'Holiday', path: '/holiday' },
+      { label: 'Report', path: '#' },
+    ];
+    const currentItem = navItems.find(item => item.path === location.pathname);
+    return currentItem ? currentItem.label : title || 'Dashboard';
+  };
 
-  const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-      <Box sx={{ p: 2, typography: 'h6' }}>
-        Company Logo
-      </Box>
-      <Divider />
-      <List sx={{ flexGrow: 1 }}>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.label}
-            selected={location.pathname === item.path}
-            onClick={() => item.path !== '#' && navigate(item.path)}
-            sx={{
-              '&.Mui-selected': { bgcolor: 'rgba(255,255,255,0.12)' },
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-              color: 'primary.contrastText',
-            }}
-          >
-            <ListItemIcon sx={{ color: 'inherit' }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
-    </Box>
-  );
+  // Get user display name
+  const getUserDisplayName = () => {
+    return mUser?.first_name || user?.username || 'User';
+  };
+
+  // Handle profile menu
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileMenuAnchor(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setProfileMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    handleProfileMenuClose();
+    logout();
+    navigate('/login');
+  };
+
+  const drawer = <Sidebar />;
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar>
-          <IconButton color="inherit" edge="start" sx={{ mr: 2, display: { md: 'none' } }} onClick={() => setMobileOpen(!mobileOpen)}>
-            <MenuIcon />
-          </IconButton>
-          <IconButton color="inherit" sx={{ mr: 1 }} onClick={() => navigate(-1)}>
-            <KeyboardBackspaceIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {title}
-          </Typography>
-          {user && (
-            <Typography variant="body2">{user.username}</Typography>
-          )}
+      <AppBar 
+        position="fixed" 
+        sx={{ 
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: 'white',
+          color: 'black',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          left: { md: `${drawerWidth}px` }, // Push header to the right on desktop
+          width: { md: `calc(100% - ${drawerWidth}px)` }, // Adjust width for desktop
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'flex-end' }}>
+
+          {/* Right side - User Profile */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                cursor: 'pointer',
+                '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' },
+                borderRadius: 1,
+                px: 2,
+                py: 1
+              }}
+              onClick={handleProfileMenuOpen}
+            >
+              <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: '#1976d2' }}>
+                {getUserDisplayName().charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="body1" sx={{ color: '#1976d2', fontWeight: '500' }}>
+                {getUserDisplayName()}
+              </Typography>
+              <KeyboardArrowDownIcon sx={{ color: '#666', ml: 0.5 }} />
+            </Box>
+            
+            <Menu
+              anchorEl={profileMenuAnchor}
+              open={Boolean(profileMenuAnchor)}
+              onClose={handleProfileMenuClose}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -115,7 +138,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
 
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
-        {children}
+        <Box sx={{ mt: 2 }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );
