@@ -1,12 +1,14 @@
 # CapRover Deployment Guide
 
-This guide explains how to deploy the Dangan application using CapRover with a single captain-definition file.
+This guide explains how to deploy the Dangan application using CapRover with Git-based deployment.
 
 ## Prerequisites
 
 1. CapRover server set up and running
 2. Domain name configured for your application
 3. Database (PostgreSQL) accessible from your CapRover server
+4. Git repository (GitHub, GitLab, or any Git hosting service)
+5. Git configured locally
 
 ## Deployment Steps
 
@@ -17,22 +19,59 @@ First, you need to set up a PostgreSQL database. You can either:
 - Use an external PostgreSQL service
 - Use CapRover's built-in database management
 
-### 2. Single App Deployment
+### 2. Push Code to Git Repository
+
+**Option A: Using the interactive script**
+```bash
+# Navigate to the project directory
+cd /path/to/your/dangan/project
+
+# Run the Git deployment script
+./deploy-to-git.sh
+```
+
+**Option B: Quick deploy**
+```bash
+# Quick commit and push
+./quick-deploy.sh "Your commit message"
+```
+
+**Option C: Manual Git commands**
+```bash
+# Add all changes
+git add .
+
+# Commit changes
+git commit -m "Deploy Dangan app - $(date)"
+
+# Push to repository
+git push origin main
+```
+
+### 3. Configure CapRover App
 
 1. **Create a new app in CapRover dashboard:**
    - App name: `dangan-app` (or your preferred name)
    - Enable HTTPS and set up your domain
 
-2. **Deploy the application:**
-   ```bash
-   # Navigate to the root directory
-   cd /path/to/your/dangan/project
-   
-   # Deploy using CapRover CLI
-   caprover deploy
-   ```
+2. **Connect Git Repository:**
+   - Go to App Configs → Source Code
+   - Select "Git Repository"
+   - Enter your repository URL
+   - Set branch to `main` (or your default branch)
 
-3. **Configure environment variables in CapRover dashboard:**
+3. **Configure Build Settings:**
+   - CapRover will automatically detect the `captain-definition` file
+   - It will use the `Dockerfile` to build your application
+
+### 4. Deploy to CapRover
+
+1. **Deploy the application:**
+   - In CapRover dashboard, go to your app
+   - Click "Deploy" or "One-Click Deploy"
+   - CapRover will pull from your Git repository and build the Docker image
+
+2. **Configure environment variables in CapRover dashboard:**
    - `DATABASE_URL`: Your PostgreSQL connection string
    - `SECRET_KEY`: A secure secret key for JWT tokens
    - `ALGORITHM`: HS256 (default)
@@ -107,8 +146,10 @@ Make sure your backend allows requests from your frontend domain by updating the
 The following files have been added/modified for CapRover deployment:
 
 ```
-├── captain-definition (root)
+├── captain-definition (root - uses Dockerfile)
 ├── Dockerfile (root - multi-stage build)
+├── deploy-to-git.sh (interactive Git deployment script)
+├── quick-deploy.sh (quick Git commit and push)
 ├── docker-compose.yml (updated)
 ├── backend/
 │   └── Dockerfile (updated)
@@ -120,17 +161,49 @@ The following files have been added/modified for CapRover deployment:
 
 ## Architecture
 
-The application now uses a single container approach:
-- **Frontend**: Built with React and served by nginx
-- **Backend**: FastAPI application running on port 8000
-- **Nginx**: Serves frontend on port 80 and proxies `/api` requests to backend
-- **Single Container**: Both services run in the same container for simplified deployment
+The application uses a Git-based deployment approach:
+- **Git Repository**: Code is stored in Git (GitHub, GitLab, etc.)
+- **CapRover Build**: CapRover pulls from Git and builds Docker image on server
+- **Single Container**: Both frontend and backend run in the same container
+- **Nginx Proxy**: Serves frontend on port 80 and proxies `/api` requests to backend
+
+## Benefits of Git-based Deployment
+
+✅ **No Docker Registry Needed**: No need for Docker Hub or other registries  
+✅ **Version Control**: Full Git history and easy rollbacks  
+✅ **Simple Workflow**: Just commit and push to deploy  
+✅ **Cost Effective**: No registry fees or storage costs  
+✅ **Easy Collaboration**: Standard Git workflow for team development
 
 ## Next Steps
 
 1. Set up your CapRover server
 2. Configure your domain
-3. Deploy the application (both services together)
-4. Run database migrations
-5. Test the complete application
-6. Configure monitoring and backups
+3. Push code to Git repository
+4. Connect Git repository to CapRover
+5. Deploy to CapRover (builds from Git)
+6. Run database migrations
+7. Test the complete application
+8. Configure monitoring and backups
+
+## Quick Start Commands
+
+```bash
+# 1. Push code to Git repository
+./quick-deploy.sh "Deploy Dangan app"
+
+# 2. In CapRover dashboard:
+#    - Create new app
+#    - Connect Git repository
+#    - Deploy!
+
+# 3. Set environment variables in CapRover dashboard
+```
+
+## Workflow Summary
+
+1. **Develop locally** → Make changes to your code
+2. **Commit and push** → `./quick-deploy.sh "Your changes"`
+3. **Deploy on CapRover** → Click deploy in dashboard
+4. **CapRover builds** → Pulls from Git and builds Docker image
+5. **App runs** → Your application is live!

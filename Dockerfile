@@ -9,13 +9,8 @@ COPY frontend/package*.json ./
 # Install frontend dependencies
 RUN npm install
 
-# Copy frontend source code systematically
-COPY frontend/src ./src
-COPY frontend/public ./public
-COPY frontend/package.json ./
-COPY frontend/package-lock.json ./
-COPY frontend/tsconfig.json ./
-COPY frontend/craco.config.js ./
+# Copy frontend source code
+COPY frontend/ .
 
 # Debug: Check what files we have
 RUN echo "=== Listing /app directory ===" && ls -la /app
