@@ -1897,3 +1897,67 @@ def reset_user_password(db: Session, token: str, new_password: str) -> bool:
     
     db.commit()
     return True
+
+
+# Cost Center CRUD operations
+def get_cost_centers_by_client(db: Session, client_id: UUID) -> List[models.CostCenter]:
+    """Get all cost centers for a specific client"""
+    return db.query(models.CostCenter).filter(
+        models.CostCenter.client_id == client_id,
+        models.CostCenter.deleted_on.is_(None)
+    ).all()
+
+
+def get_cost_center(db: Session, cost_center_id: UUID) -> Optional[models.CostCenter]:
+    """Get a specific cost center by ID"""
+    return db.query(models.CostCenter).filter(
+        models.CostCenter.id == cost_center_id,
+        models.CostCenter.deleted_on.is_(None)
+    ).first()
+
+
+def create_cost_center(db: Session, cost_center: schemas.CostCenterCreate, created_by: UUID = None) -> models.CostCenter:
+    """Create a new cost center"""
+    db_cost_center = models.CostCenter(
+        client_id=cost_center.client_id,
+        cc_name=cost_center.cc_name,
+        cc_number=cost_center.cc_number,
+        cc_address=cost_center.cc_address,
+        created_by=created_by,
+        created_on=datetime.now()
+    )
+    db.add(db_cost_center)
+    db.commit()
+    db.refresh(db_cost_center)
+    return db_cost_center
+
+
+def update_cost_center(db: Session, cost_center_id: UUID, cost_center_update: schemas.CostCenterUpdate, updated_by: UUID = None) -> Optional[models.CostCenter]:
+    """Update an existing cost center"""
+    db_cost_center = get_cost_center(db, cost_center_id)
+    if not db_cost_center:
+        return None
+    
+    update_data = cost_center_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_cost_center, field, value)
+    
+    db_cost_center.updated_by = updated_by
+    db_cost_center.updated_on = datetime.now()
+    
+    db.commit()
+    db.refresh(db_cost_center)
+    return db_cost_center
+
+
+def delete_cost_center(db: Session, cost_center_id: UUID, deleted_by: UUID = None) -> bool:
+    """Soft delete a cost center"""
+    db_cost_center = get_cost_center(db, cost_center_id)
+    if not db_cost_center:
+        return False
+    
+    db_cost_center.deleted_by = deleted_by
+    db_cost_center.deleted_on = datetime.now()
+    
+    db.commit()
+    return True

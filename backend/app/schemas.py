@@ -649,3 +649,34 @@ class ResetPasswordRequest(BaseModel):
 
 class PasswordResetResponse(BaseModel):
     message: str
+
+
+# Cost Center schemas
+class CostCenterBase(BaseModel):
+    client_id: UUID
+    cc_name: Optional[str] = None
+    cc_number: Optional[str] = None
+    cc_address: Optional[str] = None
+
+
+class CostCenterCreate(CostCenterBase):
+    pass
+
+
+class CostCenterUpdate(BaseModel):
+    cc_name: Optional[str] = None
+    cc_number: Optional[str] = None
+    cc_address: Optional[str] = None
+
+
+class CostCenter(CostCenterBase):
+    id: UUID
+    updated_by: Optional[UUID] = None
+    updated_on: Optional[datetime] = None
+    deleted_by: Optional[UUID] = None
+    deleted_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    created_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

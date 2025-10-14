@@ -13,6 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import { clientsAPI, ClientDTO, ClientUpdateDTO } from '../services/api';
+import CostCenterTab from '../components/CostCenterTab';
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -22,6 +23,7 @@ const EditClient: React.FC = () => {
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
+  const [activeTab, setActiveTab] = useState(0);
   const [form, setForm] = useState<ClientUpdateDTO>({
     client_name: '',
     email: '',
@@ -102,80 +104,114 @@ const EditClient: React.FC = () => {
           Edit Client
         </Typography>
 
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Client Details
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Client Name"
-                fullWidth
-                value={form.client_name}
-                onChange={(e) => handleChange('client_name', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Description"
-                fullWidth
-                value={form.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Email"
-                type="email"
-                fullWidth
-                value={form.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Contact Email"
-                type="email"
-                fullWidth
-                value={form.contact_email}
-                onChange={(e) => handleChange('contact_email', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Contact Name"
-                fullWidth
-                value={form.contact_name}
-                onChange={(e) => handleChange('contact_name', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Contact Phone"
-                fullWidth
-                value={form.contact_phone}
-                onChange={(e) => handleChange('contact_phone', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <Button 
-                  variant="outlined" 
-                  onClick={() => navigate('/client')}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  disabled={saving}
-                  onClick={handleSave}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
+        {/* Tab Navigation */}
+        <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
+          <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
+            <Button
+              variant={activeTab === 0 ? 'contained' : 'outlined'}
+              color={activeTab === 0 ? 'primary' : 'inherit'}
+              onClick={() => setActiveTab(0)}
+              sx={{ borderRadius: 999, px: 3 }}
+            >
+              Client Details
+            </Button>
+            {clientId && (
+              <Button
+                variant={activeTab === 1 ? 'contained' : 'outlined'}
+                color={activeTab === 1 ? 'primary' : 'inherit'}
+                onClick={() => setActiveTab(1)}
+                sx={{ borderRadius: 999, px: 3 }}
+              >
+                Cost Centers
+              </Button>
+            )}
+          </Box>
         </Paper>
+
+        {/* Client Details Tab */}
+        {activeTab === 0 && (
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Client Details
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Client Name"
+                  fullWidth
+                  value={form.client_name}
+                  onChange={(e) => handleChange('client_name', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Description"
+                  fullWidth
+                  value={form.description}
+                  onChange={(e) => handleChange('description', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Email"
+                  type="email"
+                  fullWidth
+                  value={form.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Contact Email"
+                  type="email"
+                  fullWidth
+                  value={form.contact_email}
+                  onChange={(e) => handleChange('contact_email', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Contact Name"
+                  fullWidth
+                  value={form.contact_name}
+                  onChange={(e) => handleChange('contact_name', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Contact Phone"
+                  fullWidth
+                  value={form.contact_phone}
+                  onChange={(e) => handleChange('contact_phone', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => navigate('/client')}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    disabled={saving}
+                    onClick={handleSave}
+                  >
+                    {saving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Cost Centers Tab */}
+        {activeTab === 1 && clientId && (
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <CostCenterTab clientId={clientId} />
+          </Paper>
+        )}
       </Box>
       
       <Snackbar 

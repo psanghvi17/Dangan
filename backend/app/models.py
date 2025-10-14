@@ -344,3 +344,20 @@ class InvoiceLineItem(Base):
     m_rate_name = Column(String, nullable=True)
     total = Column(Float, nullable=True)
     tcr_id = Column(Integer, nullable=True)
+
+
+class CostCenter(Base):
+    __tablename__ = "t_cost_center"
+    __table_args__ = {"schema": "app"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    client_id = Column(UUID(as_uuid=True), ForeignKey("app.m_client.client_id"), nullable=False)
+    cc_name = Column(String, nullable=True)
+    cc_number = Column(String, nullable=True)
+    cc_address = Column(String, nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)

@@ -24,6 +24,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { clientsAPI } from '../services/api';
 import { ClientRateDTO, ClientRateCreateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO } from '../types';
+import CostCenterTab from '../components/CostCenterTab';
 
 interface ClientFormData {
   clientName: string;
@@ -31,8 +32,6 @@ interface ClientFormData {
   email: string;
   accountManager: string;
   address?: string;
-  costCentre1?: string;
-  costCentre2?: string;
 }
 
 const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
@@ -51,8 +50,6 @@ const Client: React.FC = () => {
     email: '',
     accountManager: accountManagers[0],
     address: '',
-    costCentre1: '',
-    costCentre2: '',
   });
   
   // Determine if this is a new client (no clientId) or editing existing client
@@ -107,8 +104,6 @@ const Client: React.FC = () => {
         email: clientData.email || '',
         accountManager: clientData.contact_name || accountManagers[0],
         address: '', // Not in current schema
-        costCentre1: '', // Not in current schema
-        costCentre2: '', // Not in current schema
       });
     } catch (error) {
       console.error('Failed to load client data:', error);
@@ -200,10 +195,11 @@ const Client: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
             {(() => {
               const tabs = [{ label: 'Client Details', idx: 0 }];
-              // Always show Rate tab, but only show Candidates tab if we have a client ID
+              // Always show Rate tab, but only show Candidates and Cost Centers tabs if we have a client ID
               tabs.push({ label: 'Rate', idx: 1 });
               if (!isNewClient) {
                 tabs.push({ label: 'Candidates', idx: 2 });
+                tabs.push({ label: 'Cost Centers', idx: 3 });
               }
               return tabs.map(t => (
                 <Button
@@ -272,28 +268,6 @@ const Client: React.FC = () => {
                   fullWidth
                   value={form.address}
                   onChange={(e) => handleChange('address', e.target.value)}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="h6" sx={{ mt: 2 }}>
-                  Cost Centre
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Cost Centre Name"
-                  fullWidth
-                  value={form.costCentre1}
-                  onChange={(e) => handleChange('costCentre1', e.target.value)}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Cost Centre Name"
-                  fullWidth
-                  value={form.costCentre2}
-                  onChange={(e) => handleChange('costCentre2', e.target.value)}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -672,6 +646,13 @@ const Client: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+          </Paper>
+        )}
+
+        {/* Cost Centers Tab */}
+        {tab === 3 && clientId && (
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <CostCenterTab clientId={clientId} />
           </Paper>
         )}
       </Box>

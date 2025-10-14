@@ -136,3 +136,31 @@ export interface ClientCandidateDTO {
   contract_end_date?: string;
   pcc_id: string;
 }
+
+// Cost Center types
+export interface CostCenterDTO {
+  id: string;
+  client_id: string;
+  cc_name?: string;
+  cc_number?: string;
+  cc_address?: string;
+  updated_by?: string;
+  updated_on?: string;
+  deleted_by?: string;
+  deleted_on?: string;
+  created_by?: string;
+  created_on?: string;
+}
+
+export interface CostCenterCreateDTO {
+  client_id: string;
+  cc_name?: string;
+  cc_number?: string;
+  cc_address?: string;
+}
+
+export interface CostCenterUpdateDTO {
+  cc_name?: string;
+  cc_number?: string;
+  cc_address?: string;
+}

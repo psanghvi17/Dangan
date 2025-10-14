@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO } from '../types';
+import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO, CostCenterDTO, CostCenterCreateDTO, CostCenterUpdateDTO } from '../types';
 
 // Default to same-origin so nginx proxy `/api` works in production without envs
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
@@ -785,5 +785,31 @@ export const invoicesAPI = {
   generate: async (request: GenerateInvoiceRequestDTO): Promise<GenerateInvoiceResponseDTO> => {
     const res = await api.post('/api/invoices/generate', request);
     return res.data;
+  },
+};
+
+export const costCentersAPI = {
+  getByClient: async (clientId: string): Promise<CostCenterDTO[]> => {
+    const res = await api.get(`/api/clients/${clientId}/cost-centers`);
+    return res.data;
+  },
+  
+  get: async (costCenterId: string): Promise<CostCenterDTO> => {
+    const res = await api.get(`/api/cost-centers/${costCenterId}`);
+    return res.data;
+  },
+  
+  create: async (clientId: string, costCenter: CostCenterCreateDTO): Promise<CostCenterDTO> => {
+    const res = await api.post(`/api/clients/${clientId}/cost-centers`, costCenter);
+    return res.data;
+  },
+  
+  update: async (costCenterId: string, costCenter: CostCenterUpdateDTO): Promise<CostCenterDTO> => {
+    const res = await api.put(`/api/cost-centers/${costCenterId}`, costCenter);
+    return res.data;
+  },
+  
+  delete: async (costCenterId: string): Promise<void> => {
+    await api.delete(`/api/cost-centers/${costCenterId}`);
   },
 };
