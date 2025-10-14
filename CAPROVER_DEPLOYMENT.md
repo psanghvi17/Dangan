@@ -1,11 +1,11 @@
 # CapRover Deployment Guide
 
-This guide explains how to deploy the Dangan application using CapRover.
+This guide explains how to deploy the Dangan application using CapRover with a single captain-definition file.
 
 ## Prerequisites
 
 1. CapRover server set up and running
-2. Domain names configured for your applications
+2. Domain name configured for your application
 3. Database (PostgreSQL) accessible from your CapRover server
 
 ## Deployment Steps
@@ -17,16 +17,16 @@ First, you need to set up a PostgreSQL database. You can either:
 - Use an external PostgreSQL service
 - Use CapRover's built-in database management
 
-### 2. Backend Deployment
+### 2. Single App Deployment
 
 1. **Create a new app in CapRover dashboard:**
-   - App name: `dangan-backend` (or your preferred name)
+   - App name: `dangan-app` (or your preferred name)
    - Enable HTTPS and set up your domain
 
-2. **Deploy the backend:**
+2. **Deploy both services together:**
    ```bash
-   # Navigate to the backend directory
-   cd backend
+   # Navigate to the root directory
+   cd /path/to/your/dangan/project
    
    # Deploy using CapRover CLI
    caprover deploy
@@ -37,40 +37,23 @@ First, you need to set up a PostgreSQL database. You can either:
    - `SECRET_KEY`: A secure secret key for JWT tokens
    - `ALGORITHM`: HS256 (default)
    - `ACCESS_TOKEN_EXPIRE_MINUTES`: 30 (default)
+   - `REACT_APP_API_URL`: Your backend API URL (e.g., `https://yourdomain.com:8000`)
 
-### 3. Frontend Deployment
+### 3. Database Migration
 
-1. **Create a new app in CapRover dashboard:**
-   - App name: `dangan-frontend` (or your preferred name)
-   - Enable HTTPS and set up your domain
-
-2. **Deploy the frontend:**
-   ```bash
-   # Navigate to the frontend directory
-   cd frontend
-   
-   # Deploy using CapRover CLI
-   caprover deploy
-   ```
-
-3. **Configure environment variables in CapRover dashboard:**
-   - `REACT_APP_API_URL`: Your backend API URL (e.g., `https://api.yourdomain.com`)
-
-### 4. Database Migration
-
-After deploying the backend, you need to run database migrations:
+After deploying the application, you need to run database migrations:
 
 1. **Access the backend container:**
-   - Go to CapRover dashboard → Apps → dangan-backend → App Configs
+   - Go to CapRover dashboard → Apps → dangan-app → App Configs
    - Enable "Enable Terminal Access"
 
 2. **Run migrations:**
    ```bash
    # Access the container terminal
-   alembic upgrade head
+   docker exec -it <backend-container-name> alembic upgrade head
    ```
 
-### 5. CORS Configuration
+### 4. CORS Configuration
 
 Make sure your backend allows requests from your frontend domain by updating the CORS settings in your FastAPI app.
 
@@ -121,14 +104,14 @@ Make sure your backend allows requests from your frontend domain by updating the
 
 ## File Structure
 
-The following files have been added for CapRover deployment:
+The following files have been added/modified for CapRover deployment:
 
 ```
+├── captain-definition (root)
+├── docker-compose.yml (updated)
 ├── backend/
-│   ├── captain-definition
 │   └── Dockerfile (updated)
 ├── frontend/
-│   ├── captain-definition
 │   ├── Dockerfile (updated)
 │   └── nginx.conf
 └── CAPROVER_DEPLOYMENT.md
@@ -137,9 +120,8 @@ The following files have been added for CapRover deployment:
 ## Next Steps
 
 1. Set up your CapRover server
-2. Configure your domains
-3. Deploy the backend first
+2. Configure your domain
+3. Deploy the application (both services together)
 4. Run database migrations
-5. Deploy the frontend
-6. Test the complete application
-7. Configure monitoring and backups
+5. Test the complete application
+6. Configure monitoring and backups
