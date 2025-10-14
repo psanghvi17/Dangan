@@ -10,12 +10,14 @@ import {
   MenuItem,
   Snackbar,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
-import { candidatesAPI } from '../services/api';
+import { candidatesAPI, clientsAPI } from '../services/api';
+import { ClientRateDTO } from '../types';
 import { useSearchParams } from 'react-router-dom';
 
 
@@ -78,6 +80,7 @@ const Candidate: React.FC = () => {
   const [rateTypes, setRateTypes] = useState<any[]>([]);
   const [rateFrequencies, setRateFrequencies] = useState<any[]>([]);
   const [loadingRateMeta, setLoadingRateMeta] = useState(false);
+  const [loadingClientRates, setLoadingClientRates] = useState(false);
   type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
   const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
@@ -192,25 +195,8 @@ const Candidate: React.FC = () => {
         setContractStartDate(firstRelationship.contract_start_date ? firstRelationship.contract_start_date.split('T')[0] : '');
         setContractEndDate(firstRelationship.contract_end_date ? firstRelationship.contract_end_date.split('T')[0] : '');
         console.log('✅ Pre-filled form with existing relationship data');
-        // Load existing rates for this pcc
-        try {
-          const existing = await candidatesAPI.getRatesByPcc(firstRelationship.pcc_id);
-          setRates(
-            existing.length
-              ? existing.map(r => ({
-                  id: r.id,
-                  rate_type: r.rate_type,
-                  rate_frequency: r.rate_frequency,
-                  pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
-                  bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
-                  date_applicable: r.date_applicable || '',
-                  date_end: r.date_end || ''
-                }))
-              : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]
-          );
-        } catch (e) {
-          console.error('❌ Failed to load existing rates for pcc', e);
-        }
+        // Load client rates for the selected client (this will populate the rates section)
+        loadClientRates(firstRelationship.client_id);
       }
       
     } catch (error: any) {
@@ -236,6 +222,44 @@ const Candidate: React.FC = () => {
       console.error('❌ Failed to load rate meta', error);
     } finally {
       setLoadingRateMeta(false);
+    }
+  };
+
+  // Load client rates when client is selected
+  const loadClientRates = async (clientId: string) => {
+    if (!clientId) {
+      // Reset rates to default when no client is selected
+      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+      return;
+    }
+
+    setLoadingClientRates(true);
+    try {
+      console.log('🔄 Loading client rates for client:', clientId);
+      const clientRates = await clientsAPI.getRates(clientId);
+      console.log('✅ Client rates loaded:', clientRates);
+      
+      if (clientRates && clientRates.length > 0) {
+        // Convert client rates to the format expected by the rates section
+        const formattedRates: RateRow[] = clientRates.map((rate: ClientRateDTO) => ({
+          rate_type: rate.rate_type ?? '',
+          rate_frequency: rate.rate_frequency ?? '',
+          pay_rate: rate.pay_rate ? String(rate.pay_rate) : '',
+          bill_rate: rate.bill_rate ? String(rate.bill_rate) : '',
+          date_applicable: '', // Client rates don't have date_applicable, so leave empty
+          date_end: '' // Client rates don't have date_end, so leave empty
+        }));
+        setRates(formattedRates);
+      } else {
+        // If no client rates exist, start with one empty row
+        setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+      }
+    } catch (error) {
+      console.error('❌ Failed to load client rates:', error);
+      // On error, reset to default
+      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+    } finally {
+      setLoadingClientRates(false);
     }
   };
 
@@ -428,7 +452,11 @@ const Candidate: React.FC = () => {
                   select 
                   fullWidth 
                   value={selectedClientId} 
-                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedClientId(e.target.value);
+                    // Load client rates when client is selected
+                    loadClientRates(e.target.value);
+                  }}
                   disabled={loadingClients || loadingRelationships}
                   helperText={loadingRelationships ? "Loading existing relationships..." : ""}
                 >
@@ -484,7 +512,7 @@ const Candidate: React.FC = () => {
             </Grid>
 
             <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
-              Rates
+              Rates {loadingClientRates && <CircularProgress size={16} sx={{ ml: 1 }} />}
             </Typography>
 
             {rates.map((row, idx) => {
