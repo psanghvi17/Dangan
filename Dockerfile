@@ -1,26 +1,3 @@
-# Multi-stage build for both frontend and backend
-FROM node:18-alpine as frontend-build
-
-WORKDIR /app
-
-# Copy frontend package files
-COPY frontend/package*.json ./
-
-# Install frontend dependencies
-RUN npm install
-
-# Copy frontend source code
-COPY frontend/ .
-
-# Debug: Check what files we have
-RUN echo "=== Listing /app directory ===" && ls -la /app
-RUN echo "=== Listing /app/public directory ===" && ls -la /app/public
-RUN echo "=== Checking if index.html exists ===" && test -f /app/public/index.html && echo "index.html exists" || echo "index.html NOT found"
-
-# Build frontend
-RUN npm run build
-
-# Backend stage
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -39,8 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application code
 COPY backend/ .
 
-# Copy built frontend from frontend-build stage
-COPY --from=frontend-build /app/build /var/www/html
+# Copy committed prebuilt frontend directly
+COPY frontend/build /var/www/html
 
 # Create nginx configuration for serving frontend and proxying API
 RUN echo 'server {' > /etc/nginx/sites-available/default && \
