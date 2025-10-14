@@ -277,6 +277,8 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Build outputs
+# Build outputs (but allow frontend/build)
 build/
+!frontend/build/
+!frontend/build/**
 dist/
