@@ -66,8 +66,8 @@ const Client: React.FC = () => {
   // Rate tab state (UI only)
   const [rateType, setRateType] = useState<number>(1); // Default to first rate type ID
   const [rateFrequency, setRateFrequency] = useState<number>(1); // Default to first frequency ID
-  const [payRate, setPayRate] = useState<string>('150');
-  const [billRate, setBillRate] = useState<string>('100');
+  const [payRate, setPayRate] = useState<string>('');
+  const [billRate, setBillRate] = useState<string>('');
 
 
   // Load client candidates
@@ -495,8 +495,8 @@ const Client: React.FC = () => {
                     variant="outlined"
                     onClick={() => {
                       // Reset form
-                      setPayRate('150');
-                      setBillRate('100');
+                      setPayRate('');
+                      setBillRate('');
                       if (rateTypes.length > 0) {
                         setRateType(rateTypes[0].rate_type_id);
                       }
@@ -517,8 +517,8 @@ const Client: React.FC = () => {
                           client_id: clientId!,
                           rate_type: rateType,
                           rate_frequency: rateFrequency,
-                          pay_rate: parseFloat(payRate) || 0,
-                          bill_rate: parseFloat(billRate) || 0,
+                          pay_rate: payRate ? parseFloat(payRate) : undefined,
+                          bill_rate: billRate ? parseFloat(billRate) : undefined,
                         };
                         
                         await clientsAPI.createRate(clientId, rateData);
@@ -527,8 +527,8 @@ const Client: React.FC = () => {
                         setToastOpen(true);
                         
                         // Reset form
-                        setPayRate('150');
-                        setBillRate('100');
+                        setPayRate('');
+                        setBillRate('');
                         if (rateTypes.length > 0) {
                           setRateType(rateTypes[0].rate_type_id);
                         }
