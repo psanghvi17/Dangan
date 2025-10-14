@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Box,
@@ -14,7 +14,7 @@ import {
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Avatar from '@mui/material/Avatar';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -23,6 +23,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { clientsAPI } from '../services/api';
+import { ClientRateDTO, ClientRateCreateDTO, RateTypeDTO, RateFrequencyDTO } from '../types';
 
 interface ClientFormData {
   clientName: string;
@@ -39,6 +40,7 @@ const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 const Client: React.FC = () => {
   const [tab, setTab] = useState(0);
   const navigate = useNavigate();
+  const { clientId } = useParams<{ clientId?: string }>();
   const [saving, setSaving] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -52,13 +54,18 @@ const Client: React.FC = () => {
     costCentre1: '',
     costCentre2: '',
   });
+  
+  // Determine if this is a new client (no clientId) or editing existing client
+  const isNewClient = !clientId;
+  const [clientRates, setClientRates] = useState<ClientRateDTO[]>([]);
+  const [rateTypes, setRateTypes] = useState<RateTypeDTO[]>([]);
+  const [rateFrequencies, setRateFrequencies] = useState<RateFrequencyDTO[]>([]);
 
   // Rate tab state (UI only)
-  const [rateType, setRateType] = useState<'Weekday' | 'Weekend' | 'Holiday'>('Weekend');
+  const [rateType, setRateType] = useState<number>(1); // Default to first rate type ID
+  const [rateFrequency, setRateFrequency] = useState<number>(1); // Default to first frequency ID
   const [payRate, setPayRate] = useState<string>('150');
   const [billRate, setBillRate] = useState<string>('100');
-  const [difference, setDifference] = useState<string>('50');
-  const [marginPercent, setMarginPercent] = useState<string>('33.5%');
 
   // Candidates tab mock data
   const candidates = Array.from({ length: 10 }).map((_, i) => ({
@@ -71,6 +78,74 @@ const Client: React.FC = () => {
     initials: 'CK',
     id: i + 1,
   }));
+
+  // Load client data and rates when clientId is present
+  useEffect(() => {
+    if (clientId) {
+      loadClientData();
+      loadClientRates();
+    }
+    // Always load rate types and frequencies
+    loadRateTypes();
+    loadRateFrequencies();
+  }, [clientId]);
+
+  const loadClientData = async () => {
+    if (!clientId) return;
+    try {
+      const client = await clientsAPI.get(clientId);
+      setForm({
+        clientName: client.client_name || '',
+        description: client.description || '',
+        email: client.email || '',
+        accountManager: client.contact_name || accountManagers[0],
+        address: '', // Not in current schema
+        costCentre1: '', // Not in current schema
+        costCentre2: '', // Not in current schema
+      });
+    } catch (error) {
+      console.error('Failed to load client data:', error);
+      setToastSev('error');
+      setToastMsg('Failed to load client data');
+      setToastOpen(true);
+    }
+  };
+
+  const loadClientRates = async () => {
+    if (!clientId) return;
+    try {
+      const rates = await clientsAPI.getRates(clientId);
+      setClientRates(rates);
+    } catch (error) {
+      console.error('Failed to load client rates:', error);
+    }
+  };
+
+  const loadRateTypes = async () => {
+    try {
+      const types = await clientsAPI.getRateTypes();
+      setRateTypes(types);
+      // Set default rate type to first available
+      if (types.length > 0) {
+        setRateType(types[0].rate_type_id);
+      }
+    } catch (error) {
+      console.error('Failed to load rate types:', error);
+    }
+  };
+
+  const loadRateFrequencies = async () => {
+    try {
+      const frequencies = await clientsAPI.getRateFrequencies();
+      setRateFrequencies(frequencies);
+      // Set default frequency to first available
+      if (frequencies.length > 0) {
+        setRateFrequency(frequencies[0].rate_frequency_id);
+      }
+    } catch (error) {
+      console.error('Failed to load rate frequencies:', error);
+    }
+  };
 
   const handleChange = (
     field: keyof ClientFormData,
@@ -116,17 +191,24 @@ const Client: React.FC = () => {
 
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
-            {[{ label: 'Client Details', idx: 0 }, { label: 'Rate', idx: 1 }, { label: 'Candidates', idx: 2 }].map(t => (
-              <Button
-                key={t.label}
-                variant={tab === t.idx ? 'contained' : 'outlined'}
-                color={tab === t.idx ? 'primary' : 'inherit'}
-                onClick={() => setTab(t.idx)}
-                sx={{ borderRadius: 999, px: 3 }}
-              >
-                {t.label}
-              </Button>
-            ))}
+            {(() => {
+              const tabs = [{ label: 'Client Details', idx: 0 }];
+              // Only show Rate and Candidates tabs if we have a client ID (existing client)
+              if (!isNewClient) {
+                tabs.push({ label: 'Rate', idx: 1 }, { label: 'Candidates', idx: 2 });
+              }
+              return tabs.map(t => (
+                <Button
+                  key={t.label}
+                  variant={tab === t.idx ? 'contained' : 'outlined'}
+                  color={tab === t.idx ? 'primary' : 'inherit'}
+                  onClick={() => setTab(t.idx)}
+                  sx={{ borderRadius: 999, px: 3 }}
+                >
+                  {t.label}
+                </Button>
+              ));
+            })()}
           </Box>
         </Paper>
 
@@ -215,27 +297,44 @@ const Client: React.FC = () => {
                     onClick={async () => {
                       setSaving(true);
                       try {
-                        await clientsAPI.create({
-                          client_name: form.clientName,
-                          email: form.email,
-                          description: form.description,
-                          contact_email: form.email,
-                          contact_name: form.accountManager,
-                        });
-                        setToastSev('success');
-                        setToastMsg('Client saved');
-                        setToastOpen(true);
+                        if (isNewClient) {
+                          // Create new client and navigate to it
+                          const newClient = await clientsAPI.create({
+                            client_name: form.clientName,
+                            email: form.email,
+                            description: form.description,
+                            contact_email: form.email,
+                            contact_name: form.accountManager,
+                          });
+                          setToastSev('success');
+                          setToastMsg('Client created successfully');
+                          setToastOpen(true);
+                          // Navigate to the new client with its ID
+                          navigate(`/client/edit/${newClient.client_id}`);
+                        } else {
+                          // Update existing client
+                          await clientsAPI.update(clientId!, {
+                            client_name: form.clientName,
+                            email: form.email,
+                            description: form.description,
+                            contact_email: form.email,
+                            contact_name: form.accountManager,
+                          });
+                          setToastSev('success');
+                          setToastMsg('Client updated successfully');
+                          setToastOpen(true);
+                        }
                       } catch (e) {
                         console.error(e);
                         setToastSev('error');
-                        setToastMsg('Failed to save client');
+                        setToastMsg(isNewClient ? 'Failed to create client' : 'Failed to update client');
                         setToastOpen(true);
                       } finally {
                         setSaving(false);
                       }
                     }}
                   >
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? 'Saving…' : (isNewClient ? 'Create Client' : 'Update Client')}
                   </Button>
                 </Box>
               </Grid>
@@ -248,6 +347,71 @@ const Client: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Rate Details
             </Typography>
+            
+            {/* Existing Rates Table */}
+            {clientRates.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                  Current Rates
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Rate Type</TableCell>
+                        <TableCell>Rate Frequency</TableCell>
+                        <TableCell>Pay Rate</TableCell>
+                        <TableCell>Bill Rate</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {clientRates.map((rate) => {
+                        const rateTypeName = rateTypes.find(rt => rt.rate_type_id === rate.rate_type)?.rate_type_name || rate.rate_type || '—';
+                        const rateFrequencyName = rateFrequencies.find(rf => rf.rate_frequency_id === rate.rate_frequency)?.rate_frequency_name || rate.rate_frequency || '—';
+                        
+                        return (
+                          <TableRow key={rate.id}>
+                            <TableCell>{rateTypeName}</TableCell>
+                            <TableCell>{rateFrequencyName}</TableCell>
+                            <TableCell>${rate.pay_rate || '—'}</TableCell>
+                            <TableCell>${rate.bill_rate || '—'}</TableCell>
+                            <TableCell>
+                              <Button 
+                                size="small" 
+                                color="error"
+                                onClick={async () => {
+                                  if (window.confirm('Are you sure you want to delete this rate?')) {
+                                    try {
+                                      await clientsAPI.deleteRate(clientId!, rate.id);
+                                      setToastSev('success');
+                                      setToastMsg('Rate deleted successfully');
+                                      setToastOpen(true);
+                                      loadClientRates();
+                                    } catch (error) {
+                                      setToastSev('error');
+                                      setToastMsg('Failed to delete rate');
+                                      setToastOpen(true);
+                                    }
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
+            {/* Add New Rate Form */}
+            <Typography variant="subtitle1" sx={{ mb: 2 }}>
+              Add New Rate
+            </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -257,23 +421,32 @@ const Client: React.FC = () => {
                   select
                   fullWidth
                   value={rateType}
-                  onChange={(e) => setRateType(e.target.value as any)}
+                  onChange={(e) => setRateType(parseInt(e.target.value))}
                 >
-                  {['Weekday', 'Weekend', 'Holiday'].map((t) => (
-                    <MenuItem key={t} value={t}>{t}</MenuItem>
+                  {rateTypes.map((t) => (
+                    <MenuItem key={t.rate_type_id} value={t.rate_type_id}>
+                      {t.rate_type_name}
+                    </MenuItem>
                   ))}
                 </TextField>
               </Grid>
 
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Bill Rate
+                  Rate Frequency
                 </Typography>
                 <TextField
+                  select
                   fullWidth
-                  value={billRate}
-                  onChange={(e) => setBillRate(e.target.value)}
-                />
+                  value={rateFrequency}
+                  onChange={(e) => setRateFrequency(parseInt(e.target.value))}
+                >
+                  {rateFrequencies.map((f) => (
+                    <MenuItem key={f.rate_frequency_id} value={f.rate_frequency_id}>
+                      {f.rate_frequency_name}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
 
               <Grid item xs={12} md={6}>
@@ -282,6 +455,7 @@ const Client: React.FC = () => {
                 </Typography>
                 <TextField
                   fullWidth
+                  type="number"
                   value={payRate}
                   onChange={(e) => setPayRate(e.target.value)}
                 />
@@ -289,39 +463,59 @@ const Client: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Margin %
+                  Bill Rate
                 </Typography>
                 <TextField
                   fullWidth
-                  value={marginPercent}
-                  onChange={(e) => setMarginPercent(e.target.value)}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Difference
-                </Typography>
-                <TextField
-                  fullWidth
-                  value={difference}
-                  onChange={(e) => setDifference(e.target.value)}
+                  type="number"
+                  value={billRate}
+                  onChange={(e) => setBillRate(e.target.value)}
                 />
               </Grid>
 
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                  <Button variant="contained" startIcon={<AddIcon />} sx={{ borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                  <Button 
+                    variant="contained" 
+                    startIcon={<AddIcon />} 
+                    onClick={async () => {
+                      if (!clientId) return;
+                      
+                      try {
+                        const rateData: ClientRateCreateDTO = {
+                          rate_type: rateType,
+                          rate_frequency: rateFrequency,
+                          pay_rate: parseFloat(payRate) || 0,
+                          bill_rate: parseFloat(billRate) || 0,
+                        };
+                        
+                        await clientsAPI.createRate(clientId, rateData);
+                        setToastSev('success');
+                        setToastMsg('Rate added successfully');
+                        setToastOpen(true);
+                        
+                        // Reset form
+                        setPayRate('150');
+                        setBillRate('100');
+                        if (rateTypes.length > 0) {
+                          setRateType(rateTypes[0].rate_type_id);
+                        }
+                        if (rateFrequencies.length > 0) {
+                          setRateFrequency(rateFrequencies[0].rate_frequency_id);
+                        }
+                        
+                        // Reload rates
+                        loadClientRates();
+                      } catch (error) {
+                        console.error('Failed to create rate:', error);
+                        setToastSev('error');
+                        setToastMsg('Failed to add rate');
+                        setToastOpen(true);
+                      }
+                    }}
+                  >
                     Add Rate
                   </Button>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button variant="contained" color="inherit" sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }}>
-                      Save
-                    </Button>
-                    <Button variant="contained" color="inherit" sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', '&:hover': { bgcolor: 'primary.dark' } }}>
-                      Apply to all
-                    </Button>
-                  </Box>
                 </Box>
               </Grid>
             </Grid>

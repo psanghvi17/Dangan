@@ -458,6 +458,25 @@ def update_rate(tcr_id: int, payload: schemas.ContractRateUpdate, db: Session = 
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# Rate Types and Frequencies endpoints for candidates
+@router.get("/rate-types", response_model=List[schemas.RateTypeOut])
+def get_rate_types(db: Session = Depends(get_db)):
+    try:
+        return crud.get_all_rate_types(db)
+    except Exception as e:
+        print(f"❌ Error getting rate types: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/rate-frequencies", response_model=List[schemas.RateFrequencyOut])
+def get_rate_frequencies(db: Session = Depends(get_db)):
+    try:
+        return crud.get_all_rate_frequencies(db)
+    except Exception as e:
+        print(f"❌ Error getting rate frequencies: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.delete("/rates/{tcr_id}")
 def delete_rate(tcr_id: int, db: Session = Depends(get_db)):
     try:

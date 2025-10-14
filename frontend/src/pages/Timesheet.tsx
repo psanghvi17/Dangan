@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, RateTypeDTO, RateFrequencyDTO, ContractorHoursCreateDTO, ContractorHoursDTO, ContractorHoursUpsertDTO, ContractorRateHoursCreateDTO, ContractorRateHoursOutDTO, MultipleRateHoursCreateDTO } from '../services/api';
+import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, ContractorHoursCreateDTO, ContractorHoursDTO, ContractorHoursUpsertDTO, ContractorRateHoursCreateDTO, ContractorRateHoursOutDTO, MultipleRateHoursCreateDTO } from '../services/api';
+import { RateTypeDTO, RateFrequencyDTO } from '../types';
 import {
   Container,
   Box,
@@ -125,13 +126,13 @@ const Timesheet: React.FC = () => {
         const allRateColumns: RateColumn[] = [];
         const excludedFrequencies = ['Fixed']; // Add frequencies to exclude here
         
-        rateTypesData.forEach(rateType => {
+        rateTypesData.forEach((rateType: RateTypeDTO) => {
           // Skip if rate_type_id is >= 50
           if (rateType.rate_type_id >= 50) {
             return;
           }
           
-          rateFrequenciesData.forEach(rateFrequency => {
+          rateFrequenciesData.forEach((rateFrequency: RateFrequencyDTO) => {
             // Skip if this is a fixed frequency
             if (excludedFrequencies.includes(rateFrequency.rate_frequency_name || '')) {
               return;

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse } from '../types';
+import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8005';
 
@@ -151,6 +151,32 @@ export const clientsAPI = {
     const res = await api.delete(`/api/clients/${clientId}`);
     return res.data;
   },
+  // Client Rates
+  getRates: async (clientId: string): Promise<ClientRateDTO[]> => {
+    const res = await api.get(`/api/clients/${clientId}/rates`);
+    return res.data;
+  },
+  createRate: async (clientId: string, payload: ClientRateCreateDTO): Promise<ClientRateDTO> => {
+    const res = await api.post(`/api/clients/${clientId}/rates`, payload);
+    return res.data;
+  },
+  updateRate: async (clientId: string, rateId: string, payload: ClientRateUpdateDTO): Promise<ClientRateDTO> => {
+    const res = await api.put(`/api/clients/${clientId}/rates/${rateId}`, payload);
+    return res.data;
+  },
+  deleteRate: async (clientId: string, rateId: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/api/clients/${clientId}/rates/${rateId}`);
+    return res.data;
+  },
+  // Rate Types and Frequencies
+  getRateTypes: async (): Promise<RateTypeDTO[]> => {
+    const res = await api.get('/api/clients/rate-types');
+    return res.data;
+  },
+  getRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
+    const res = await api.get('/api/clients/rate-frequencies');
+    return res.data;
+  },
 };
 
 // Candidates API
@@ -226,8 +252,6 @@ export interface CandidateClientOutDTO {
   created_on?: string;
 }
 
-export interface RateTypeDTO { rate_type_id: number; rate_type_name?: string }
-export interface RateFrequencyDTO { rate_frequency_id: number; rate_frequency_name?: string }
 export interface ContractRateCreateDTO {
   rate_type: number;
   rate_frequency: number;
@@ -355,15 +379,6 @@ export const candidatesAPI = {
     return res.data;
   },
 
-  getRateTypes: async (): Promise<RateTypeDTO[]> => {
-    const res = await api.get('/api/candidates/rate-types');
-    return res.data;
-  },
-
-  getRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
-    const res = await api.get('/api/candidates/rate-frequencies');
-    return res.data;
-  },
 
   createRatesForPcc: async (pcc_id: string, rates: ContractRateCreateDTO[]): Promise<ContractRateOutDTO[]> => {
     const res = await api.post(`/api/candidates/client-relationship/${pcc_id}/rates`, rates);
@@ -400,15 +415,24 @@ export const candidatesAPI = {
     return res.data;
   },
 
+  // Rate Types and Frequencies (for candidates)
+  getRateTypes: async (): Promise<RateTypeDTO[]> => {
+    const res = await api.get('/api/candidates/rate-types');
+    return res.data;
+  },
+  getRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
+    const res = await api.get('/api/candidates/rate-frequencies');
+    return res.data;
+  },
   getAllRateTypes: async (): Promise<RateTypeDTO[]> => {
     const res = await api.get('/api/candidates/rate-types');
     return res.data;
   },
-
   getAllRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
     const res = await api.get('/api/candidates/rate-frequencies');
     return res.data;
   },
+
 
   getCandidateRatesMatrix: async (candidateIds: string[]): Promise<Record<string, any[]>> => {
     const res = await api.post('/api/candidates/rates-matrix', candidateIds);
