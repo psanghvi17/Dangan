@@ -49,9 +49,7 @@ RUN echo '#!/bin/bash' > /start.sh && \
     echo 'exit $?' >> /start.sh && \
     chmod +x /start.sh
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
-USER app
+# Run as root to allow nginx to bind to port 80 and manage its temp dirs
 
 # Expose port
 EXPOSE 80
