@@ -20,28 +20,33 @@ COPY backend/ .
 COPY frontend/build /var/www/html
 
 # Create nginx configuration for serving frontend and proxying API
-RUN echo 'server {' > /etc/nginx/sites-available/default && \
-    echo '    listen 80;' >> /etc/nginx/sites-available/default && \
-    echo '    server_name localhost;' >> /etc/nginx/sites-available/default && \
-    echo '    root /var/www/html;' >> /etc/nginx/sites-available/default && \
-    echo '    index index.html;' >> /etc/nginx/sites-available/default && \
-    echo '    location /api {' >> /etc/nginx/sites-available/default && \
-    echo '        proxy_pass http://localhost:8000;' >> /etc/nginx/sites-available/default && \
-    echo '        proxy_set_header Host $host;' >> /etc/nginx/sites-available/default && \
-    echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/sites-available/default && \
-    echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /etc/nginx/sites-available/default && \
-    echo '        proxy_set_header X-Forwarded-Proto $scheme;' >> /etc/nginx/sites-available/default && \
-    echo '    }' >> /etc/nginx/sites-available/default && \
-    echo '    location / {' >> /etc/nginx/sites-available/default && \
-    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/sites-available/default && \
-    echo '    }' >> /etc/nginx/sites-available/default && \
-    echo '}' >> /etc/nginx/sites-available/default
+RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
+    echo '    listen 80;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    server_name _;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    root /var/www/html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    index index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    location /api {' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_pass http://127.0.0.1:8000;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_http_version 1.1;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header Upgrade $http_upgrade;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header Connection "upgrade";' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header Host $host;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        proxy_set_header X-Forwarded-Proto $scheme;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    }' >> /etc/nginx/conf.d/default.conf && \
+    echo '    location / {' >> /etc/nginx/conf.d/default.conf && \
+    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    }' >> /etc/nginx/conf.d/default.conf && \
+    echo '}' >> /etc/nginx/conf.d/default.conf
 
-# Create startup script
+# Create startup script (run nginx without init system)
 RUN echo '#!/bin/bash' > /start.sh && \
-    echo 'service nginx start' >> /start.sh && \
+    echo 'set -euo pipefail' >> /start.sh && \
     echo 'uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 &' >> /start.sh && \
-    echo 'wait' >> /start.sh && \
+    echo 'nginx -g "daemon off;" &' >> /start.sh && \
+    echo 'wait -n' >> /start.sh && \
+    echo 'exit $?' >> /start.sh && \
     chmod +x /start.sh
 
 # Create non-root user
