@@ -82,6 +82,34 @@ const Client: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
+        <style>
+          {`
+            .client-table td, .client-table th {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .client-table .MuiTableCell-root {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .client-table .MuiTableCell-head {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .client-table .MuiTableCell-body {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .client-table .MuiTableCell-sizeSmall {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .client-table .MuiTableCell-sizeMedium {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+          `}
+        </style>
         <Typography variant="h4" component="h1" gutterBottom>
           Client
         </Typography>
@@ -309,32 +337,64 @@ const Client: React.FC = () => {
               </Button>
             </Box>
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
-              <Table>
+              <Table 
+                className="client-table"
+                sx={{
+                  '& td': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& th': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& .MuiTableCell-root': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& .MuiTableCell-head': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& .MuiTableCell-body': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& .MuiTableCell-sizeSmall': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& .MuiTableCell-sizeMedium': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  }
+                }}
+              >
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Client Name</TableCell>
-                    <TableCell>Start Date</TableCell>
-                    <TableCell>Finish Date</TableCell>
-                    <TableCell>Manager Name</TableCell>
+                    <TableCell align="center" sx={{ padding: '0 !important' }}>Name</TableCell>
+                    <TableCell align="center" sx={{ padding: '0 !important' }}>Client Name</TableCell>
+                    <TableCell align="center" sx={{ padding: '0 !important' }}>Start Date</TableCell>
+                    <TableCell align="center" sx={{ padding: '0 !important' }}>Finish Date</TableCell>
+                    <TableCell align="center" sx={{ padding: '0 !important' }}>Manager Name</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {candidates.map((c) => (
                     <TableRow key={c.id} hover>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <TableCell align="center" sx={{ padding: '0 !important' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                           <Avatar sx={{ bgcolor: 'primary.light' }}>{c.initials}</Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{c.name}</Typography>
-                            <Typography variant="caption" color="text.secondary">{c.email}</Typography>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'center' }}>{c.name}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>{c.email}</Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{c.clientName}</TableCell>
-                      <TableCell>{c.startDate}</TableCell>
-                      <TableCell>{c.finishDate}</TableCell>
-                      <TableCell>{c.managerName}</TableCell>
+                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.clientName}</TableCell>
+                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.startDate}</TableCell>
+                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.finishDate}</TableCell>
+                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.managerName}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

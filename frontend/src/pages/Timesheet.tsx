@@ -640,12 +640,40 @@ const Timesheet: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
+        <style>
+          {`
+            .timesheet-table td, .timesheet-table th {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .timesheet-table .MuiTableCell-root {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .timesheet-table .MuiTableCell-head {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .timesheet-table .MuiTableCell-body {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .timesheet-table .MuiTableCell-sizeSmall {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+            .timesheet-table .MuiTableCell-sizeMedium {
+              padding: 0 !important;
+              vertical-align: middle !important;
+            }
+          `}
+        </style>
         <Typography variant="h4" component="h1" gutterBottom>
           {pageTitle}
         </Typography>
 
-        <Paper elevation={0} sx={{ mb: 2, p: 1.5, bgcolor: 'background.default' }}>
-          <Grid container spacing={2} alignItems="center">
+        <Paper elevation={0} sx={{ mb: 1.5, p: 1, bgcolor: 'background.default' }}>
+          <Grid container spacing={1.5} alignItems="center">
             <Grid item>
               <Button variant="outlined" sx={{ borderRadius: 999 }}>{week}</Button>
             </Grid>
@@ -662,7 +690,51 @@ const Timesheet: React.FC = () => {
 
         <Paper variant="outlined">
           <TableContainer component={Box} sx={{ maxHeight: 600, overflowX: 'auto' }}>
-            <Table size="small" stickyHeader>
+            <Table 
+              size="small" 
+              stickyHeader
+              className="timesheet-table"
+              sx={{
+                '& td': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& th': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableCell-root': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableCell-head': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableCell-body': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableCell-sizeSmall': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableCell-sizeMedium': {
+                  padding: '0 !important',
+                  verticalAlign: 'middle !important',
+                },
+                '& .MuiTableRow-root': {
+                  '& td': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  },
+                  '& th': {
+                    padding: '0 !important',
+                    verticalAlign: 'middle !important',
+                  }
+                }
+              }}
+            >
               <TableHead>
                 <TableRow>
                   {tableColumns.map((column) => (
@@ -674,12 +746,16 @@ const Timesheet: React.FC = () => {
                         position: column.type === 'employee' ? 'sticky' : 'static',
                         left: column.type === 'employee' ? 0 : 'auto',
                         zIndex: column.type === 'employee' ? 2 : 1,
-                        backgroundColor: 'background.paper'
+                        backgroundColor: 'background.paper',
+                        padding: '0 !important',
+                        verticalAlign: 'middle !important',
                       }}
                     >
-                      <Typography variant="caption" whiteSpace="pre-line">
-                        {column.label}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <Typography variant="caption" whiteSpace="pre-line" sx={{ textAlign: 'center', margin: 0, padding: 0 }}>
+                          {column.label}
+                        </Typography>
+                      </Box>
                     </TableCell>
                   ))}
                 </TableRow>
@@ -692,24 +768,29 @@ const Timesheet: React.FC = () => {
                         return (
                           <TableCell 
                             key={column.key}
+                            align="center"
                             sx={{
                               position: 'sticky',
                               left: 0,
                               zIndex: 2,
                               backgroundColor: 'background.paper',
                               width: 250,
-                              minWidth: 250
+                              minWidth: 250,
+                              padding: '0 !important',
+                              verticalAlign: 'middle !important',
                             }}
                           >
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {row.employee}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              {row.client}
-                            </Typography>
-                            <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                              {isViewMode ? 'View sheet' : 'Edit sheet'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'center', margin: 0, padding: 0 }}>
+                                {row.employee}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', margin: 0, padding: 0 }}>
+                                {row.client}
+                              </Typography>
+                              <Typography variant="caption" sx={{ textAlign: 'center', margin: 0, padding: 0 }}>
+                                {isViewMode ? 'View sheet' : 'Edit sheet'}
+                              </Typography>
+                            </Box>
                           </TableCell>
                         );
                       } else {
@@ -721,30 +802,43 @@ const Timesheet: React.FC = () => {
                         );
                         
                         return (
-                          <TableCell key={column.key} align="center">
-                            {isViewMode ? (
-                              <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60 }}>
-                                {isEnabled ? value : '-'}
-                              </Typography>
-                            ) : (
-                              <TextField
-                                size="small"
-                                value={value}
-                                disabled={!isEnabled}
-                                onChange={(e) => onHourChange(row.id, column.key, e.target.value)}
-                                inputProps={{ 
-                                  inputMode: 'numeric', 
-                                  pattern: '[0-9]*', 
-                                  style: { textAlign: 'center', width: 60 } 
-                                }}
-                                sx={{
-                                  '& .MuiInputBase-input:disabled': {
-                                    color: 'text.disabled',
-                                    backgroundColor: 'action.disabledBackground'
-                                  }
-                                }}
-                              />
-                            )}
+                          <TableCell key={column.key} align="center" sx={{ padding: '0 !important', verticalAlign: 'middle !important' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                              {isViewMode ? (
+                                <Typography variant="body2" sx={{ textAlign: 'center', minWidth: 60, margin: 0, padding: 0 }}>
+                                  {isEnabled ? value : '-'}
+                                </Typography>
+                              ) : (
+                                <TextField
+                                  size="small"
+                                  value={value}
+                                  disabled={!isEnabled}
+                                  onChange={(e) => onHourChange(row.id, column.key, e.target.value)}
+                                  inputProps={{ 
+                                    inputMode: 'numeric', 
+                                    pattern: '[0-9]*', 
+                                    style: { textAlign: 'center', width: 60, padding: '0', margin: 0 } 
+                                  }}
+                                  sx={{
+                                    '& .MuiInputBase-input': {
+                                      textAlign: 'center',
+                                      padding: '0 !important',
+                                      margin: '0 !important'
+                                    },
+                                    '& .MuiInputBase-input:disabled': {
+                                      color: 'text.disabled',
+                                      backgroundColor: 'action.disabledBackground'
+                                    },
+                                    '& .MuiInputBase-root': {
+                                      padding: '0 !important',
+                                      margin: '0 !important'
+                                    },
+                                    margin: 0,
+                                    padding: 0
+                                  }}
+                                />
+                              )}
+                            </Box>
                           </TableCell>
                         );
                       }
