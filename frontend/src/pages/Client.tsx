@@ -193,9 +193,10 @@ const Client: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
             {(() => {
               const tabs = [{ label: 'Client Details', idx: 0 }];
-              // Only show Rate and Candidates tabs if we have a client ID (existing client)
+              // Always show Rate tab, but only show Candidates tab if we have a client ID
+              tabs.push({ label: 'Rate', idx: 1 });
               if (!isNewClient) {
-                tabs.push({ label: 'Rate', idx: 1 }, { label: 'Candidates', idx: 2 });
+                tabs.push({ label: 'Candidates', idx: 2 });
               }
               return tabs.map(t => (
                 <Button
@@ -348,6 +349,14 @@ const Client: React.FC = () => {
               Rate Details
             </Typography>
             
+            {isNewClient ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body1" color="text.secondary">
+                  Please save the client details first to add rates.
+                </Typography>
+              </Box>
+            ) : (
+              <>
             {/* Existing Rates Table */}
             {clientRates.length > 0 && (
               <Box sx={{ mb: 3 }}>
@@ -476,13 +485,29 @@ const Client: React.FC = () => {
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                   <Button 
+                    variant="outlined"
+                    onClick={() => {
+                      // Reset form
+                      setPayRate('150');
+                      setBillRate('100');
+                      if (rateTypes.length > 0) {
+                        setRateType(rateTypes[0].rate_type_id);
+                      }
+                      if (rateFrequencies.length > 0) {
+                        setRateFrequency(rateFrequencies[0].rate_frequency_id);
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
                     variant="contained" 
-                    startIcon={<AddIcon />} 
                     onClick={async () => {
                       if (!clientId) return;
                       
                       try {
                         const rateData: ClientRateCreateDTO = {
+                          client_id: clientId!,
                           rate_type: rateType,
                           rate_frequency: rateFrequency,
                           pay_rate: parseFloat(payRate) || 0,
@@ -491,7 +516,7 @@ const Client: React.FC = () => {
                         
                         await clientsAPI.createRate(clientId, rateData);
                         setToastSev('success');
-                        setToastMsg('Rate added successfully');
+                        setToastMsg('Rate saved successfully');
                         setToastOpen(true);
                         
                         // Reset form
@@ -507,18 +532,20 @@ const Client: React.FC = () => {
                         // Reload rates
                         loadClientRates();
                       } catch (error) {
-                        console.error('Failed to create rate:', error);
+                        console.error('Failed to save rate:', error);
                         setToastSev('error');
-                        setToastMsg('Failed to add rate');
+                        setToastMsg('Failed to save rate');
                         setToastOpen(true);
                       }
                     }}
                   >
-                    Add Rate
+                    Save Rate
                   </Button>
                 </Box>
               </Grid>
             </Grid>
+              </>
+            )}
           </Paper>
         )}
 

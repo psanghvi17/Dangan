@@ -92,6 +92,7 @@ export interface ClientRateDTO {
 }
 
 export interface ClientRateCreateDTO {
+  client_id: string;
   rate_type?: number;
   rate_frequency?: number;
   pay_rate?: number;

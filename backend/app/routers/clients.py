@@ -133,13 +133,11 @@ def delete_client(
 def create_client_rate(
     client_id: str,
     client_rate: schemas.ClientRateCreate,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(auth.get_current_user)
+    db: Session = Depends(get_db)
 ):
     try:
-        # Set the client_id from URL parameter
-        client_rate.client_id = client_id
-        return crud.create_client_rate(db, client_rate, current_user.username)
+        # client_id is now included in the request body from frontend
+        return crud.create_client_rate(db, client_rate)
     except Exception as e:
         logging.exception("Failed to create client rate")
         raise HTTPException(status_code=500, detail=str(e))
@@ -162,11 +160,10 @@ def update_client_rate(
     client_id: str,
     rate_id: str,
     client_rate: schemas.ClientRateUpdate,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(auth.get_current_user)
+    db: Session = Depends(get_db)
 ):
     try:
-        updated_rate = crud.update_client_rate(db, rate_id, client_rate, current_user.username)
+        updated_rate = crud.update_client_rate(db, rate_id, client_rate)
         if not updated_rate:
             raise HTTPException(status_code=404, detail="Client rate not found")
         return updated_rate
@@ -181,11 +178,10 @@ def update_client_rate(
 def delete_client_rate(
     client_id: str,
     rate_id: str,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(auth.get_current_user)
+    db: Session = Depends(get_db)
 ):
     try:
-        deleted_rate = crud.soft_delete_client_rate(db, rate_id, current_user.username)
+        deleted_rate = crud.soft_delete_client_rate(db, rate_id)
         if not deleted_rate:
             raise HTTPException(status_code=404, detail="Client rate not found")
         return {"message": "Client rate deleted successfully"}

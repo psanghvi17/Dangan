@@ -147,7 +147,7 @@ def create_client_rate(db: Session, client_rate: schemas.ClientRateCreate, creat
         rate_frequency=client_rate.rate_frequency,
         pay_rate=client_rate.pay_rate,
         bill_rate=client_rate.bill_rate,
-        created_by=created_by
+        created_by=None  # Set to None since we don't have a proper user UUID
     )
     db.add(db_client_rate)
     db.commit()
@@ -172,7 +172,7 @@ def update_client_rate(db: Session, rate_id: str, client_rate: schemas.ClientRat
         for field, value in client_rate.dict(exclude_unset=True).items():
             setattr(db_client_rate, field, value)
         db_client_rate.updated_on = func.now()
-        db_client_rate.updated_by = updated_by
+        db_client_rate.updated_by = None  # Set to None since we don't have a proper user UUID
         db.commit()
         db.refresh(db_client_rate)
     
@@ -187,7 +187,7 @@ def soft_delete_client_rate(db: Session, rate_id: str, deleted_by: Optional[str]
     
     if db_client_rate:
         db_client_rate.deleted_on = func.now()
-        db_client_rate.deleted_by = deleted_by
+        db_client_rate.deleted_by = None  # Set to None since we don't have a proper user UUID
         db.commit()
         db.refresh(db_client_rate)
     
