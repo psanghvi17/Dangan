@@ -23,7 +23,7 @@ First, you need to set up a PostgreSQL database. You can either:
    - App name: `dangan-app` (or your preferred name)
    - Enable HTTPS and set up your domain
 
-2. **Deploy both services together:**
+2. **Deploy the application:**
    ```bash
    # Navigate to the root directory
    cd /path/to/your/dangan/project
@@ -37,7 +37,7 @@ First, you need to set up a PostgreSQL database. You can either:
    - `SECRET_KEY`: A secure secret key for JWT tokens
    - `ALGORITHM`: HS256 (default)
    - `ACCESS_TOKEN_EXPIRE_MINUTES`: 30 (default)
-   - `REACT_APP_API_URL`: Your backend API URL (e.g., `https://yourdomain.com:8000`)
+   - `REACT_APP_API_URL`: Your backend API URL (e.g., `https://yourdomain.com/api`)
 
 ### 3. Database Migration
 
@@ -108,6 +108,7 @@ The following files have been added/modified for CapRover deployment:
 
 ```
 ├── captain-definition (root)
+├── Dockerfile (root - multi-stage build)
 ├── docker-compose.yml (updated)
 ├── backend/
 │   └── Dockerfile (updated)
@@ -116,6 +117,14 @@ The following files have been added/modified for CapRover deployment:
 │   └── nginx.conf
 └── CAPROVER_DEPLOYMENT.md
 ```
+
+## Architecture
+
+The application now uses a single container approach:
+- **Frontend**: Built with React and served by nginx
+- **Backend**: FastAPI application running on port 8000
+- **Nginx**: Serves frontend on port 80 and proxies `/api` requests to backend
+- **Single Container**: Both services run in the same container for simplified deployment
 
 ## Next Steps
 
