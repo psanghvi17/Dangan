@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8005';
+// Default to same-origin so nginx proxy `/api` works in production without envs
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
