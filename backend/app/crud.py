@@ -139,6 +139,76 @@ def soft_delete_client(db: Session, client_id: str, deleted_by: str):
     return db_client
 
 
+# Client Rate CRUD operations
+def create_client_rate(db: Session, client_rate: schemas.ClientRateCreate, created_by: Optional[str] = None):
+    db_client_rate = models.ClientRate(
+        client_id=client_rate.client_id,
+        rate_type=client_rate.rate_type,
+        rate_frequency=client_rate.rate_frequency,
+        pay_rate=client_rate.pay_rate,
+        bill_rate=client_rate.bill_rate,
+        created_by=created_by
+    )
+    db.add(db_client_rate)
+    db.commit()
+    db.refresh(db_client_rate)
+    return db_client_rate
+
+
+def get_client_rates(db: Session, client_id: str):
+    return db.query(models.ClientRate).filter(
+        models.ClientRate.client_id == client_id,
+        models.ClientRate.deleted_on.is_(None)
+    ).all()
+
+
+def update_client_rate(db: Session, rate_id: str, client_rate: schemas.ClientRateUpdate, updated_by: Optional[str] = None):
+    db_client_rate = db.query(models.ClientRate).filter(
+        models.ClientRate.id == rate_id,
+        models.ClientRate.deleted_on.is_(None)
+    ).first()
+    
+    if db_client_rate:
+        for field, value in client_rate.dict(exclude_unset=True).items():
+            setattr(db_client_rate, field, value)
+        db_client_rate.updated_on = func.now()
+        db_client_rate.updated_by = updated_by
+        db.commit()
+        db.refresh(db_client_rate)
+    
+    return db_client_rate
+
+
+def soft_delete_client_rate(db: Session, rate_id: str, deleted_by: Optional[str] = None):
+    db_client_rate = db.query(models.ClientRate).filter(
+        models.ClientRate.id == rate_id,
+        models.ClientRate.deleted_on.is_(None)
+    ).first()
+    
+    if db_client_rate:
+        db_client_rate.deleted_on = func.now()
+        db_client_rate.deleted_by = deleted_by
+        db.commit()
+        db.refresh(db_client_rate)
+    
+    return db_client_rate
+
+
+# Rate Type and Frequency CRUD operations
+def get_all_rate_types(db: Session):
+    """Get all active rate types where deleted_on is null"""
+    return db.query(models.RateType).filter(
+        models.RateType.deleted_on.is_(None)
+    ).order_by(models.RateType.rate_type_id).all()
+
+
+def get_all_rate_frequencies(db: Session):
+    """Get all active rate frequencies where deleted_on is null"""
+    return db.query(models.RateFrequency).filter(
+        models.RateFrequency.deleted_on.is_(None)
+    ).order_by(models.RateFrequency.rate_frequency_id).all()
+
+
 def get_clients_with_active_contracts_count(db: Session, skip: int = 0, limit: int = 100):
     """Get clients with count of active contracts (status=0) from p_candidate_client table"""
     from sqlalchemy import func, case

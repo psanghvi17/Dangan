@@ -103,6 +103,38 @@ class ClientWithActiveContracts(ClientBase):
         from_attributes = True
 
 
+class ClientRateBase(BaseModel):
+    client_id: UUID
+    rate_type: Optional[int] = None
+    rate_frequency: Optional[int] = None
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+
+
+class ClientRateCreate(ClientRateBase):
+    pass
+
+
+class ClientRateUpdate(BaseModel):
+    rate_type: Optional[int] = None
+    rate_frequency: Optional[int] = None
+    pay_rate: Optional[float] = None
+    bill_rate: Optional[float] = None
+
+
+class ClientRate(ClientRateBase):
+    id: UUID
+    updated_by: Optional[UUID] = None
+    updated_on: Optional[datetime] = None
+    deleted_by: Optional[UUID] = None
+    deleted_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    created_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CandidateBase(BaseModel):
     invoice_contact_name: Optional[str] = None
     invoice_email: Optional[str] = None

@@ -74,3 +74,52 @@ export interface AuthContextType {
   forgotPassword: (email: string) => Promise<PasswordResetResponse>;
   resetPassword: (token: string, newPassword: string) => Promise<PasswordResetResponse>;
 }
+
+// Client Rate types
+export interface ClientRateDTO {
+  id: string;
+  client_id: string;
+  rate_type?: number;
+  rate_frequency?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+  updated_by?: string;
+  updated_on?: string;
+  deleted_by?: string;
+  deleted_on?: string;
+  created_by?: string;
+  created_on?: string;
+}
+
+export interface ClientRateCreateDTO {
+  rate_type?: number;
+  rate_frequency?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+}
+
+export interface ClientRateUpdateDTO {
+  rate_type?: number;
+  rate_frequency?: number;
+  pay_rate?: number;
+  bill_rate?: number;
+}
+
+// Rate Type and Frequency types
+export interface RateTypeDTO {
+  rate_type_id: number;
+  rate_type_name: string;
+  client_id?: string;
+  is_primary_rates?: boolean;
+  created_on?: string;
+  updated_on?: string;
+  deleted_on?: string;
+}
+
+export interface RateFrequencyDTO {
+  rate_frequency_id: number;
+  rate_frequency_name: string;
+  created_on?: string;
+  updated_on?: string;
+  deleted_on?: string;
+}

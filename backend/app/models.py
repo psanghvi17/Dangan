@@ -43,7 +43,7 @@ class Client(Base):
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     updated_on = Column(DateTime(timezone=False))
     deleted_on = Column(DateTime(timezone=False), nullable=True)
-    deleted_by = Column(String, nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), nullable=True)
 
 
 class Candidate(Base):
@@ -147,6 +147,9 @@ class RateType(Base):
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     updated_on = Column(DateTime(timezone=False), nullable=True)
     deleted_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
 
 
 class RateFrequency(Base):
@@ -158,6 +161,9 @@ class RateFrequency(Base):
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     updated_on = Column(DateTime(timezone=False), nullable=True)
     deleted_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
 
 
 class ContractRate(Base):
@@ -182,6 +188,24 @@ class ContractRate(Base):
     perc_markup = Column(Float, nullable=True)
     is_history = Column(Boolean, nullable=True)
     tcccc_id = Column(UUID(as_uuid=True), nullable=True)
+
+
+class ClientRate(Base):
+    __tablename__ = "t_client_rates"
+    __table_args__ = {"schema": "app"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    client_id = Column(UUID(as_uuid=True), ForeignKey("app.m_client.client_id"), nullable=False)
+    rate_type = Column(Integer, nullable=True)
+    rate_frequency = Column(Integer, nullable=True)
+    pay_rate = Column(Float, nullable=True)
+    bill_rate = Column(Float, nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
 
 
 class ContractorHours(Base):

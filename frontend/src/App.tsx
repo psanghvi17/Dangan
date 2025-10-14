@@ -9,7 +9,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Items from './pages/Items';
 import Client from './pages/Client';
-import EditClient from './pages/EditClient';
 import Candidate from './pages/Candidate';
 import Timesheet from './pages/Timesheet';
 import Holiday from './pages/Holiday';
@@ -55,7 +54,7 @@ function App() {
         } />
         <Route path="/client/edit/:clientId" element={
           <ProtectedRoute>
-            <AppLayout><EditClient /></AppLayout>
+            <AppLayout><Client /></AppLayout>
           </ProtectedRoute>
         } />
 

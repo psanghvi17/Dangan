@@ -8,6 +8,25 @@ import logging
 router = APIRouter()
 
 
+# Rate Types and Frequencies endpoints (MUST be before any parameterized routes)
+@router.get("/rate-types")
+def get_rate_types(db: Session = Depends(get_db)):
+    try:
+        return crud.get_all_rate_types(db)
+    except Exception as e:
+        logging.exception("Failed to get rate types")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rate-frequencies")
+def get_rate_frequencies(db: Session = Depends(get_db)):
+    try:
+        return crud.get_all_rate_frequencies(db)
+    except Exception as e:
+        logging.exception("Failed to get rate frequencies")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/", response_model=schemas.Client)
 def create_client(
     client: schemas.ClientCreate,
@@ -107,3 +126,73 @@ def delete_client(
     except Exception as e:
         logging.exception("Failed to delete client")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Client Rates endpoints
+@router.post("/{client_id}/rates", response_model=schemas.ClientRate)
+def create_client_rate(
+    client_id: str,
+    client_rate: schemas.ClientRateCreate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_user)
+):
+    try:
+        # Set the client_id from URL parameter
+        client_rate.client_id = client_id
+        return crud.create_client_rate(db, client_rate, current_user.username)
+    except Exception as e:
+        logging.exception("Failed to create client rate")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{client_id}/rates", response_model=List[schemas.ClientRate])
+def get_client_rates(
+    client_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return crud.get_client_rates(db, client_id)
+    except Exception as e:
+        logging.exception("Failed to get client rates")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{client_id}/rates/{rate_id}", response_model=schemas.ClientRate)
+def update_client_rate(
+    client_id: str,
+    rate_id: str,
+    client_rate: schemas.ClientRateUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_user)
+):
+    try:
+        updated_rate = crud.update_client_rate(db, rate_id, client_rate, current_user.username)
+        if not updated_rate:
+            raise HTTPException(status_code=404, detail="Client rate not found")
+        return updated_rate
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Failed to update client rate")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{client_id}/rates/{rate_id}")
+def delete_client_rate(
+    client_id: str,
+    rate_id: str,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(auth.get_current_user)
+):
+    try:
+        deleted_rate = crud.soft_delete_client_rate(db, rate_id, current_user.username)
+        if not deleted_rate:
+            raise HTTPException(status_code=404, detail="Client rate not found")
+        return {"message": "Client rate deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Failed to delete client rate")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
