@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO } from '../types';
+import { LoginCredentials, RegisterData, User, Item, MUser, MUserSignup, MUserLogin, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, ClientRateDTO, ClientRateCreateDTO, ClientRateUpdateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8005';
 
@@ -175,6 +175,11 @@ export const clientsAPI = {
   },
   getRateFrequencies: async (): Promise<RateFrequencyDTO[]> => {
     const res = await api.get('/api/clients/rate-frequencies');
+    return res.data;
+  },
+  // Client Candidates
+  getCandidates: async (clientId: string): Promise<ClientCandidateDTO[]> => {
+    const res = await api.get(`/api/clients/${clientId}/candidates`);
     return res.data;
   },
 };

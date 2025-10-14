@@ -23,7 +23,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { clientsAPI } from '../services/api';
-import { ClientRateDTO, ClientRateCreateDTO, RateTypeDTO, RateFrequencyDTO } from '../types';
+import { ClientRateDTO, ClientRateCreateDTO, RateTypeDTO, RateFrequencyDTO, ClientCandidateDTO } from '../types';
 
 interface ClientFormData {
   clientName: string;
@@ -57,9 +57,11 @@ const Client: React.FC = () => {
   
   // Determine if this is a new client (no clientId) or editing existing client
   const isNewClient = !clientId;
+  const [client, setClient] = useState<any>(null);
   const [clientRates, setClientRates] = useState<ClientRateDTO[]>([]);
   const [rateTypes, setRateTypes] = useState<RateTypeDTO[]>([]);
   const [rateFrequencies, setRateFrequencies] = useState<RateFrequencyDTO[]>([]);
+  const [clientCandidates, setClientCandidates] = useState<ClientCandidateDTO[]>([]);
 
   // Rate tab state (UI only)
   const [rateType, setRateType] = useState<number>(1); // Default to first rate type ID
@@ -67,23 +69,27 @@ const Client: React.FC = () => {
   const [payRate, setPayRate] = useState<string>('150');
   const [billRate, setBillRate] = useState<string>('100');
 
-  // Candidates tab mock data
-  const candidates = Array.from({ length: 10 }).map((_, i) => ({
-    name: 'Candidate Kaushik',
-    email: 'clientkaushik@Cozmotec.ie',
-    clientName: 'test_01',
-    startDate: '01-Feb-2025',
-    finishDate: '01-Feb-2025',
-    managerName: 'Kaushik Kishor',
-    initials: 'CK',
-    id: i + 1,
-  }));
+
+  // Load client candidates
+  const loadClientCandidates = async () => {
+    if (!clientId) return;
+    try {
+      const candidates = await clientsAPI.getCandidates(clientId);
+      setClientCandidates(candidates);
+    } catch (error) {
+      console.error('Failed to load client candidates:', error);
+      setToastSev('error');
+      setToastMsg('Failed to load candidates');
+      setToastOpen(true);
+    }
+  };
 
   // Load client data and rates when clientId is present
   useEffect(() => {
     if (clientId) {
       loadClientData();
       loadClientRates();
+      loadClientCandidates();
     }
     // Always load rate types and frequencies
     loadRateTypes();
@@ -93,12 +99,13 @@ const Client: React.FC = () => {
   const loadClientData = async () => {
     if (!clientId) return;
     try {
-      const client = await clientsAPI.get(clientId);
+      const clientData = await clientsAPI.get(clientId);
+      setClient(clientData);
       setForm({
-        clientName: client.client_name || '',
-        description: client.description || '',
-        email: client.email || '',
-        accountManager: client.contact_name || accountManagers[0],
+        clientName: clientData.client_name || '',
+        description: clientData.description || '',
+        email: clientData.email || '',
+        accountManager: clientData.contact_name || accountManagers[0],
         address: '', // Not in current schema
         costCentre1: '', // Not in current schema
         costCentre2: '', // Not in current schema
@@ -559,65 +566,109 @@ const Client: React.FC = () => {
             </Box>
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
               <Table 
-                className="client-table"
                 sx={{
-                  '& td': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
+                  '& .MuiTableRow-root': {
+                    borderBottom: '1px solid #e0e0e0',
                   },
-                  '& th': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
+                  '& .MuiTableRow-root:last-child': {
+                    borderBottom: 'none',
                   },
                   '& .MuiTableCell-root': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
+                    borderBottom: 'none',
+                    padding: '12px 16px',
+                    verticalAlign: 'middle',
                   },
                   '& .MuiTableCell-head': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
+                    backgroundColor: '#f5f5f5',
+                    fontWeight: 600,
+                    color: '#424242',
+                    borderBottom: '1px solid #e0e0e0',
                   },
-                  '& .MuiTableCell-body': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
-                  },
-                  '& .MuiTableCell-sizeSmall': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
-                  },
-                  '& .MuiTableCell-sizeMedium': {
-                    padding: '0 !important',
-                    verticalAlign: 'middle !important',
+                  '& .MuiTableRow-root:hover': {
+                    backgroundColor: '#fafafa',
                   }
                 }}
               >
                 <TableHead>
-                  <TableRow sx={{ bgcolor: 'action.hover' }}>
-                    <TableCell align="center" sx={{ padding: '0 !important' }}>Name</TableCell>
-                    <TableCell align="center" sx={{ padding: '0 !important' }}>Client Name</TableCell>
-                    <TableCell align="center" sx={{ padding: '0 !important' }}>Start Date</TableCell>
-                    <TableCell align="center" sx={{ padding: '0 !important' }}>Finish Date</TableCell>
-                    <TableCell align="center" sx={{ padding: '0 !important' }}>Manager Name</TableCell>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Client Name</TableCell>
+                    <TableCell>Start Date</TableCell>
+                    <TableCell>Finish Date</TableCell>
+                    <TableCell>Manager Name</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {candidates.map((c) => (
-                    <TableRow key={c.id} hover>
-                      <TableCell align="center" sx={{ padding: '0 !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: 'primary.light' }}>{c.initials}</Avatar>
-                          <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'center' }}>{c.name}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>{c.email}</Typography>
-                          </Box>
-                        </Box>
+                  {clientCandidates.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No candidates assigned to this client
+                        </Typography>
                       </TableCell>
-                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.clientName}</TableCell>
-                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.startDate}</TableCell>
-                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.finishDate}</TableCell>
-                      <TableCell align="center" sx={{ padding: '0 !important' }}>{c.managerName}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    clientCandidates.map((candidate) => {
+                      const fullName = `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Unknown';
+                      const initials = `${candidate.first_name?.[0] || ''}${candidate.last_name?.[0] || ''}`.toUpperCase() || 'U';
+                      const startDate = candidate.contract_start_date ? new Date(candidate.contract_start_date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : '—';
+                      const endDate = candidate.contract_end_date ? new Date(candidate.contract_end_date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : '—';
+                      
+                      return (
+                        <TableRow key={candidate.user_id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Avatar sx={{ 
+                                bgcolor: '#2196f3', 
+                                width: 40, 
+                                height: 40,
+                                fontSize: '14px',
+                                fontWeight: 600
+                              }}>
+                                {initials}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }}>
+                                  {fullName}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                  {candidate.email_id || 'No email'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {client?.client_name || 'Unknown Client'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {startDate}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {endDate}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              —
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

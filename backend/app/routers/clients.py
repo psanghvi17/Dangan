@@ -133,11 +133,12 @@ def delete_client(
 def create_client_rate(
     client_id: str,
     client_rate: schemas.ClientRateCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(auth.get_current_m_user)
 ):
     try:
         # client_id is now included in the request body from frontend
-        return crud.create_client_rate(db, client_rate)
+        return crud.create_client_rate(db, client_rate, str(current_user.user_id))
     except Exception as e:
         logging.exception("Failed to create client rate")
         raise HTTPException(status_code=500, detail=str(e))
@@ -160,10 +161,11 @@ def update_client_rate(
     client_id: str,
     rate_id: str,
     client_rate: schemas.ClientRateUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(auth.get_current_m_user)
 ):
     try:
-        updated_rate = crud.update_client_rate(db, rate_id, client_rate)
+        updated_rate = crud.update_client_rate(db, rate_id, client_rate, str(current_user.user_id))
         if not updated_rate:
             raise HTTPException(status_code=404, detail="Client rate not found")
         return updated_rate
@@ -174,14 +176,28 @@ def update_client_rate(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{client_id}/candidates", response_model=List[schemas.ClientCandidateOut])
+def get_client_candidates(
+    client_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        candidates = crud.get_candidates_for_client(db, client_id)
+        return candidates
+    except Exception as e:
+        logging.exception("Failed to get client candidates")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{client_id}/rates/{rate_id}")
 def delete_client_rate(
     client_id: str,
     rate_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(auth.get_current_m_user)
 ):
     try:
-        deleted_rate = crud.soft_delete_client_rate(db, rate_id)
+        deleted_rate = crud.soft_delete_client_rate(db, rate_id, str(current_user.user_id))
         if not deleted_rate:
             raise HTTPException(status_code=404, detail="Client rate not found")
         return {"message": "Client rate deleted successfully"}

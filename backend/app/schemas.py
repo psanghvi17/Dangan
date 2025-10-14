@@ -333,6 +333,20 @@ class RateFrequencyOut(BaseModel):
         from_attributes = True
 
 
+class ClientCandidateOut(BaseModel):
+    user_id: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_id: Optional[str] = None
+    placement_date: Optional[str] = None
+    contract_start_date: Optional[str] = None
+    contract_end_date: Optional[str] = None
+    pcc_id: str
+
+    class Config:
+        from_attributes = True
+
+
 class ContractRateCreate(BaseModel):
     rate_type: int
     rate_frequency: int

@@ -147,7 +147,7 @@ def create_client_rate(db: Session, client_rate: schemas.ClientRateCreate, creat
         rate_frequency=client_rate.rate_frequency,
         pay_rate=client_rate.pay_rate,
         bill_rate=client_rate.bill_rate,
-        created_by=None  # Set to None since we don't have a proper user UUID
+        created_by=created_by  # Use the logged-in user's ID
     )
     db.add(db_client_rate)
     db.commit()
@@ -172,7 +172,7 @@ def update_client_rate(db: Session, rate_id: str, client_rate: schemas.ClientRat
         for field, value in client_rate.dict(exclude_unset=True).items():
             setattr(db_client_rate, field, value)
         db_client_rate.updated_on = func.now()
-        db_client_rate.updated_by = None  # Set to None since we don't have a proper user UUID
+        db_client_rate.updated_by = updated_by  # Use the logged-in user's ID
         db.commit()
         db.refresh(db_client_rate)
     
@@ -187,11 +187,65 @@ def soft_delete_client_rate(db: Session, rate_id: str, deleted_by: Optional[str]
     
     if db_client_rate:
         db_client_rate.deleted_on = func.now()
-        db_client_rate.deleted_by = None  # Set to None since we don't have a proper user UUID
+        db_client_rate.deleted_by = deleted_by  # Use the logged-in user's ID
         db.commit()
         db.refresh(db_client_rate)
     
     return db_client_rate
+
+
+def get_candidates_for_client(db: Session, client_id: str):
+    """Get all candidates assigned to a specific client where pcc.status = 0"""
+    try:
+        from sqlalchemy.orm import aliased
+        
+        # Create aliases for the tables
+        pcc = aliased(models.P_CandidateClient)
+        mu = aliased(models.MUser)
+        
+        # Join p_candidate_client with m_user to get candidate info
+        results = (
+            db.query(
+                mu.user_id,
+                mu.first_name,
+                mu.last_name,
+                mu.email_id,
+                pcc.placement_date,
+                pcc.contract_start_date,
+                pcc.contract_end_date,
+                pcc.pcc_id
+            )
+            .join(mu, pcc.candidate_id == mu.user_id)
+            .filter(pcc.client_id == client_id)
+            .filter(pcc.status == 0)  # Only active assignments
+            .filter(pcc.deleted_on.is_(None))
+            .filter(mu.deleted_on.is_(None))
+            .order_by(mu.first_name, mu.last_name)
+            .all()
+        )
+        
+        # Convert SQLAlchemy Row objects to dictionaries
+        candidates = []
+        for row in results:
+            candidate = {
+                'user_id': str(row.user_id),
+                'first_name': row.first_name,
+                'last_name': row.last_name,
+                'email_id': row.email_id,
+                'placement_date': row.placement_date.isoformat() if row.placement_date else None,
+                'contract_start_date': row.contract_start_date.isoformat() if row.contract_start_date else None,
+                'contract_end_date': row.contract_end_date.isoformat() if row.contract_end_date else None,
+                'pcc_id': str(row.pcc_id)
+            }
+            candidates.append(candidate)
+        
+        return candidates
+        
+    except Exception as e:
+        print(f"❌ Error getting candidates for client: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 
 # Rate Type and Frequency CRUD operations

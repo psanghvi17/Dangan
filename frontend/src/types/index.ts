@@ -124,3 +124,15 @@ export interface RateFrequencyDTO {
   updated_on?: string;
   deleted_on?: string;
 }
+
+// Client Candidate types
+export interface ClientCandidateDTO {
+  user_id: string;
+  first_name?: string;
+  last_name?: string;
+  email_id?: string;
+  placement_date?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  pcc_id: string;
+}
