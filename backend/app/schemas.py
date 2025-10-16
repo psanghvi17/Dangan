@@ -284,6 +284,7 @@ class CandidateUpdate(BaseModel):
     invoice_contact_name: Optional[str] = None
     # Accept either a single string or list of strings from the client
     invoice_email: Optional[Union[str, List[str]]] = None
+    date_of_birth: Optional[datetime] = None
 
 
 class ClientOption(BaseModel):
@@ -677,6 +678,46 @@ class CostCenter(CostCenterBase):
     deleted_on: Optional[datetime] = None
     created_by: Optional[UUID] = None
     created_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Candidate Client Cost Center schemas
+class CandidateClientCostCenterBase(BaseModel):
+    pcc_id: Optional[UUID] = None
+    cc_id: Optional[UUID] = None
+    sort_order: Optional[int] = None
+
+
+class CandidateClientCostCenterCreate(CandidateClientCostCenterBase):
+    pass
+
+
+class CandidateClientCostCenterUpdate(BaseModel):
+    cc_id: Optional[UUID] = None
+    sort_order: Optional[int] = None
+
+
+class CandidateClientCostCenter(CandidateClientCostCenterBase):
+    id: UUID
+    created_by: Optional[UUID] = None
+    created_on: Optional[datetime] = None
+    updated_by: Optional[UUID] = None
+    updated_on: Optional[datetime] = None
+    deleted_by: Optional[UUID] = None
+    deleted_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CostCenterWithDetails(BaseModel):
+    id: UUID
+    cc_name: Optional[str] = None
+    cc_number: Optional[str] = None
+    cc_address: Optional[str] = None
+    relationship_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

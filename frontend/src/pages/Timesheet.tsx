@@ -669,9 +669,6 @@ const Timesheet: React.FC = () => {
             }
           `}
         </style>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {pageTitle}
-        </Typography>
 
         <Paper elevation={0} sx={{ mb: 1.5, p: 1, bgcolor: 'background.default' }}>
           <Grid container spacing={1.5} alignItems="center">

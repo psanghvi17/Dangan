@@ -187,9 +187,6 @@ const Client: React.FC = () => {
             }
           `}
         </style>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Client
-        </Typography>
 
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>

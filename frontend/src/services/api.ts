@@ -459,6 +459,22 @@ export const candidatesAPI = {
     const res = await api.post('/api/candidates/contract-with-rates', contractData);
     return res.data;
   },
+
+  // Cost Center functions
+  getCostCenters: async (userId: string): Promise<any[]> => {
+    const res = await api.get(`/api/candidates/${userId}/cost-centers`);
+    return res.data;
+  },
+
+  assignCostCenter: async (userId: string, costCenterData: any): Promise<any> => {
+    const res = await api.post(`/api/candidates/${userId}/cost-centers`, costCenterData);
+    return res.data;
+  },
+
+  removeCostCenter: async (userId: string, relationshipId: string): Promise<any> => {
+    const res = await api.delete(`/api/candidates/${userId}/cost-centers/${relationshipId}`);
+    return res.data;
+  },
 };
 
 export default api;

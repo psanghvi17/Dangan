@@ -107,9 +107,6 @@ const Home: React.FC = () => {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Dashboard
-            </Typography>
             <Typography variant="h6" color="text.secondary">
               Welcome back, {getUserDisplayName()}! Here's what's happening today.
             </Typography>

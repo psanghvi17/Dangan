@@ -542,6 +542,23 @@ def get_active_candidates(db: Session, skip: int = 0, limit: int = 100):
     return result
 
 
+def get_client_relationships_by_candidate(db: Session, candidate_id: str):
+    """Return all P_CandidateClient relationships for a candidate (by candidate_id/user_id)."""
+    try:
+        return (
+            db.query(models.P_CandidateClient)
+            .filter(
+                models.P_CandidateClient.candidate_id == candidate_id,
+                models.P_CandidateClient.deleted_on.is_(None)
+            )
+            .order_by(models.P_CandidateClient.created_on.desc())
+            .all()
+        )
+    except Exception as e:
+        print(f"❌ Error fetching client relationships for candidate {candidate_id}: {e}")
+        return []
+
+
 def get_pending_candidates(db: Session, skip: int = 0, limit: int = 100):
     """Get candidates who don't have any entries in p_candidate_client table (pending candidates)"""
     from sqlalchemy import func
@@ -665,6 +682,8 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
                 candidate.invoice_contact_name = candidate_data['invoice_contact_name']
             if 'invoice_email' in candidate_data:
                 candidate.invoice_email = candidate_data['invoice_email']
+            if 'date_of_birth' in candidate_data:
+                candidate.date_of_birth = candidate_data['date_of_birth']
         
         db.commit()
         db.refresh(m_user)
@@ -674,6 +693,41 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
         
     except Exception as e:
         print(f"❌ Error updating candidate: {e}")
+        db.rollback()
+        return None
+
+
+def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
+    """Create a new candidate"""
+    try:
+        print(f"🔄 Creating candidate: {candidate_data}")
+        
+        # Create candidate in app.m_candidate
+        candidate = models.Candidate(
+            candidate_id=candidate_data.candidate_id if hasattr(candidate_data, 'candidate_id') else None,
+            invoice_contact_name=candidate_data.invoice_contact_name,
+            invoice_email=candidate_data.invoice_email,
+            invoice_phone=candidate_data.invoice_phone,
+            address1=candidate_data.address1,
+            address2=candidate_data.address2,
+            town=candidate_data.town,
+            county=candidate_data.county,
+            eircode=candidate_data.eircode,
+            pps_number=candidate_data.pps_number,
+            date_of_birth=candidate_data.date_of_birth,
+            bank_account_number=candidate_data.bank_account_number,
+            bank_name=candidate_data.bank_name
+        )
+        
+        db.add(candidate)
+        db.commit()
+        db.refresh(candidate)
+        
+        print(f"✅ Successfully created candidate: {candidate.candidate_id}")
+        return candidate
+        
+    except Exception as e:
+        print(f"❌ Error creating candidate: {e}")
         db.rollback()
         return None
 
@@ -1906,6 +1960,130 @@ def get_cost_centers_by_client(db: Session, client_id: UUID) -> List[models.Cost
         models.CostCenter.client_id == client_id,
         models.CostCenter.deleted_on.is_(None)
     ).all()
+
+
+def get_cost_center(db: Session, cost_center_id: UUID) -> Optional[models.CostCenter]:
+    """Get a specific cost center by ID"""
+    return db.query(models.CostCenter).filter(
+        models.CostCenter.id == cost_center_id,
+        models.CostCenter.deleted_on.is_(None)
+    ).first()
+
+
+def create_cost_center(db: Session, cost_center: schemas.CostCenterCreate, created_by: UUID) -> models.CostCenter:
+    """Create a new cost center"""
+    db_cost_center = models.CostCenter(
+        client_id=cost_center.client_id,
+        cc_name=cost_center.cc_name,
+        cc_number=cost_center.cc_number,
+        cc_address=cost_center.cc_address,
+        created_by=created_by
+    )
+    db.add(db_cost_center)
+    db.commit()
+    db.refresh(db_cost_center)
+    return db_cost_center
+
+
+def update_cost_center(db: Session, cost_center_id: UUID, cost_center_update: schemas.CostCenterUpdate, updated_by: UUID) -> Optional[models.CostCenter]:
+    """Update a cost center"""
+    db_cost_center = db.query(models.CostCenter).filter(
+        models.CostCenter.id == cost_center_id,
+        models.CostCenter.deleted_on.is_(None)
+    ).first()
+    
+    if not db_cost_center:
+        return None
+    
+    update_data = cost_center_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_cost_center, field, value)
+    
+    db_cost_center.updated_by = updated_by
+    db_cost_center.updated_on = func.now()
+    
+    db.commit()
+    db.refresh(db_cost_center)
+    return db_cost_center
+
+
+def delete_cost_center(db: Session, cost_center_id: UUID, deleted_by: UUID) -> bool:
+    """Soft delete a cost center"""
+    db_cost_center = db.query(models.CostCenter).filter(
+        models.CostCenter.id == cost_center_id,
+        models.CostCenter.deleted_on.is_(None)
+    ).first()
+    
+    if not db_cost_center:
+        return False
+    
+    db_cost_center.deleted_by = deleted_by
+    db_cost_center.deleted_on = func.now()
+    
+    db.commit()
+    return True
+
+
+# Candidate Client Cost Center CRUD operations
+def get_candidate_cost_centers(db: Session, pcc_id: UUID) -> List[models.CandidateClientCostCenter]:
+    """Get all cost centers for a candidate-client relationship"""
+    return db.query(models.CandidateClientCostCenter).filter(
+        models.CandidateClientCostCenter.pcc_id == pcc_id,
+        models.CandidateClientCostCenter.deleted_on.is_(None)
+    ).order_by(models.CandidateClientCostCenter.sort_order).all()
+
+
+def create_candidate_cost_center(db: Session, cost_center_data: schemas.CandidateClientCostCenterCreate, created_by: UUID) -> models.CandidateClientCostCenter:
+    """Create a new candidate-client-cost-center relationship"""
+    db_relationship = models.CandidateClientCostCenter(
+        pcc_id=cost_center_data.pcc_id,
+        cc_id=cost_center_data.cc_id,
+        sort_order=cost_center_data.sort_order,
+        created_by=created_by
+    )
+    db.add(db_relationship)
+    db.commit()
+    db.refresh(db_relationship)
+    return db_relationship
+
+
+def update_candidate_cost_center(db: Session, relationship_id: UUID, cost_center_data: schemas.CandidateClientCostCenterUpdate, updated_by: UUID) -> Optional[models.CandidateClientCostCenter]:
+    """Update a candidate-client-cost-center relationship"""
+    db_relationship = db.query(models.CandidateClientCostCenter).filter(
+        models.CandidateClientCostCenter.id == relationship_id,
+        models.CandidateClientCostCenter.deleted_on.is_(None)
+    ).first()
+    
+    if not db_relationship:
+        return None
+    
+    update_data = cost_center_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_relationship, field, value)
+    
+    db_relationship.updated_by = updated_by
+    db_relationship.updated_on = func.now()
+    
+    db.commit()
+    db.refresh(db_relationship)
+    return db_relationship
+
+
+def delete_candidate_cost_center(db: Session, relationship_id: UUID, deleted_by: UUID) -> bool:
+    """Soft delete a candidate-client-cost-center relationship"""
+    db_relationship = db.query(models.CandidateClientCostCenter).filter(
+        models.CandidateClientCostCenter.id == relationship_id,
+        models.CandidateClientCostCenter.deleted_on.is_(None)
+    ).first()
+    
+    if not db_relationship:
+        return False
+    
+    db_relationship.deleted_by = deleted_by
+    db_relationship.deleted_on = func.now()
+    
+    db.commit()
+    return True
 
 
 def get_cost_center(db: Session, cost_center_id: UUID) -> Optional[models.CostCenter]:

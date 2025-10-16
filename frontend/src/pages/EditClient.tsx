@@ -100,9 +100,6 @@ const EditClient: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Edit Client
-        </Typography>
 
         {/* Tab Navigation */}
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>

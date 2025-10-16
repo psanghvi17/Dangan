@@ -32,73 +32,73 @@ function App() {
         {/* Dashboard and other routes with sidebar - Protected */}
         <Route path="/" element={
           <ProtectedRoute>
-            <AppLayout><Home /></AppLayout>
+            <AppLayout title="Dashboard"><Home /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/items" element={
           <ProtectedRoute>
-            <AppLayout><Items /></AppLayout>
+            <AppLayout title="Items"><Items /></AppLayout>
           </ProtectedRoute>
         } />
         
         {/** Client: list at /client, manage at /client/manage-client, edit at /client/edit/:clientId */}
         <Route path="/client" element={
           <ProtectedRoute>
-            <AppLayout><ManageClient /></AppLayout>
+            <AppLayout title="Client"><ManageClient /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/client/manage-client" element={
           <ProtectedRoute>
-            <AppLayout><Client /></AppLayout>
+            <AppLayout title="Add Client"><Client /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/client/edit/:clientId" element={
           <ProtectedRoute>
-            <AppLayout><Client /></AppLayout>
+            <AppLayout title="Edit Client"><Client /></AppLayout>
           </ProtectedRoute>
         } />
 
         {/** Candidate: list at /candidate, manage at /candidate/manage-candidate */}
         <Route path="/candidate" element={
           <ProtectedRoute>
-            <AppLayout><ManageCandidate /></AppLayout>
+            <AppLayout title="Candidate"><ManageCandidate /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/candidate/manage-candidate" element={
           <ProtectedRoute>
-            <AppLayout><Candidate /></AppLayout>
+            <AppLayout title="Add Candidate"><Candidate /></AppLayout>
           </ProtectedRoute>
         } />
 
         {/** Timesheet: list at /timesheet, manage at /timesheet/manage-timesheet/:timesheetId? */}
         <Route path="/timesheet" element={
           <ProtectedRoute>
-            <AppLayout><TimesheetList /></AppLayout>
+            <AppLayout title="Timesheet"><TimesheetList /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/timesheet/manage-timesheet" element={
           <ProtectedRoute>
-            <AppLayout><Timesheet /></AppLayout>
+            <AppLayout title="Add Timesheet"><Timesheet /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/timesheet/manage-timesheet/:timesheetId" element={
           <ProtectedRoute>
-            <AppLayout><Timesheet /></AppLayout>
+            <AppLayout title="Edit Timesheet"><Timesheet /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/invoices" element={
           <ProtectedRoute>
-            <AppLayout><Invoice /></AppLayout>
+            <AppLayout title="Invoice"><Invoice /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/invoice/view-invoice/:invoiceId" element={
           <ProtectedRoute>
-            <AppLayout><ViewInvoice /></AppLayout>
+            <AppLayout title="View Invoice"><ViewInvoice /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/holiday" element={
           <ProtectedRoute>
-            <AppLayout><Holiday /></AppLayout>
+            <AppLayout title="Annual Leave"><Holiday /></AppLayout>
           </ProtectedRoute>
         } />
         

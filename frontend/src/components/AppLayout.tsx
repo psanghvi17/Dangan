@@ -79,7 +79,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
           width: { md: `calc(100% - ${drawerWidth}px)` }, // Adjust width for desktop
         }}
       >
-        <Toolbar sx={{ justifyContent: 'flex-end' }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          {/* Left side - Page Title */}
+          <Typography variant="h5" component="h1" sx={{ fontWeight: '600', color: '#1976d2' }}>
+            {getCurrentPageName()}
+          </Typography>
 
           {/* Right side - User Profile */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

@@ -117,9 +117,6 @@ const ManageCandidate: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Candidate
-        </Typography>
 
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>

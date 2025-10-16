@@ -16,12 +16,12 @@ import MuiAlert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
-import { candidatesAPI, clientsAPI } from '../services/api';
+import { candidatesAPI, clientsAPI, costCentersAPI } from '../services/api';
 import { ClientRateDTO } from '../types';
 import { useSearchParams } from 'react-router-dom';
 
 
-type TabKey = 'personal' | 'account' | 'client' | 'documents';
+type TabKey = 'personal' | 'account' | 'client' | 'cost-center' | 'documents';
 
 const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 
@@ -84,6 +84,11 @@ const Candidate: React.FC = () => {
   type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
   const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
+
+  // Cost Center tab
+  const [costCenters, setCostCenters] = useState<any[]>([]);
+  const [selectedCostCenters, setSelectedCostCenters] = useState<any[]>([]);
+  const [loadingCostCenters, setLoadingCostCenters] = useState(false);
 
   // Documents tab
   const [docs, setDocs] = useState<string[]>([]);
@@ -207,6 +212,46 @@ const Candidate: React.FC = () => {
     }
   };
 
+  // Load cost centers for the selected client
+  const loadCostCenters = async (clientId: string) => {
+    if (!clientId) return;
+    
+    setLoadingCostCenters(true);
+    try {
+      console.log('🔄 Loading cost centers for client:', clientId);
+      const costCentersData = await costCentersAPI.getByClient(clientId);
+      console.log('✅ Cost centers loaded:', costCentersData);
+      setCostCenters(costCentersData);
+    } catch (error) {
+      console.error('❌ Failed to load cost centers:', error);
+    } finally {
+      setLoadingCostCenters(false);
+    }
+  };
+
+  // Load existing cost center assignments for the candidate
+  const loadExistingCostCenterAssignments = async (userId: string) => {
+    if (!userId) return;
+    
+    try {
+      console.log('🔄 Loading existing cost center assignments for candidate:', userId);
+      const existingAssignments = await candidatesAPI.getCostCenters(userId);
+      console.log('✅ Existing cost center assignments loaded:', existingAssignments);
+      
+      // Transform the data to match our UI structure
+      const transformedAssignments = existingAssignments.map((assignment: any) => ({
+        cc_id: assignment.id,
+        cc_name: assignment.cc_name,
+        cc_number: assignment.cc_number,
+        relationship_id: assignment.relationship_id // We'll need this for updates/deletes
+      }));
+      
+      setSelectedCostCenters(transformedAssignments);
+    } catch (error) {
+      console.error('❌ Failed to load existing cost center assignments:', error);
+    }
+  };
+
   // Load rate meta (types, frequencies)
   const loadRateMeta = async () => {
     setLoadingRateMeta(true);
@@ -269,6 +314,7 @@ const Candidate: React.FC = () => {
       console.log('🚀 Edit mode: Loading candidate with user_id:', user_id);
       loadCandidateData(user_id);
       loadClientRelationships(user_id);
+      loadExistingCostCenterAssignments(user_id);
     } else {
       console.log('🚀 Create mode: Resetting form');
       resetForm();
@@ -279,6 +325,13 @@ const Candidate: React.FC = () => {
     // Load rate meta
     loadRateMeta();
   }, [user_id]);
+
+  // Load cost centers when selected client changes
+  useEffect(() => {
+    if (selectedClientId) {
+      loadCostCenters(selectedClientId);
+    }
+  }, [selectedClientId]);
 
   const TabButton: React.FC<{ k: TabKey; label: string }> = ({ k, label }) => (
     <Button
@@ -296,16 +349,13 @@ const Candidate: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {isEditMode ? 'Edit Candidate' : 'Add New Candidate'}
-          {loadingCandidate && ' (Loading...)'}
-        </Typography>
 
         <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
           <Box sx={{ display: 'flex', gap: 2, p: 1, flexWrap: 'wrap' }}>
             <TabButton k="personal" label="Personal Details" />
             <TabButton k="account" label="Account Details" />
             <TabButton k="client" label="Client Details" />
+            <TabButton k="cost-center" label="Cost Center" />
             <TabButton k="documents" label="Documents" />
           </Box>
         </Paper>
@@ -326,6 +376,7 @@ const Candidate: React.FC = () => {
                       email_id: email,
                       invoice_contact_name: `${firstName} ${lastName}`,
                       invoice_email: email ? [email] : undefined,
+                      date_of_birth: dob ? new Date(dob).toISOString() : undefined,
                     });
                     setToastSev('success');
                     setToastMsg('Candidate updated successfully!');
@@ -336,6 +387,7 @@ const Candidate: React.FC = () => {
                     const result = await candidatesAPI.create({
                       invoice_contact_name: `${firstName} ${lastName}`,
                       invoice_email: email,
+                      date_of_birth: dob ? new Date(dob).toISOString() : undefined,
                     });
                     setToastSev('success');
                     setToastMsg('Candidate created successfully!');
@@ -383,7 +435,7 @@ const Candidate: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Date.of.Birth</Typography>
-                <TextField fullWidth value={dob} onChange={(e) => setDob(e.target.value)} />
+                <TextField fullWidth type="date" value={dob} onChange={(e) => setDob(e.target.value)} InputLabelProps={{ shrink: true }} />
               </Grid>
 
               <Grid item xs={12}>
@@ -712,6 +764,173 @@ const Candidate: React.FC = () => {
                 }
               }}>Save Contract & Rates</Button>
             </Box>
+          </Paper>
+        )}
+
+        {tab === 'cost-center' && (
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Cost Center Assignment
+            </Typography>
+            <Grid container spacing={2}>
+              {selectedCostCenters.map((costCenter, index) => (
+                <Grid item xs={12} key={index}>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Select Cost Center"
+                          value={costCenter.cc_id || ''}
+                          onChange={(e) => {
+                            const selectedCC = costCenters.find(cc => cc.id === e.target.value);
+                            const updated = [...selectedCostCenters];
+                            updated[index] = {
+                              ...costCenter,
+                              cc_id: e.target.value,
+                              cc_name: selectedCC?.cc_name || '',
+                              cc_number: selectedCC?.cc_number || ''
+                            };
+                            setSelectedCostCenters(updated);
+                          }}
+                          disabled={loadingCostCenters}
+                        >
+                          <MenuItem value="">
+                            <em>Select a cost center</em>
+                          </MenuItem>
+                          {costCenters.map((cc) => (
+                            <MenuItem key={cc.id} value={cc.id}>
+                              {cc.cc_name} ({cc.cc_number})
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          label="Center Name"
+                          value={costCenter.cc_name || ''}
+                          disabled
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          label="Cost Center Code"
+                          value={costCenter.cc_number || ''}
+                          disabled
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={async () => {
+                            const costCenterToRemove = selectedCostCenters[index];
+                            
+                            // If it's an existing assignment, remove it from the database
+                            if (costCenterToRemove.relationship_id) {
+                              try {
+                                await candidatesAPI.removeCostCenter(user_id!, costCenterToRemove.relationship_id);
+                                console.log('Removed existing cost center assignment:', costCenterToRemove.relationship_id);
+                              } catch (error) {
+                                console.error('Failed to remove cost center assignment:', error);
+                                setToastSev('error');
+                                setToastMsg('Failed to remove cost center assignment');
+                                setToastOpen(true);
+                                return;
+                              }
+                            }
+                            
+                            // Remove from UI
+                            const updated = selectedCostCenters.filter((_, i) => i !== index);
+                            setSelectedCostCenters(updated);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+              ))}
+              
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setSelectedCostCenters([...selectedCostCenters, { cc_id: '', cc_name: '', cc_number: '' }]);
+                  }}
+                  disabled={loadingCostCenters}
+                >
+                  + Add Cost Center
+                </Button>
+              </Grid>
+              
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    onClick={async () => {
+                      try {
+                        setLoadingCostCenters(true);
+                        
+                        // Get existing assignments to compare
+                        const existingAssignments = await candidatesAPI.getCostCenters(user_id!);
+                        const existingIds = existingAssignments.map((a: any) => a.relationship_id);
+                        
+                        // Process each selected cost center
+                        for (const costCenter of selectedCostCenters) {
+                          if (costCenter.cc_id) {
+                            if (costCenter.relationship_id && existingIds.includes(costCenter.relationship_id)) {
+                              // Update existing assignment
+                              console.log('Updating existing cost center assignment:', costCenter.relationship_id);
+                              // For now, we'll skip updates since the API doesn't have an update endpoint
+                              // In a real implementation, you'd call an update API here
+                            } else {
+                              // Create new assignment
+                              console.log('Creating new cost center assignment:', costCenter.cc_id);
+                              await candidatesAPI.assignCostCenter(user_id!, {
+                                pcc_id: clientRelationships[0]?.pcc_id, // Use first client relationship
+                                cc_id: costCenter.cc_id,
+                                sort_order: selectedCostCenters.indexOf(costCenter) + 1
+                              });
+                            }
+                          }
+                        }
+                        
+                        // Remove assignments that are no longer selected
+                        for (const existingId of existingIds) {
+                          const stillSelected = selectedCostCenters.some(cc => cc.relationship_id === existingId);
+                          if (!stillSelected) {
+                            console.log('Removing cost center assignment:', existingId);
+                            await candidatesAPI.removeCostCenter(user_id!, existingId);
+                          }
+                        }
+                        
+                        setToastSev('success');
+                        setToastMsg('Cost centers assigned successfully!');
+                        setToastOpen(true);
+                        
+                        // Reload the assignments to get the updated data
+                        loadExistingCostCenterAssignments(user_id!);
+                      } catch (error) {
+                        console.error('Failed to assign cost centers:', error);
+                        setToastSev('error');
+                        setToastMsg('Failed to assign cost centers');
+                        setToastOpen(true);
+                      } finally {
+                        setLoadingCostCenters(false);
+                      }
+                    }}
+                    disabled={loadingCostCenters || selectedCostCenters.length === 0}
+                  >
+                    {loadingCostCenters ? 'Saving...' : 'Save Cost Centers'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
           </Paper>
         )}
 

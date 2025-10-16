@@ -107,9 +107,6 @@ const ManageClient: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Client
-        </Typography>
 
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: 'background.default' }}>
           <Grid container spacing={2} alignItems="center">

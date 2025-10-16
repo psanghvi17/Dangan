@@ -612,3 +612,96 @@ def create_contract_with_rates(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.get("/{user_id}/cost-centers", response_model=List[schemas.CostCenterWithDetails])
+def get_candidate_cost_centers(user_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get all cost centers for a candidate"""
+    try:
+        print(f"🚀 Getting cost centers for candidate: {user_id}")
+        
+        # Get the candidate's client relationships
+        relationships = crud.get_client_relationships_by_candidate(db, str(user_id))
+        if not relationships:
+            return []
+        
+        # Get cost centers for all client relationships
+        all_cost_centers = []
+        for relationship in relationships:
+            cost_centers = crud.get_candidate_cost_centers(db, relationship.pcc_id)
+            for cc_rel in cost_centers:
+                if cc_rel.cc_id:
+                    cost_center = crud.get_cost_center(db, cc_rel.cc_id)
+                    if cost_center:
+                        all_cost_centers.append(schemas.CostCenterWithDetails(
+                            id=cost_center.id,
+                            cc_name=cost_center.cc_name,
+                            cc_number=cost_center.cc_number,
+                            cc_address=cost_center.cc_address,
+                            relationship_id=cc_rel.id  # Include the relationship ID
+                        ))
+        
+        print(f"✅ Found {len(all_cost_centers)} cost centers for candidate")
+        return all_cost_centers
+        
+    except Exception as e:
+        print(f"❌ Error getting candidate cost centers: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/{user_id}/cost-centers", response_model=schemas.CandidateClientCostCenter)
+def assign_cost_center_to_candidate(
+    user_id: uuid.UUID,
+    cost_center_data: schemas.CandidateClientCostCenterCreate,
+    db: Session = Depends(get_db)
+):
+    """Assign a cost center to a candidate"""
+    try:
+        print(f"🚀 Assigning cost center to candidate: {user_id}")
+        print(f"🚀 Cost center data: {cost_center_data}")
+        
+        # Create the relationship
+        relationship = crud.create_candidate_cost_center(db, cost_center_data, user_id)
+        
+        if not relationship:
+            raise HTTPException(status_code=400, detail="Failed to assign cost center")
+        
+        print(f"✅ Successfully assigned cost center: {relationship.id}")
+        return relationship
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error assigning cost center: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/{user_id}/cost-centers/{relationship_id}")
+def remove_cost_center_from_candidate(
+    user_id: uuid.UUID,
+    relationship_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    """Remove a cost center assignment from a candidate"""
+    try:
+        print(f"🚀 Removing cost center assignment: {relationship_id}")
+        
+        success = crud.delete_candidate_cost_center(db, relationship_id, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Cost center assignment not found")
+        
+        print(f"✅ Successfully removed cost center assignment")
+        return {"message": "Cost center assignment removed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error removing cost center assignment: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+

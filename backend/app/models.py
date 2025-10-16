@@ -361,3 +361,19 @@ class CostCenter(Base):
     deleted_on = Column(DateTime(timezone=False), nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
     created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
+
+
+class CandidateClientCostCenter(Base):
+    __tablename__ = "t_candidate_client_cost_center"
+    __table_args__ = {"schema": "app"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    pcc_id = Column(UUID(as_uuid=True), ForeignKey("app.p_candidate_client.pcc_id"), nullable=True)
+    cc_id = Column(UUID(as_uuid=True), ForeignKey("app.t_cost_center.id"), nullable=True)
+    sort_order = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    deleted_on = Column(DateTime(timezone=False), nullable=True)
