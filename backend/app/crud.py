@@ -2161,10 +2161,17 @@ def reset_user_password(db: Session, token: str, new_password: str) -> bool:
 # Cost Center CRUD operations
 def get_cost_centers_by_client(db: Session, client_id: UUID) -> List[models.CostCenter]:
     """Get all cost centers for a specific client"""
-    return db.query(models.CostCenter).filter(
-        models.CostCenter.client_id == client_id,
-        models.CostCenter.deleted_on.is_(None)
-    ).all()
+    try:
+        print(f"🔄 Getting cost centers for client: {client_id}")
+        cost_centers = db.query(models.CostCenter).filter(
+            models.CostCenter.client_id == client_id,
+            models.CostCenter.deleted_on.is_(None)
+        ).all()
+        print(f"✅ Found {len(cost_centers)} cost centers for client {client_id}")
+        return cost_centers
+    except Exception as e:
+        print(f"❌ Error getting cost centers for client {client_id}: {e}")
+        raise
 
 
 def get_cost_center(db: Session, cost_center_id: UUID) -> Optional[models.CostCenter]:
@@ -2301,18 +2308,26 @@ def get_cost_center(db: Session, cost_center_id: UUID) -> Optional[models.CostCe
 
 def create_cost_center(db: Session, cost_center: schemas.CostCenterCreate, created_by: UUID = None) -> models.CostCenter:
     """Create a new cost center"""
-    db_cost_center = models.CostCenter(
-        client_id=cost_center.client_id,
-        cc_name=cost_center.cc_name,
-        cc_number=cost_center.cc_number,
-        cc_address=cost_center.cc_address,
-        created_by=created_by,
-        created_on=datetime.now()
-    )
-    db.add(db_cost_center)
-    db.commit()
-    db.refresh(db_cost_center)
-    return db_cost_center
+    try:
+        print(f"🔄 Creating cost center: {cost_center}")
+        db_cost_center = models.CostCenter(
+            client_id=cost_center.client_id,
+            cc_name=cost_center.cc_name,
+            cc_number=cost_center.cc_number,
+            cc_address=cost_center.cc_address,
+            created_by=created_by
+        )
+        db.add(db_cost_center)
+        db.commit()
+        db.refresh(db_cost_center)
+        print(f"✅ Cost center created successfully: {db_cost_center.id}")
+        return db_cost_center
+    except Exception as e:
+        print(f"❌ Error creating cost center: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        db.rollback()
+        raise
 
 
 def update_cost_center(db: Session, cost_center_id: UUID, cost_center_update: schemas.CostCenterUpdate, updated_by: UUID = None) -> Optional[models.CostCenter]:

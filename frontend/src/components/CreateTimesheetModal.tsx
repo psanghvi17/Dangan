@@ -178,7 +178,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Create New Timesheet</DialogTitle>
       <DialogContent>
-        <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid container spacing={1} sx={{ mt: 0.5 }}>
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth

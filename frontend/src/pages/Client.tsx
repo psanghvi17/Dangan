@@ -188,7 +188,7 @@ const Client: React.FC = () => {
           `}
         </style>
 
-        <Paper elevation={0} sx={{ mb: 3, bgcolor: 'background.default' }}>
+        <Paper elevation={0} sx={{ mb: 1, bgcolor: 'background.default' }}>
           <Box sx={{ display: 'flex', gap: 2, p: 1 }}>
             {(() => {
               const tabs = [{ label: 'Client Details', idx: 0 }];
@@ -204,7 +204,7 @@ const Client: React.FC = () => {
                   variant={tab === t.idx ? 'contained' : 'outlined'}
                   color={tab === t.idx ? 'primary' : 'inherit'}
                   onClick={() => setTab(t.idx)}
-                  sx={{ borderRadius: 999, px: 3 }}
+                  sx={{ borderRadius: 999, px: 2 }}
                 >
                   {t.label}
                 </Button>
@@ -214,11 +214,11 @@ const Client: React.FC = () => {
         </Paper>
 
         {tab === 0 && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" gutterBottom>
               Client Details
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               <Grid item xs={12} md={6}>
                 <TextField
                   label="Client Name"
@@ -268,7 +268,7 @@ const Client: React.FC = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                   <Button variant="outlined">Cancel</Button>
                   <Button
                     variant="contained"
@@ -322,13 +322,13 @@ const Client: React.FC = () => {
         )}
 
         {tab === 1 && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" gutterBottom>
               Rate Details
             </Typography>
             
             {isNewClient ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
                 <Typography variant="body1" color="text.secondary">
                   Please save the client details first to add rates.
                 </Typography>
@@ -399,7 +399,7 @@ const Client: React.FC = () => {
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
               Add New Rate
             </Typography>
-            <Grid container spacing={3}>
+            <Grid container spacing={1}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Rate Type
@@ -461,7 +461,7 @@ const Client: React.FC = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                   <Button 
                     variant="outlined"
                     onClick={() => {
@@ -528,9 +528,9 @@ const Client: React.FC = () => {
         )}
 
         {tab === 2 && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Candidates</Typography>
+              <Typography variant="subtitle1">Candidates</Typography>
             </Box>
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
               <Table 
@@ -645,7 +645,7 @@ const Client: React.FC = () => {
 
         {/* Cost Centers Tab */}
         {tab === 3 && clientId && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
             <CostCenterTab clientId={clientId} />
           </Paper>
         )}

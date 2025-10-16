@@ -183,7 +183,7 @@ const TimesheetList: React.FC = () => {
       <Box sx={{ mt: 4 }}>
 
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: 'background.default' }}>
-          <Grid container alignItems="center" spacing={2}>
+          <Grid container alignItems="center" spacing={1}>
             <Grid item>
               <TextField
                 type="month"

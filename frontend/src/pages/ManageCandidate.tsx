@@ -139,7 +139,7 @@ const ManageCandidate: React.FC = () => {
               variant={activeTab === 0 ? 'contained' : 'outlined'}
               color={activeTab === 0 ? 'primary' : 'inherit'}
               onClick={() => setActiveTab(0)}
-              sx={{ borderRadius: 999, px: 3 }}
+              sx={{ borderRadius: 999, px: 2 }}
             >
               Active Candidates
             </Button>
@@ -147,7 +147,7 @@ const ManageCandidate: React.FC = () => {
               variant={activeTab === 1 ? 'contained' : 'outlined'}
               color={activeTab === 1 ? 'primary' : 'inherit'}
               onClick={() => setActiveTab(1)}
-              sx={{ borderRadius: 999, px: 3 }}
+              sx={{ borderRadius: 999, px: 2 }}
             >
               Pending Candidates
             </Button>
@@ -155,7 +155,7 @@ const ManageCandidate: React.FC = () => {
         </Paper>
 
         <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: 'background.default' }}>
-          <Grid container spacing={2} alignItems="center">
+          <Grid container spacing={1} alignItems="center">
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -199,14 +199,14 @@ const ManageCandidate: React.FC = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
+                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 2 }}>
                       <CircularProgress />
                       <Typography variant="body2" sx={{ mt: 2 }}>Loading candidates...</Typography>
                     </TableCell>
                   </TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
+                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         No candidates found
                       </Typography>
@@ -250,7 +250,7 @@ const ManageCandidate: React.FC = () => {
         </Paper>
 
         {pagination.total_pages > 1 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
             <Pagination
               count={pagination.total_pages}
               page={pagination.page}

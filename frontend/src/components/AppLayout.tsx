@@ -81,7 +81,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
       >
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           {/* Left side - Page Title */}
-          <Typography variant="h5" component="h1" sx={{ fontWeight: '600', color: '#1976d2' }}>
+          <Typography variant="h6" component="h1" sx={{ fontWeight: '600', color: '#1976d2' }}>
             {getCurrentPageName()}
           </Typography>
 
@@ -140,9 +140,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
         </Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 1, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 0.5 }}>
           {children}
         </Box>
       </Box>

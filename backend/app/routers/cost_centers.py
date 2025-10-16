@@ -17,8 +17,16 @@ def get_cost_centers_by_client(
     current_user: schemas.MUserAuth = Depends(get_current_m_user)
 ):
     """Get all cost centers for a specific client"""
-    cost_centers = crud.get_cost_centers_by_client(db, client_id=client_id)
-    return cost_centers
+    try:
+        print(f"🔄 Getting cost centers for client {client_id}")
+        cost_centers = crud.get_cost_centers_by_client(db, client_id=client_id)
+        print(f"✅ Returning {len(cost_centers)} cost centers")
+        return cost_centers
+    except Exception as e:
+        print(f"❌ Error in get_cost_centers_by_client endpoint: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        raise
 
 
 @router.get("/cost-centers/{cost_center_id}", response_model=schemas.CostCenter)
@@ -45,14 +53,27 @@ def create_cost_center(
     current_user: schemas.MUserAuth = Depends(get_current_m_user)
 ):
     """Create a new cost center for a client"""
-    # Ensure the client_id in the path matches the one in the request body
-    if cost_center.client_id != client_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Client ID in path must match client ID in request body"
-        )
-    
-    return crud.create_cost_center(db=db, cost_center=cost_center, created_by=current_user.user_id)
+    try:
+        print(f"🔄 Creating cost center for client {client_id}")
+        print(f"🔄 Cost center data: {cost_center}")
+        print(f"🔄 Current user: {current_user.user_id}")
+        
+        # Ensure the client_id in the path matches the one in the request body
+        if cost_center.client_id != client_id:
+            print(f"❌ Client ID mismatch: path={client_id}, body={cost_center.client_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Client ID in path must match client ID in request body"
+            )
+        
+        result = crud.create_cost_center(db=db, cost_center=cost_center, created_by=current_user.user_id)
+        print(f"✅ Cost center created successfully: {result.id}")
+        return result
+    except Exception as e:
+        print(f"❌ Error in create_cost_center endpoint: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        raise
 
 
 @router.put("/cost-centers/{cost_center_id}", response_model=schemas.CostCenter)

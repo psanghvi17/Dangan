@@ -432,9 +432,9 @@ const Candidate: React.FC = () => {
         </Paper>
 
         {tab === 'personal' && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="subtitle1" gutterBottom>
                 Personal Detail
               </Typography>
               <Button variant="contained" onClick={async () => {
@@ -482,7 +482,7 @@ const Candidate: React.FC = () => {
                 {isEditMode ? 'Update' : 'Create'}
               </Button>
             </Box>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Employee ID</Typography>
                 <TextField fullWidth value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} />
@@ -529,11 +529,11 @@ const Candidate: React.FC = () => {
         )}
 
         {tab === 'account' && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" gutterBottom>
               Account Detail
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>BIC (Revolute)</Typography>
                 <TextField fullWidth value={bic} onChange={(e) => setBic(e.target.value)} />
@@ -571,11 +571,11 @@ const Candidate: React.FC = () => {
         )}
 
         {tab === 'client' && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" gutterBottom>
               Client Detail
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Select Client</Typography>
                 <TextField 
@@ -641,7 +641,7 @@ const Candidate: React.FC = () => {
               </Grid>
             </Grid>
 
-            <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
+            <Typography variant="subtitle1" sx={{ mt: 1.5 }} gutterBottom>
               Rates {loadingClientRates && <CircularProgress size={16} sx={{ ml: 1 }} />}
             </Typography>
 
@@ -651,7 +651,7 @@ const Candidate: React.FC = () => {
               const margin = !isNaN(pay) && !isNaN(bill) ? String(bill - pay) : '';
               return (
                 <Box key={idx} sx={{ mb: 2 }}>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1}>
                     {/* Row 1: Type, Frequency, Start, End */}
                     <Grid item xs={12} md={3}>
                       <Typography variant="subtitle2" sx={{ mb: 1 }}>Rate Type</Typography>
@@ -694,7 +694,7 @@ const Candidate: React.FC = () => {
                     </Grid>
                   </Grid>
 
-                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid container spacing={1} sx={{ mt: 0.5 }}>
                     {/* Row 2: Bill, Pay, Margin (readonly), Remove */}
                     <Grid item xs={12} md={3}>
                       <Typography variant="subtitle2" sx={{ mb: 1 }}>Bill Rate</Typography>
@@ -864,15 +864,15 @@ const Candidate: React.FC = () => {
         )}
 
         {tab === 'cost-center' && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" gutterBottom>
               Cost Center Assignment
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               {selectedCostCenters.map((costCenter, index) => (
                 <Grid item xs={12} key={index}>
                   <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Grid container spacing={2} alignItems="center">
+                    <Grid container spacing={1} alignItems="center">
                       <Grid item xs={12} md={4}>
                         <TextField
                           select
@@ -1031,16 +1031,16 @@ const Candidate: React.FC = () => {
         )}
 
         {tab === 'documents' && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
+          <Paper variant="outlined" sx={{ p: 1.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Documents</Typography>
+              <Typography variant="subtitle1">Documents</Typography>
               <Box>
                 <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFilesSelected} />
                 <Button variant="contained" onClick={handleUploadClick}>Upload</Button>
               </Box>
             </Box>
 
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
               {/* Documents list rendering */}
             </Grid>
           </Paper>

@@ -44,10 +44,13 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
   const loadCostCenters = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading cost centers for client:', clientId);
       const data = await costCentersAPI.getByClient(clientId);
+      console.log('✅ Cost centers loaded:', data);
       setCostCenters(data);
-    } catch (error) {
-      console.error('Failed to load cost centers:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to load cost centers:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -70,6 +73,14 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
   const handleSubmit = async () => {
     try {
       setSaving(true);
+      console.log('🔄 Submitting cost center form:', form);
+      
+      // Basic validation
+      if (!form.cc_name?.trim()) {
+        alert('Please enter a cost center name');
+        return;
+      }
+      
       if (editingId) {
         // Update existing cost center
         const updateData: CostCenterUpdateDTO = {
@@ -77,15 +88,21 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
           cc_number: form.cc_number,
           cc_address: form.cc_address,
         };
+        console.log('🔄 Updating cost center:', editingId, updateData);
         await costCentersAPI.update(editingId, updateData);
+        console.log('✅ Cost center updated successfully');
       } else {
         // Create new cost center
-        await costCentersAPI.create(clientId, form);
+        console.log('🔄 Creating new cost center:', form);
+        const result = await costCentersAPI.create(clientId, form);
+        console.log('✅ Cost center created successfully:', result);
       }
       resetForm();
       loadCostCenters();
-    } catch (error) {
-      console.error('Failed to save cost center:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to save cost center:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      alert(`Failed to save cost center: ${error.response?.data?.detail || error.message}`);
     } finally {
       setSaving(false);
     }
@@ -106,7 +123,7 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
       try {
         await costCentersAPI.delete(costCenterId);
         loadCostCenters();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete cost center:', error);
       }
     }
