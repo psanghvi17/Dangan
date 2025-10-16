@@ -84,6 +84,7 @@ const Candidate: React.FC = () => {
   type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string; tcccc_id?: string };
   const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
   const [pccCostCenters, setPccCostCenters] = useState<any[]>([]);
+  const [openCcIndex, setOpenCcIndex] = useState<number | null>(null);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
 
   // Cost Center tab
@@ -702,7 +703,8 @@ const Candidate: React.FC = () => {
                       <TextField select fullWidth value={row.tcccc_id || ''} onChange={(e) => {
                         const value = e.target.value;
                         setRates(prev => prev.map((r, i) => i === idx ? { ...r, tcccc_id: value } : r));
-                      }}>
+                        setOpenCcIndex(null);
+                      }} SelectProps={{ open: openCcIndex === idx, onOpen: () => setOpenCcIndex(idx), onClose: () => setOpenCcIndex(null) }}>
                         <MenuItem value=""><em>None</em></MenuItem>
                         {pccCostCenters.map((cc) => (
                           <MenuItem key={cc.relationship_id} value={cc.relationship_id}>

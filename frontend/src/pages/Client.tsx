@@ -531,9 +531,6 @@ const Client: React.FC = () => {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Candidates</Typography>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/candidate/manage-candidate')}>
-                Add Candidate
-              </Button>
             </Box>
             <TableContainer component={Paper} variant="outlined" sx={{ boxShadow: 'none' }}>
               <Table 

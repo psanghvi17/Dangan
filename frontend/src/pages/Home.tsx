@@ -305,7 +305,7 @@ const Home: React.FC = () => {
                       startIcon={<People />}
                       sx={{ mb: 1 }}
                     >
-                      Add Candidate
+                      View Candidates
                     </Button>
                   </Grid>
                   <Grid item xs={6}>

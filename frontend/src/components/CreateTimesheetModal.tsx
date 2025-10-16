@@ -54,34 +54,39 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [month, setMonth] = useState('');
+  const [month, setMonth] = useState(''); // stores ISO like "2025-09"
   const [week, setWeek] = useState('');
-  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState('');
   const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [filteredCandidates, setFilteredCandidates] = useState<CandidateDTO[]>([]);
 
-  // Generate months for the next 12 months
-  const generateMonths = () => {
-    const months = [];
-    const currentDate = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
-      months.push(date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-    }
-    return months;
+  // Convert ISO month (YYYY-MM) to label (e.g., "September 2025")
+  const formatMonthLabel = (isoMonth: string) => {
+    if (!isoMonth || !isoMonth.includes('-')) return '';
+    const [y, m] = isoMonth.split('-');
+    const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   // Generate weeks for selected month with date ranges
   const generateWeeks = () => {
     if (!month) return [];
     
-    // Parse the month (e.g., "April 2025")
-    const [monthName, year] = month.split(' ');
-    const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
-    const yearNum = parseInt(year);
+    // Support ISO (YYYY-MM). If not ISO, try legacy "Month YYYY".
+    let monthIndex: number;
+    let yearNum: number;
+    if (month.includes('-')) {
+      const [y, m] = month.split('-');
+      yearNum = parseInt(y);
+      monthIndex = parseInt(m) - 1;
+    } else {
+      const [monthName, year] = month.split(' ');
+      monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
+      yearNum = parseInt(year);
+    }
     
     // Get the first day of the month
     const firstDay = new Date(yearNum, monthIndex, 1);
@@ -136,15 +141,10 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     }
   }, [open]);
 
-  // Filter candidates based on selected client
+  // Filter candidates based on selected clients (currently show all; hook retained for future filtering)
   useEffect(() => {
-    if (selectedClient && selectedClient !== '') {
-      // For now, show all candidates. In a real app, you might filter based on client relationship
-      setFilteredCandidates(candidates);
-    } else {
-      setFilteredCandidates(candidates);
-    }
-  }, [selectedClient, candidates]);
+    setFilteredCandidates(candidates);
+  }, [selectedClients, candidates]);
 
   const handleSubmit = async () => {
     if (!month || !week) {
@@ -156,9 +156,10 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     try {
       // Create the timesheet with filtered candidates
       const timesheetData = {
-        month,
+        month: formatMonthLabel(month) || month,
         week,
-        client_id: selectedClient && selectedClient !== '' ? selectedClient : null,
+        // If exactly one client is selected, pass it; otherwise null (all clients)
+        client_id: selectedClients.length === 1 ? selectedClients[0] : null,
         candidate_ids: selectedCandidate && selectedCandidate !== '' ? [selectedCandidate] : filteredCandidates.map(c => c.candidate_id)
       };
 
@@ -169,7 +170,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
       // Reset form
       setMonth('');
       setWeek('');
-      setSelectedClient('');
+      setSelectedClients([]);
       setSelectedCandidate('');
     } catch (error) {
       console.error('Error creating timesheet:', error);
@@ -182,7 +183,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   const handleClose = () => {
     setMonth('');
     setWeek('');
-    setSelectedClient('');
+    setSelectedClients([]);
     setSelectedCandidate('');
     onClose();
   };
@@ -193,20 +194,15 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
       <DialogContent>
         <Grid container spacing={3} sx={{ mt: 1 }}>
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth required>
-              <InputLabel>Month</InputLabel>
-              <Select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                label="Month"
-              >
-                {generateMonths().map((monthOption) => (
-                  <MenuItem key={monthOption} value={monthOption}>
-                    {monthOption}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              required
+              label="Month"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
           </Grid>
           
           <Grid item xs={12} sm={6}>
@@ -229,13 +225,21 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
 
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel>Client (Optional)</InputLabel>
+              <InputLabel>Clients (Optional)</InputLabel>
               <Select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                label="Client (Optional)"
+                multiple
+                value={selectedClients}
+                onChange={(e) => setSelectedClients(typeof e.target.value === 'string' ? e.target.value.split(',') : (e.target.value as string[]))}
+                label="Clients (Optional)"
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((id) => {
+                      const cl = clients.find(c => c.client_id === id);
+                      return <Chip key={id} label={cl?.client_name || id} size="small" />;
+                    })}
+                  </Box>
+                )}
               >
-                <MenuItem value="">All Clients</MenuItem>
                 {clients.map((client) => (
                   <MenuItem key={client.client_id} value={client.client_id}>
                     {client.client_name}
