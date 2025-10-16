@@ -18,7 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import { candidatesAPI, clientsAPI, costCentersAPI } from '../services/api';
 import { ClientRateDTO } from '../types';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 
 type TabKey = 'personal' | 'account' | 'client' | 'cost-center' | 'documents';
@@ -27,6 +27,7 @@ const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Candidate: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const user_id = searchParams.get('user_id');
   const [tab, setTab] = useState<TabKey>('personal');
   
@@ -471,6 +472,11 @@ const Candidate: React.FC = () => {
                     setToastMsg('Candidate created successfully!');
                     setToastOpen(true);
                     console.log('Created user:', result);
+                    
+                    // Navigate to the new candidate's manage page
+                    if (result.candidate_id) {
+                      navigate(`/candidate/manage-candidate?user_id=${result.candidate_id}`);
+                    }
                   }
                 } catch (error) {
                   console.error('Failed to save candidate:', error);
