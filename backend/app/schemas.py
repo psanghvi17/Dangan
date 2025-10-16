@@ -368,6 +368,7 @@ class ContractRateOut(BaseModel):
     date_applicable: Optional[date]
     date_end: Optional[date]
     created_on: Optional[datetime]
+    tcccc_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

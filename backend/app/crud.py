@@ -1656,6 +1656,8 @@ def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithR
                             existing_rate.bill_rate = rate_data.bill_rate
                             existing_rate.date_applicable = rate_data.date_applicable
                             existing_rate.date_end = rate_data.date_end
+                            # persist cost center link
+                            existing_rate.tcccc_id = getattr(rate_data, 'tcccc_id', None)
                             existing_rate.updated_on = func.now()
                             created_rates.append(existing_rate)
                             print(f"✅ Updated existing rate: {tcr_id}")
@@ -1669,7 +1671,8 @@ def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithR
                                 pay_rate=rate_data.pay_rate,
                                 bill_rate=rate_data.bill_rate,
                                 date_applicable=rate_data.date_applicable,
-                                date_end=rate_data.date_end
+                                date_end=rate_data.date_end,
+                                tcccc_id=getattr(rate_data, 'tcccc_id', None)
                             )
                             db.add(new_rate)
                             db.flush()
@@ -1684,7 +1687,8 @@ def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithR
                             pay_rate=rate_data.pay_rate,
                             bill_rate=rate_data.bill_rate,
                             date_applicable=rate_data.date_applicable,
-                            date_end=rate_data.date_end
+                            date_end=rate_data.date_end,
+                            tcccc_id=getattr(rate_data, 'tcccc_id', None)
                         )
                         db.add(new_rate)
                         db.flush()
