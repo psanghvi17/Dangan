@@ -20,7 +20,7 @@ def list_candidates(
         candidates = crud.get_candidates_with_client_info(db, skip=skip, limit=limit)
         print(f"🔍 DEBUG: Found {len(candidates)} candidates with client info")
         for candidate in candidates:
-            print(f"🔍 DEBUG: Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id}) - Client: {candidate.client_name}")
+            print(f"🔍 DEBUG: Candidate: {getattr(candidate, 'invoice_contact_name', 'N/A')} (ID: {candidate.candidate_id}) - Client: {getattr(candidate, 'client_name', 'N/A')}")
         return candidates
     except Exception as e:
         print(f"🔍 DEBUG: Error fetching candidates: {str(e)}")
@@ -41,7 +41,7 @@ def list_active_candidates(
         candidates = crud.get_active_candidates(db, skip=skip, limit=limit)
         print(f"🔍 DEBUG: Found {len(candidates)} active candidates")
         for candidate in candidates:
-            print(f"🔍 DEBUG: Active Candidate: {candidate.invoice_contact_name} (ID: {candidate.candidate_id}) - Client: {candidate.client_name}")
+            print(f"🔍 DEBUG: Active Candidate: {getattr(candidate, 'invoice_contact_name', 'N/A')} (ID: {candidate.candidate_id}) - Client: {getattr(candidate, 'client_name', 'N/A')}")
         return candidates
     except Exception as e:
         print(f"🔍 DEBUG: Error fetching active candidates: {str(e)}")
@@ -66,6 +66,50 @@ def list_pending_candidates(
         return candidates
     except Exception as e:
         print(f"🔍 DEBUG: Error fetching pending candidates: {str(e)}")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+        raise
+
+
+@router.get("/pending/with-user-info", response_model=List[schemas.Candidate])
+def list_pending_candidates_with_user_info(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    """Get pending candidates with complete user information (first_name, last_name, email_id)"""
+    try:
+        print(f"🔍 DEBUG: Fetching pending candidates with user info, skip={skip}, limit={limit}")
+        candidates = crud.get_pending_candidates_with_user_info(db, skip=skip, limit=limit)
+        print(f"🔍 DEBUG: Found {len(candidates)} pending candidates with user info")
+        for candidate in candidates:
+            print(f"🔍 DEBUG: Pending Candidate with User Info: {candidate.first_name} {candidate.last_name} ({candidate.email_id}) - ID: {candidate.candidate_id}")
+        return candidates
+    except Exception as e:
+        print(f"🔍 DEBUG: Error fetching pending candidates with user info: {str(e)}")
+        print(f"🔍 DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
+        raise
+
+
+@router.get("/pending/with-user-and-contract-info", response_model=List[schemas.CandidateWithClient])
+def list_pending_candidates_with_user_and_contract_info(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    """Get pending candidates with user info and contract fields (for UI compatibility)"""
+    try:
+        print(f"🔍 DEBUG: Fetching pending candidates with user and contract info, skip={skip}, limit={limit}")
+        candidates = crud.get_pending_candidates_with_user_and_contract_info(db, skip=skip, limit=limit)
+        print(f"🔍 DEBUG: Found {len(candidates)} pending candidates with user and contract info")
+        for candidate in candidates:
+            print(f"🔍 DEBUG: Pending Candidate with User and Contract Info: {candidate.first_name} {candidate.last_name} ({candidate.email_id}) - ID: {candidate.candidate_id} - Client: {candidate.client_name}")
+        return candidates
+    except Exception as e:
+        print(f"🔍 DEBUG: Error fetching pending candidates with user and contract info: {str(e)}")
         print(f"🔍 DEBUG: Error type: {type(e)}")
         import traceback
         print(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
@@ -107,6 +151,11 @@ def get_rate_frequencies(db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.Candidate)
 def create_candidate(candidate: schemas.CandidateCreate, db: Session = Depends(get_db)):
     try:
+        print(f"🔍 API DEBUG - Received candidate data:")
+        print(f"🔍 API DEBUG - first_name: {candidate.first_name}")
+        print(f"🔍 API DEBUG - last_name: {candidate.last_name}")
+        print(f"🔍 API DEBUG - email_id: {candidate.email_id}")
+        
         result = crud.create_candidate(db, candidate)
         if result is None:
             raise HTTPException(status_code=400, detail="Failed to create candidate")
@@ -270,6 +319,52 @@ def get_candidate_by_id(user_id: uuid.UUID, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         print(f"❌ Error getting candidate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{user_id}/full", response_model=schemas.Candidate)
+def get_candidate_full_data(user_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get complete candidate data including all candidate-specific fields"""
+    try:
+        print(f"🚀 Getting full candidate data for user_id: {user_id}")
+        m_user, candidate = crud.get_candidate_by_user_id(db, str(user_id))
+        
+        if not m_user or not candidate:
+            print(f"❌ No candidate found with user_id: {user_id}")
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        print(f"✅ Found candidate: {m_user.first_name} {m_user.last_name}")
+        
+        # Create a combined response with user and candidate data
+        candidate_dict = {
+            "candidate_id": candidate.candidate_id,
+            "created_on": candidate.created_on,
+            "invoice_contact_name": candidate.invoice_contact_name,
+            "invoice_email": candidate.invoice_email,
+            "invoice_phone": candidate.invoice_phone,
+            "address1": candidate.address1,
+            "address2": candidate.address2,
+            "town": candidate.town,
+            "county": candidate.county,
+            "eircode": candidate.eircode,
+            "pps_number": candidate.pps_number,
+            "date_of_birth": candidate.date_of_birth,
+            "bank_account_number": candidate.bank_account_number,
+            "bank_name": candidate.bank_name,
+            # Add user fields
+            "first_name": m_user.first_name,
+            "last_name": m_user.last_name,
+            "email_id": m_user.email_id
+        }
+        
+        return schemas.Candidate(**candidate_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting candidate full data: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

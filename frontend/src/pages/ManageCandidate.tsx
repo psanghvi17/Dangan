@@ -65,9 +65,9 @@ const ManageCandidate: React.FC = () => {
         response = await candidatesAPI.listActive();
         console.log('✅ Active candidates loaded:', response);
       } else {
-        // Load pending candidates
-        response = await candidatesAPI.listPending();
-        console.log('✅ Pending candidates loaded:', response);
+        // Load pending candidates with user and contract info
+        response = await candidatesAPI.listPendingWithUserAndContractInfo();
+        console.log('✅ Pending candidates with user and contract info loaded:', response);
       }
       
       setCandidates(response);
@@ -101,17 +101,32 @@ const ManageCandidate: React.FC = () => {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return candidates
-      .filter((candidate) => !q || candidate.invoice_contact_name?.toLowerCase().includes(q))
-      .map((candidate) => ({
-        id: candidate.candidate_id,
-        initials: candidate.invoice_contact_name ? candidate.invoice_contact_name.split(' ').map(n => n[0]).join('').toUpperCase() : 'N/A',
-        name: candidate.invoice_contact_name || 'N/A',
-        email: candidate.invoice_email || '',
-        clientName: candidate.client_name || 'N/A',
-        startDate: candidate.contract_start_date || 'N/A',
-        finishDate: candidate.contract_end_date || 'N/A',
-        managerName: 'N/A', // This would come from a separate API call
-      }));
+      .filter((candidate) => {
+        // Search by first_name, last_name, or invoice_contact_name
+        const fullName = `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
+        const invoiceName = candidate.invoice_contact_name || '';
+        const email = candidate.email_id || '';
+        return !q || 
+               fullName.toLowerCase().includes(q) || 
+               invoiceName.toLowerCase().includes(q) ||
+               email.toLowerCase().includes(q);
+      })
+      .map((candidate) => {
+        // Use user fields for display, fallback to invoice_contact_name
+        const displayName = `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || candidate.invoice_contact_name || 'N/A';
+        const displayEmail = candidate.email_id || candidate.invoice_email || '';
+        
+        return {
+          id: candidate.candidate_id,
+          initials: displayName !== 'N/A' ? displayName.split(' ').map(n => n[0]).join('').toUpperCase() : 'N/A',
+          name: displayName,
+          email: displayEmail,
+          clientName: candidate.client_name || 'N/A',
+          startDate: candidate.contract_start_date || 'N/A',
+          finishDate: candidate.contract_end_date || 'N/A',
+          managerName: 'N/A', // This would come from a separate API call
+        };
+      });
   }, [candidates, query]);
 
   return (

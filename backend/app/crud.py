@@ -412,56 +412,10 @@ def count_candidates(db: Session):
 
 
 def get_candidates(db: Session, skip: int = 0, limit: int = 100):
-    candidates = (
-        db.query(models.Candidate)
-        .order_by(models.Candidate.created_on.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    
-    # Convert to proper schema format
-    result = []
-    for candidate in candidates:
-        result.append(schemas.Candidate(
-            candidate_id=str(candidate.candidate_id),
-            invoice_contact_name=candidate.invoice_contact_name,
-            invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
-            invoice_phone=candidate.invoice_phone,
-            address1=candidate.address1,
-            address2=candidate.address2,
-            town=candidate.town,
-            county=candidate.county,
-            eircode=candidate.eircode,
-            pps_number=candidate.pps_number,
-            date_of_birth=candidate.date_of_birth,
-            created_on=candidate.created_on
-        ))
-    
-    return result
-
-
-def get_candidates_with_client_info(db: Session, skip: int = 0, limit: int = 100):
-    """Get candidates with their active client information from p_candidate_client and m_client tables"""
-    from sqlalchemy import func
-    
-    # Get candidates with their active client relationships
+    """Get candidates with user information joined"""
     results = (
-        db.query(
-            models.Candidate,
-            models.Client.client_name,
-            models.P_CandidateClient.contract_start_date,
-            models.P_CandidateClient.contract_end_date
-        )
-        .outerjoin(
-            models.P_CandidateClient,
-            models.Candidate.candidate_id == models.P_CandidateClient.candidate_id
-        )
-        .outerjoin(
-            models.Client,
-            models.P_CandidateClient.client_id == models.Client.client_id
-        )
-        .filter(models.P_CandidateClient.status == 0)  # Only active contracts
+        db.query(models.Candidate, models.MUser)
+        .join(models.MUser, models.Candidate.candidate_id == models.MUser.user_id)
         .order_by(models.Candidate.created_on.desc())
         .offset(skip)
         .limit(limit)
@@ -469,9 +423,9 @@ def get_candidates_with_client_info(db: Session, skip: int = 0, limit: int = 100
     )
     
     # Convert to proper schema format
-    result = []
-    for candidate, client_name, contract_start_date, contract_end_date in results:
-        result.append(schemas.CandidateWithClient(
+    candidates = []
+    for candidate, user in results:
+        candidates.append(schemas.Candidate(
             candidate_id=str(candidate.candidate_id),
             invoice_contact_name=candidate.invoice_contact_name,
             invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
@@ -484,11 +438,80 @@ def get_candidates_with_client_info(db: Session, skip: int = 0, limit: int = 100
             pps_number=candidate.pps_number,
             date_of_birth=candidate.date_of_birth,
             created_on=candidate.created_on,
-            client_name=client_name,
-            contract_start_date=contract_start_date,
-            contract_end_date=contract_end_date
+            # User fields from joined table
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email_id=user.email_id
         ))
     
+    return candidates
+
+
+def get_candidates_with_client_info(db: Session, skip: int = 0, limit: int = 100):
+    """Get candidates with their active client information from p_candidate_client and m_client tables"""
+    from sqlalchemy import func
+    
+    # Get candidates with their active client relationships and user info
+    print(f"🔍 DEBUG: Querying candidates with client info...")
+    results = (
+        db.query(
+            models.Candidate,
+            models.MUser,
+            models.Client.client_name,
+            models.P_CandidateClient.contract_start_date,
+            models.P_CandidateClient.contract_end_date
+        )
+        .join(models.MUser, models.Candidate.candidate_id == models.MUser.user_id)
+        .outerjoin(
+            models.P_CandidateClient,
+            models.Candidate.candidate_id == models.P_CandidateClient.candidate_id
+        )
+        .outerjoin(
+            models.Client,
+            models.P_CandidateClient.client_id == models.Client.client_id
+        )
+        .order_by(models.Candidate.created_on.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    print(f"🔍 DEBUG: Query returned {len(results)} results")
+    
+    # Convert to proper schema format
+    result = []
+    print(f"🔍 DEBUG: Processing {len(results)} results...")
+    for i, (candidate, user, client_name, contract_start_date, contract_end_date) in enumerate(results):
+        print(f"🔍 DEBUG: Processing candidate {i+1}: {user.first_name} {user.last_name} (ID: {candidate.candidate_id})")
+        try:
+            result.append(schemas.CandidateWithClient(
+                candidate_id=str(candidate.candidate_id),
+                invoice_contact_name=candidate.invoice_contact_name,
+                invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+                invoice_phone=candidate.invoice_phone,
+                address1=candidate.address1,
+                address2=candidate.address2,
+                town=candidate.town,
+                county=candidate.county,
+                eircode=candidate.eircode,
+                pps_number=candidate.pps_number,
+                date_of_birth=candidate.date_of_birth,
+                created_on=candidate.created_on,
+                client_name=client_name,
+                contract_start_date=contract_start_date,
+                contract_end_date=contract_end_date,
+                # User fields from joined table
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email_id=user.email_id
+            ))
+            print(f"✅ DEBUG: Successfully processed candidate {i+1}")
+        except Exception as e:
+            print(f"❌ DEBUG: Error processing candidate {i+1}: {e}")
+            import traceback
+            print(f"❌ DEBUG: Traceback: {traceback.format_exc()}")
+    
+    print(f"🔍 DEBUG: Returning {len(result)} candidates")
     return result
 
 
@@ -496,14 +519,16 @@ def get_active_candidates(db: Session, skip: int = 0, limit: int = 100):
     """Get candidates who have entries in p_candidate_client table (active candidates)"""
     from sqlalchemy import func
     
-    # Get candidates who have entries in p_candidate_client
+    # Get candidates who have entries in p_candidate_client with user info
     results = (
         db.query(
             models.Candidate,
+            models.MUser,
             models.Client.client_name,
             models.P_CandidateClient.contract_start_date,
             models.P_CandidateClient.contract_end_date
         )
+        .join(models.MUser, models.Candidate.candidate_id == models.MUser.user_id)
         .join(
             models.P_CandidateClient,
             models.Candidate.candidate_id == models.P_CandidateClient.candidate_id
@@ -520,7 +545,7 @@ def get_active_candidates(db: Session, skip: int = 0, limit: int = 100):
     
     # Convert to proper schema format
     result = []
-    for candidate, client_name, contract_start_date, contract_end_date in results:
+    for candidate, user, client_name, contract_start_date, contract_end_date in results:
         result.append(schemas.CandidateWithClient(
             candidate_id=str(candidate.candidate_id),
             invoice_contact_name=candidate.invoice_contact_name,
@@ -536,7 +561,11 @@ def get_active_candidates(db: Session, skip: int = 0, limit: int = 100):
             created_on=candidate.created_on,
             client_name=client_name,
             contract_start_date=contract_start_date,
-            contract_end_date=contract_end_date
+            contract_end_date=contract_end_date,
+            # User fields from joined table
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email_id=user.email_id
         ))
     
     return result
@@ -597,6 +626,124 @@ def get_pending_candidates(db: Session, skip: int = 0, limit: int = 100):
         ))
     
     return result
+
+
+def get_pending_candidates_with_user_info(db: Session, skip: int = 0, limit: int = 100):
+    """Get pending candidates with complete user information (first_name, last_name, email_id)"""
+    from sqlalchemy import func
+    
+    try:
+        print(f"🔍 Getting pending candidates with user info, skip={skip}, limit={limit}")
+        
+        # Get candidates who don't have entries in p_candidate_client, joined with user data
+        subquery = db.query(models.P_CandidateClient.candidate_id).subquery()
+        
+        results = (
+            db.query(models.Candidate, models.MUser)
+            .join(models.MUser, models.Candidate.candidate_id == models.MUser.user_id)
+            .filter(~models.Candidate.candidate_id.in_(subquery))
+            .filter(models.MUser.deleted_on.is_(None))
+            .order_by(models.Candidate.created_on.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        print(f"🔍 Found {len(results)} pending candidates with user info")
+        
+        # Convert to proper schema format with user information
+        result = []
+        for candidate, m_user in results:
+            candidate_data = schemas.Candidate(
+                candidate_id=candidate.candidate_id,
+                invoice_contact_name=candidate.invoice_contact_name,
+                invoice_email=candidate.invoice_email,
+                invoice_phone=candidate.invoice_phone,
+                address1=candidate.address1,
+                address2=candidate.address2,
+                town=candidate.town,
+                county=candidate.county,
+                eircode=candidate.eircode,
+                pps_number=candidate.pps_number,
+                date_of_birth=candidate.date_of_birth,
+                bank_account_number=candidate.bank_account_number,
+                bank_name=candidate.bank_name,
+                created_on=candidate.created_on,
+                # Add user fields
+                first_name=m_user.first_name,
+                last_name=m_user.last_name,
+                email_id=m_user.email_id
+            )
+            result.append(candidate_data)
+        
+        print(f"✅ Successfully processed {len(result)} pending candidates with user info")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting pending candidates with user info: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        return []
+
+
+def get_pending_candidates_with_user_and_contract_info(db: Session, skip: int = 0, limit: int = 100):
+    """Get pending candidates with user info and contract fields (for UI compatibility)"""
+    from sqlalchemy import func
+    
+    try:
+        print(f"🔍 Getting pending candidates with user and contract info, skip={skip}, limit={limit}")
+        
+        # Get candidates who don't have entries in p_candidate_client, joined with user data
+        subquery = db.query(models.P_CandidateClient.candidate_id).subquery()
+        
+        results = (
+            db.query(models.Candidate, models.MUser)
+            .join(models.MUser, models.Candidate.candidate_id == models.MUser.user_id)
+            .filter(~models.Candidate.candidate_id.in_(subquery))
+            .filter(models.MUser.deleted_on.is_(None))
+            .order_by(models.Candidate.created_on.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        print(f"🔍 Found {len(results)} pending candidates with user and contract info")
+        
+        # Convert to CandidateWithClient schema format (includes contract fields)
+        result = []
+        for candidate, m_user in results:
+            candidate_data = schemas.CandidateWithClient(
+                candidate_id=str(candidate.candidate_id),
+                invoice_contact_name=candidate.invoice_contact_name,
+                invoice_email=candidate.invoice_email[0] if isinstance(candidate.invoice_email, list) and candidate.invoice_email else candidate.invoice_email,
+                invoice_phone=candidate.invoice_phone,
+                address1=candidate.address1,
+                address2=candidate.address2,
+                town=candidate.town,
+                county=candidate.county,
+                eircode=candidate.eircode,
+                pps_number=candidate.pps_number,
+                date_of_birth=candidate.date_of_birth,
+                created_on=candidate.created_on,
+                # Contract fields (null for pending candidates)
+                client_name=None,
+                contract_start_date=None,
+                contract_end_date=None,
+                # User fields (custom extension)
+                first_name=m_user.first_name,
+                last_name=m_user.last_name,
+                email_id=m_user.email_id
+            )
+            result.append(candidate_data)
+        
+        print(f"✅ Successfully processed {len(result)} pending candidates with user and contract info")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting pending candidates with user and contract info: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        return []
 
 
 def get_candidate_by_user_id(db: Session, user_id: str):
@@ -678,12 +825,16 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
         )
         
         if candidate:
-            if 'invoice_contact_name' in candidate_data:
-                candidate.invoice_contact_name = candidate_data['invoice_contact_name']
-            if 'invoice_email' in candidate_data:
-                candidate.invoice_email = candidate_data['invoice_email']
-            if 'date_of_birth' in candidate_data:
-                candidate.date_of_birth = candidate_data['date_of_birth']
+            # Update candidate-specific fields
+            candidate_fields = [
+                'invoice_contact_name', 'invoice_email', 'date_of_birth',
+                'address1', 'address2', 'town', 'county', 'eircode',
+                'pps_number', 'bank_account_number', 'bank_name'
+            ]
+            
+            for field in candidate_fields:
+                if field in candidate_data:
+                    setattr(candidate, field, candidate_data[field])
         
         db.commit()
         db.refresh(m_user)
@@ -701,18 +852,24 @@ def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
     """Create a new candidate with associated user record"""
     try:
         print(f"🔄 Creating candidate: {candidate_data}")
+        print(f"🔄 DEBUG - first_name: {candidate_data.first_name}")
+        print(f"🔄 DEBUG - last_name: {candidate_data.last_name}")
+        print(f"🔄 DEBUG - email_id: {candidate_data.email_id}")
         
-        # First create the user record
+        # First create the user record in app.m_user - only with the required fields
         m_user = models.MUser(
-            first_name=getattr(candidate_data, 'first_name', None),
-            last_name=getattr(candidate_data, 'last_name', None),
-            email_id=getattr(candidate_data, 'email_id', None)
+            first_name=candidate_data.first_name,
+            last_name=candidate_data.last_name,
+            email_id=candidate_data.email_id
         )
+        
+        print(f"🔄 DEBUG - MUser object created with first_name: {m_user.first_name}, last_name: {m_user.last_name}")
         
         db.add(m_user)
         db.flush()  # Get the user_id without committing yet
         
         print(f"🔄 Created user with ID: {m_user.user_id}")
+        print(f"🔄 DEBUG - After flush, user first_name: {m_user.first_name}, last_name: {m_user.last_name}")
         
         # Handle invoice_email - convert string to list if needed
         invoice_emails = candidate_data.invoice_email
@@ -748,8 +905,10 @@ def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
         db.add(candidate)
         db.commit()
         db.refresh(candidate)
+        db.refresh(m_user)
         
         print(f"✅ Successfully created candidate: {candidate.candidate_id}")
+        print(f"✅ DEBUG - Final user data: first_name={m_user.first_name}, last_name={m_user.last_name}, email_id={m_user.email_id}")
         return candidate
         
     except Exception as e:

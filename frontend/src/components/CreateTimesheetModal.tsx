@@ -15,7 +15,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
-import { candidatesAPI, clientsAPI, timesheetsAPI } from '../services/api';
+import { candidatesAPI, clientsAPI, timesheetsAPI, CandidateDTO } from '../services/api';
 
 interface CreateTimesheetModalProps {
   open: boolean;
@@ -23,20 +23,6 @@ interface CreateTimesheetModalProps {
   onSuccess: () => void;
 }
 
-interface CandidateDTO {
-  candidate_id: string;
-  invoice_contact_name?: string;
-  invoice_email?: string;
-  invoice_phone?: string;
-  address1?: string;
-  address2?: string;
-  town?: string;
-  county?: string;
-  eircode?: string;
-  pps_number?: string;
-  date_of_birth?: string;
-  created_on?: string;
-}
 
 interface ClientDTO {
   client_id: string;

@@ -2,7 +2,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from ..database import get_db
+from ..database import get_db, test_database_connection, get_database_status
 from .. import crud, schemas, auth
 from ..config import settings
 from ..email_utils import send_password_reset_email
@@ -135,3 +135,16 @@ def reset_password(
         )
     
     return {"message": "Password has been reset successfully"}
+
+
+@router.get("/health/database")
+def check_database_health():
+    """Check database connection health"""
+    try:
+        status = get_database_status()
+        if status["status"] == "healthy":
+            return {"status": "healthy", "details": status}
+        else:
+            return {"status": "unhealthy", "details": status}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

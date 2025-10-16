@@ -150,6 +150,16 @@ const Candidate: React.FC = () => {
       setLastName(candidate.last_name || '');
       setEmail(candidate.email_id || '');
       
+      // Populate candidate-specific fields
+      setContact(candidate.invoice_phone || '');
+      setDob(candidate.date_of_birth ? new Date(candidate.date_of_birth).toISOString().split('T')[0] : '');
+      setAddr1(candidate.address1 || '');
+      setAddr2(candidate.address2 || '');
+      setPps(candidate.pps_number || '');
+      
+      // Populate account details if available
+      setAccountEmail(candidate.invoice_email ? (Array.isArray(candidate.invoice_email) ? candidate.invoice_email[0] : candidate.invoice_email) : '');
+      
       setIsEditMode(true);
       setToastSev('success');
       setToastMsg('Candidate data loaded successfully!');

@@ -136,7 +136,6 @@ class ClientRate(ClientRateBase):
 
 
 class CandidateBase(BaseModel):
-    invoice_contact_name: Optional[str] = None
     invoice_email: Optional[Union[str, List[str]]] = None
     invoice_phone: Optional[str] = None
     address1: Optional[str] = None
@@ -151,12 +150,22 @@ class CandidateBase(BaseModel):
 
 
 class CandidateCreate(CandidateBase):
+    # User fields (stored in app.m_user)
+    first_name: str
+    last_name: str
+    email_id: EmailStr
+    # Candidate fields (stored in app.m_candidate)
     invoice_contact_name: str
 
 
 class Candidate(CandidateBase):
     candidate_id: UUID
     created_on: Optional[datetime] = None
+    invoice_contact_name: Optional[str] = None
+    # User fields
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -165,9 +174,14 @@ class Candidate(CandidateBase):
 class CandidateWithClient(CandidateBase):
     candidate_id: UUID
     created_on: Optional[datetime] = None
+    invoice_contact_name: Optional[str] = None
     client_name: Optional[str] = None
     contract_start_date: Optional[date] = None
     contract_end_date: Optional[date] = None
+    # User fields
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -280,13 +294,23 @@ class CandidateListResponse(BaseModel):
 
 
 class CandidateUpdate(BaseModel):
+    # User fields (stored in app.m_user)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email_id: Optional[EmailStr] = None
+    # Candidate fields (stored in app.m_candidate)
     invoice_contact_name: Optional[str] = None
     # Accept either a single string or list of strings from the client
     invoice_email: Optional[Union[str, List[str]]] = None
     date_of_birth: Optional[datetime] = None
+    address1: Optional[str] = None
+    address2: Optional[str] = None
+    town: Optional[str] = None
+    county: Optional[str] = None
+    eircode: Optional[str] = None
+    pps_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_name: Optional[str] = None
 
 
 class ClientOption(BaseModel):

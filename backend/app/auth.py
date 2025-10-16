@@ -86,8 +86,33 @@ async def get_current_user(
 
 # MUser Authentication Functions
 def get_m_user_by_email(db: Session, email: str):
+    """Get MUser by email with retry logic for connection issues"""
     from .models import MUser
-    return db.query(MUser).filter(MUser.email_id == email).filter(MUser.deleted_on.is_(None)).first()
+    import time
+    
+    max_retries = 3
+    retry_delay = 1  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"🔍 Attempting to get user by email: {email} (attempt {attempt + 1}/{max_retries})")
+            user = db.query(MUser).filter(MUser.email_id == email).filter(MUser.deleted_on.is_(None)).first()
+            print(f"✅ Successfully retrieved user: {user.first_name if user else 'None'}")
+            return user
+        except Exception as e:
+            print(f"❌ Database error on attempt {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                print(f"⏳ Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                # Try to refresh the database session
+                try:
+                    db.rollback()
+                except:
+                    pass
+            else:
+                print(f"❌ Failed to get user after {max_retries} attempts")
+                raise
 
 
 def authenticate_m_user(db: Session, email: str, password: str):

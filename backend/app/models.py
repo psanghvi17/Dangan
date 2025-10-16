@@ -51,19 +51,19 @@ class Candidate(Base):
     __table_args__ = {"schema": "app"}
 
     candidate_id = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), primary_key=True)
-    created_on = Column(DateTime(timezone=False), server_default=func.now())
-    address1 = Column(String)
-    address2 = Column(String)
-    town = Column(String)
-    county = Column(String)
-    eircode = Column(String)
-    pps_number = Column(String)
-    date_of_birth = Column(Date)
-    bank_account_number = Column(String)
-    bank_name = Column(String)
-    invoice_contact_name = Column(String)
-    invoice_email = Column(ARRAY(String))  # Changed to array type
-    invoice_phone = Column(String)
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
+    invoice_contact_name = Column(String, nullable=True)
+    invoice_email = Column(ARRAY(String), nullable=True)  # _varchar array type
+    invoice_phone = Column(String, nullable=True)
+    address1 = Column(String, nullable=True)
+    address2 = Column(String, nullable=True)
+    town = Column(String, nullable=True)
+    county = Column(String, nullable=True)
+    eircode = Column(String, nullable=True)
+    pps_number = Column(String, nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    bank_account_number = Column(String, nullable=True)
+    bank_name = Column(String, nullable=True)
 
 class Timesheet(Base):
     __tablename__ = "t_timesheet"
@@ -105,15 +105,11 @@ class MUser(Base):
     __table_args__ = {"schema": "app"}
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    email_id = Column(String(254), unique=True, index=True)
-    role_id = Column(Integer)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
+    email_id = Column(String(254), nullable=True)
     pass_ = Column("pass", String(256), nullable=True)
-    pass_reset_token = Column(UUID(as_uuid=True), nullable=True)
-    pass_reset_token_expiry = Column(DateTime(timezone=False), nullable=True)
-    force_reset_pass = Column(Boolean, default=False)
-    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
     deleted_on = Column(DateTime(timezone=False), nullable=True)
 
 

@@ -208,7 +208,7 @@ export interface CandidateCreateDTO {
 export interface CandidateDTO {
   candidate_id: string;
   invoice_contact_name?: string;
-  invoice_email?: string;
+  invoice_email?: string | string[];
   invoice_phone?: string;
   address1?: string;
   address2?: string;
@@ -217,10 +217,40 @@ export interface CandidateDTO {
   eircode?: string;
   pps_number?: string;
   date_of_birth?: string;
+  bank_account_number?: string;
+  bank_name?: string;
   created_on?: string;
   client_name?: string;
   contract_start_date?: string;
   contract_end_date?: string;
+  // User fields
+  first_name?: string;
+  last_name?: string;
+  email_id?: string;
+}
+
+export interface CandidateWithClientDTO {
+  candidate_id: string;
+  invoice_contact_name?: string;
+  invoice_email?: string | string[];
+  invoice_phone?: string;
+  address1?: string;
+  address2?: string;
+  town?: string;
+  county?: string;
+  eircode?: string;
+  pps_number?: string;
+  date_of_birth?: string;
+  bank_account_number?: string;
+  bank_name?: string;
+  created_on?: string;
+  client_name?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  // User fields
+  first_name?: string;
+  last_name?: string;
+  email_id?: string;
 }
 
 export interface CandidateListItemDTO {
@@ -357,6 +387,30 @@ export const candidatesAPI = {
       throw error;
     }
   },
+
+  listPendingWithUserInfo: async (skip = 0, limit = 100): Promise<CandidateDTO[]> => {
+    console.log('Making API call to /api/candidates/pending/with-user-info to get pending candidates with user info');
+    try {
+      const res = await api.get(`/api/candidates/pending/with-user-info?skip=${skip}&limit=${limit}`);
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
+  },
+
+  listPendingWithUserAndContractInfo: async (skip = 0, limit = 100): Promise<CandidateWithClientDTO[]> => {
+    console.log('Making API call to /api/candidates/pending/with-user-and-contract-info to get pending candidates with user and contract info');
+    try {
+      const res = await api.get(`/api/candidates/pending/with-user-and-contract-info?skip=${skip}&limit=${limit}`);
+      console.log('API response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
+  },
   
   create: async (payload: CandidateCreateDTO): Promise<CandidateDTO> => {
     const res = await api.post('/api/candidates/', payload);
@@ -368,8 +422,8 @@ export const candidatesAPI = {
     return res.data;
   },
   
-  get: async (user_id: string): Promise<CandidateListItemDTO> => {
-    const res = await api.get(`/api/candidates/${user_id}`);
+  get: async (user_id: string): Promise<CandidateDTO> => {
+    const res = await api.get(`/api/candidates/${user_id}/full`);
     return res.data;
   },
   
