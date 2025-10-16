@@ -698,15 +698,41 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
 
 
 def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
-    """Create a new candidate"""
+    """Create a new candidate with associated user record"""
     try:
         print(f"🔄 Creating candidate: {candidate_data}")
         
-        # Create candidate in app.m_candidate
+        # First create the user record
+        m_user = models.MUser(
+            first_name=getattr(candidate_data, 'first_name', None),
+            last_name=getattr(candidate_data, 'last_name', None),
+            email_id=getattr(candidate_data, 'email_id', None)
+        )
+        
+        db.add(m_user)
+        db.flush()  # Get the user_id without committing yet
+        
+        print(f"🔄 Created user with ID: {m_user.user_id}")
+        
+        # Handle invoice_email - convert string to list if needed
+        invoice_emails = candidate_data.invoice_email
+        if isinstance(invoice_emails, str):
+            invoice_emails = [invoice_emails] if invoice_emails else None
+        
+        # Handle date_of_birth - convert string to date if needed
+        date_of_birth = candidate_data.date_of_birth
+        if isinstance(date_of_birth, str):
+            try:
+                from datetime import datetime
+                date_of_birth = datetime.fromisoformat(date_of_birth.replace('Z', '+00:00')).date()
+            except:
+                date_of_birth = None
+        
+        # Create candidate in app.m_candidate using the user's ID
         candidate = models.Candidate(
-            candidate_id=candidate_data.candidate_id if hasattr(candidate_data, 'candidate_id') else None,
+            candidate_id=m_user.user_id,  # Use the user's ID as candidate_id
             invoice_contact_name=candidate_data.invoice_contact_name,
-            invoice_email=candidate_data.invoice_email,
+            invoice_email=invoice_emails,
             invoice_phone=candidate_data.invoice_phone,
             address1=candidate_data.address1,
             address2=candidate_data.address2,
@@ -714,7 +740,7 @@ def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
             county=candidate_data.county,
             eircode=candidate_data.eircode,
             pps_number=candidate_data.pps_number,
-            date_of_birth=candidate_data.date_of_birth,
+            date_of_birth=date_of_birth,
             bank_account_number=candidate_data.bank_account_number,
             bank_name=candidate_data.bank_name
         )
@@ -728,6 +754,8 @@ def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
         
     except Exception as e:
         print(f"❌ Error creating candidate: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         db.rollback()
         return None
 

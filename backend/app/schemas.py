@@ -137,7 +137,7 @@ class ClientRate(ClientRateBase):
 
 class CandidateBase(BaseModel):
     invoice_contact_name: Optional[str] = None
-    invoice_email: Optional[str] = None
+    invoice_email: Optional[Union[str, List[str]]] = None
     invoice_phone: Optional[str] = None
     address1: Optional[str] = None
     address2: Optional[str] = None
@@ -145,7 +145,9 @@ class CandidateBase(BaseModel):
     county: Optional[str] = None
     eircode: Optional[str] = None
     pps_number: Optional[str] = None
-    date_of_birth: Optional[datetime] = None
+    date_of_birth: Optional[Union[datetime, str]] = None
+    bank_account_number: Optional[str] = None
+    bank_name: Optional[str] = None
 
 
 class CandidateCreate(CandidateBase):
@@ -153,7 +155,7 @@ class CandidateCreate(CandidateBase):
 
 
 class Candidate(CandidateBase):
-    candidate_id: str
+    candidate_id: UUID
     created_on: Optional[datetime] = None
 
     class Config:
@@ -161,7 +163,7 @@ class Candidate(CandidateBase):
 
 
 class CandidateWithClient(CandidateBase):
-    candidate_id: str
+    candidate_id: UUID
     created_on: Optional[datetime] = None
     client_name: Optional[str] = None
     contract_start_date: Optional[date] = None

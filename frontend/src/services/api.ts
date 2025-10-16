@@ -197,6 +197,12 @@ export interface CandidateCreateDTO {
   eircode?: string;
   pps_number?: string;
   date_of_birth?: string;
+  bank_account_number?: string;
+  bank_name?: string;
+  // User fields
+  first_name?: string;
+  last_name?: string;
+  email_id?: string;
 }
 
 export interface CandidateDTO {

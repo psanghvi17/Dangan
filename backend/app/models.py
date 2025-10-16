@@ -50,7 +50,7 @@ class Candidate(Base):
     __tablename__ = "m_candidate"
     __table_args__ = {"schema": "app"}
 
-    candidate_id = Column(UUID(as_uuid=True), primary_key=True)
+    candidate_id = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), primary_key=True)
     created_on = Column(DateTime(timezone=False), server_default=func.now())
     address1 = Column(String)
     address2 = Column(String)

@@ -449,6 +449,13 @@ const Candidate: React.FC = () => {
                       invoice_contact_name: `${firstName} ${lastName}`,
                       invoice_email: email,
                       date_of_birth: dob ? new Date(dob).toISOString() : undefined,
+                      first_name: firstName,
+                      last_name: lastName,
+                      email_id: email,
+                      invoice_phone: contact,
+                      address1: addr1,
+                      address2: addr2,
+                      pps_number: pps,
                     });
                     setToastSev('success');
                     setToastMsg('Candidate created successfully!');

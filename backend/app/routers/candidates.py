@@ -106,7 +106,16 @@ def get_rate_frequencies(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.Candidate)
 def create_candidate(candidate: schemas.CandidateCreate, db: Session = Depends(get_db)):
-    return crud.create_candidate(db, candidate)
+    try:
+        result = crud.create_candidate(db, candidate)
+        if result is None:
+            raise HTTPException(status_code=400, detail="Failed to create candidate")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating candidate: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/seed")
