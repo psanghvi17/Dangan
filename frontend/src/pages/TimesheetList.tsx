@@ -19,8 +19,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
-import FileCopyIcon from '@mui/icons-material/FileCopy';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useNavigate } from 'react-router-dom';
 import { timesheetsAPI, TimesheetSummaryDTO, candidatesAPI } from '../services/api';
 import { ROUTES, getTimesheetManageRoute } from '../constants/routes';
@@ -249,8 +247,6 @@ const TimesheetList: React.FC = () => {
                       <TableCell align="center">
                         <IconButton size="small" onClick={() => navigate(ROUTES.TIMESHEET.VIEW(r.timesheet_id))}><VisibilityIcon fontSize="small" /></IconButton>
                         <IconButton size="small" onClick={() => navigate(ROUTES.TIMESHEET.EDIT(r.timesheet_id))}><EditIcon fontSize="small" /></IconButton>
-                        <IconButton size="small"><FileCopyIcon fontSize="small" /></IconButton>
-                        <IconButton size="small" color="error"><DeleteOutlineIcon fontSize="small" /></IconButton>
                       </TableCell>
                     </TableRow>
                   );

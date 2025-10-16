@@ -137,11 +137,47 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     }
   }, [open]);
 
-  // Filter candidates based on selected clients (currently show all; hook retained for future filtering)
+  // Filter candidates based on selected clients and contract status
   useEffect(() => {
-    console.log('🔍 DEBUG: Setting filtered candidates:', candidates);
-    setFilteredCandidates(candidates);
-  }, [selectedClients, candidates]);
+    console.log('🔍 DEBUG: Filtering candidates based on clients and contracts');
+    console.log('🔍 DEBUG: All candidates:', candidates);
+    console.log('🔍 DEBUG: Selected clients:', selectedClients);
+    
+    let filtered = candidates;
+    
+    // First, filter to only show candidates who have contracts (any contract)
+    filtered = candidates.filter(candidate => {
+      const hasContract = candidate.contract_start_date || candidate.contract_end_date;
+      console.log(`🔍 DEBUG: Candidate ${candidate.invoice_contact_name} has contract:`, hasContract);
+      return hasContract;
+    });
+    
+    // Then, if any clients are selected, filter by those clients
+    if (selectedClients.length > 0) {
+      console.log('🔍 DEBUG: Filtering by selected clients:', selectedClients);
+      
+      // Get the names of all selected clients
+      const selectedClientNames = selectedClients.map(clientId => {
+        const client = clients.find(c => c.client_id === clientId);
+        return client?.client_name;
+      }).filter(Boolean); // Remove undefined values
+      
+      console.log('🔍 DEBUG: Selected client names:', selectedClientNames);
+      
+      if (selectedClientNames.length > 0) {
+        filtered = filtered.filter(candidate => {
+          const matchesAnyClient = selectedClientNames.includes(candidate.client_name);
+          console.log(`🔍 DEBUG: Candidate ${candidate.invoice_contact_name} (client: ${candidate.client_name}) matches any selected client:`, matchesAnyClient);
+          console.log(`🔍 DEBUG: Selected client names: [${selectedClientNames.join(', ')}]`);
+          console.log(`🔍 DEBUG: Candidate client name: "${candidate.client_name}"`);
+          return matchesAnyClient;
+        });
+      }
+    }
+    
+    console.log('🔍 DEBUG: Filtered candidates result:', filtered);
+    setFilteredCandidates(filtered);
+  }, [selectedClients, candidates, clients]);
 
   const handleSubmit = async () => {
     if (!month || !week) {
@@ -283,8 +319,18 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
           <Grid item xs={12}>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
-                Preview: {dataLoading ? 'Loading candidates...' : `${filteredCandidates.length} candidates will be added`}
+                Preview: {dataLoading ? 'Loading candidates...' : `${filteredCandidates.length} candidates with contracts will be added`}
               </Typography>
+              {selectedClients.length > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Filtered by selected clients ({selectedClients.length} client{selectedClients.length > 1 ? 's' : ''})
+                </Typography>
+              )}
+              {selectedClients.length === 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Showing all candidates with contracts
+                </Typography>
+              )}
               {dataLoading ? (
                 <Typography variant="body2" color="text.secondary">
                   Loading candidates and clients...
