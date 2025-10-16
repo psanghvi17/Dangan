@@ -167,7 +167,9 @@ const Invoice: React.FC = () => {
         onClose={() => setGenerateModalOpen(false)}
         onGenerate={async (data: GenerateInvoiceRequestDTO) => {
           try {
-            console.log('Generating invoice with data:', data);
+            console.log('🔍 DEBUG: Generating invoice with data:', data);
+            console.log('🔍 DEBUG: Week format:', data.week);
+            console.log('🔍 DEBUG: Invoice date format:', data.invoiceDate);
             
             const request: GenerateInvoiceRequestDTO = {
               candidateId: data.candidateId,
@@ -176,8 +178,9 @@ const Invoice: React.FC = () => {
               invoiceDate: data.invoiceDate,
             };
             
+            console.log('🔍 DEBUG: Sending request to backend:', request);
             const response = await invoicesAPI.generate(request);
-            console.log('Invoice generated successfully:', response);
+            console.log('🔍 DEBUG: Invoice generated successfully:', response);
             
             // Refresh the invoice list
             await fetchInvoices();
@@ -189,7 +192,10 @@ const Invoice: React.FC = () => {
             
           } catch (error) {
             console.error('Error generating invoice:', error);
-            alert('Failed to generate invoice. Please try again.');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorDetails = (error as any)?.response?.data?.detail || errorMessage;
+            console.error('Error details:', errorDetails);
+            alert(`Failed to generate invoice: ${errorDetails}. Please try again.`);
           }
         }}
       />

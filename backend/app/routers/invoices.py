@@ -132,6 +132,7 @@ def generate_invoice(
         print(f"🔍 DEBUG: Client ID: {request.clientId}")
         print(f"🔍 DEBUG: Week: {request.week}")
         print(f"🔍 DEBUG: Invoice Date: {request.invoiceDate}")
+        print(f"🔍 DEBUG: Week format check - contains 'W': {'W' in request.week}")
         
         # Start transaction
         db.begin()
@@ -151,12 +152,34 @@ def generate_invoice(
         db.flush()  # Get the invoice ID
         
         # 2. Get contractor hours for the specified week using week column
-        week_start = datetime.strptime(request.week, "%Y-%m-%d").date()
+        # Handle both date format (YYYY-MM-DD) and week format (YYYY-W##)
+        if 'W' in request.week:
+            # Week format: YYYY-W## (e.g., "2025-W44")
+            year, week_num = request.week.split('-W')
+            year = int(year)
+            week_num = int(week_num)
+            
+            # Calculate the Monday of the specified week
+            # ISO week starts on Monday
+            jan_4 = date(year, 1, 4)  # January 4th is always in week 1
+            jan_4_weekday = jan_4.weekday()  # Monday = 0
+            week_1_monday = jan_4 - timedelta(days=jan_4_weekday)
+            week_start = week_1_monday + timedelta(weeks=week_num - 1)
+        else:
+            # Date format: YYYY-MM-DD
+            week_start = datetime.strptime(request.week, "%Y-%m-%d").date()
+        
         week_end = week_start + timedelta(days=6)
+        
+        print(f"🔍 DEBUG: Calculated week_start: {week_start}")
+        print(f"🔍 DEBUG: Calculated week_end: {week_end}")
         
         # Calculate the week number of the year (ISO week)
         week_number = week_start.isocalendar()[1]  # Get ISO week number
         year = week_start.year
+        
+        print(f"🔍 DEBUG: Calculated week_number: {week_number}")
+        print(f"🔍 DEBUG: Calculated year: {year}")
         
         print(f"🔍 DEBUG: Week start: {week_start}, Week end: {week_end}")
         print(f"🔍 DEBUG: Calculated week number: {week_number}, Year: {year}")
@@ -318,33 +341,37 @@ def generate_invoice(
         print(f"🔍 DEBUG: Total line items created: {len(line_items)}")
         print(f"🔍 DEBUG: Total amount: {total_amount}")
         
-        # If no line items found, create a sample line item for testing
+        # If no line items found, check if we have any contractor hours data at all
         if len(line_items) == 0:
-            print("🔍 DEBUG: No line items found, creating sample line item for testing")
-            # Try to get a sample timesheet_id from existing contractor hours (any status)
-            sample_tch = db.query(models.ContractorHours).first()
-            sample_timesheet_id = sample_tch.timesheet_id if sample_tch else None
+            print("🔍 DEBUG: No line items found")
             
-            print(f"🔍 DEBUG: Sample TCH found: {sample_tch}")
-            print(f"🔍 DEBUG: Sample timesheet_id: {sample_timesheet_id}")
+            # Check if we have any contractor hours in the database
+            total_contractor_hours = db.query(models.ContractorHours).count()
+            if total_contractor_hours == 0:
+                print("🔍 DEBUG: No contractor hours found in database")
+                raise HTTPException(
+                    status_code=400, 
+                    detail="No contractor hours data found. Please ensure timesheets have been created and contractor hours have been logged for the selected week."
+                )
             
-            # Generate sample m_rate_name
-            sample_m_rate_name = f"Sample Candidate - Sample Client - {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+            # Check if we have contractor hours for this specific week
+            week_contractor_hours = db.query(models.ContractorHours).filter(
+                models.ContractorHours.week == week_number
+            ).count()
             
-            sample_line_item = models.InvoiceLineItem(
-                invoice_id=invoice_id,
-                type=1,  # Sample rate type
-                quantity=1.0,
-                rate=100.0,
-                timesheet_id=sample_timesheet_id,  # Use actual timesheet_id if available
-                total=100.0,
-                tcr_id=None,
-                m_rate_name=sample_m_rate_name  # Add sample rate name
+            if week_contractor_hours == 0:
+                print(f"🔍 DEBUG: No contractor hours found for week {week_number}")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"No contractor hours found for week {week_number}. Please ensure contractor hours have been logged for the selected week."
+                )
+            
+            # If we have contractor hours but no rate hours, that's a different issue
+            print("🔍 DEBUG: Contractor hours exist but no rate hours found")
+            raise HTTPException(
+                status_code=400, 
+                detail="Contractor hours found but no rate information available. Please ensure contractor rates have been set up."
             )
-            db.add(sample_line_item)
-            line_items.append(sample_line_item)
-            total_amount = 100.0
-            print(f"🔍 DEBUG: Created sample line item with timesheet_id: {sample_timesheet_id}, m_rate_name: {sample_m_rate_name}")
         
         # 4. Update invoice with total amount
         new_invoice.total_amount = total_amount

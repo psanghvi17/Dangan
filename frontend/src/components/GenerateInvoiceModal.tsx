@@ -44,48 +44,6 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Generate week options (Monday to Sunday, like CreateTimesheetModal)
-  const generateWeekOptions = () => {
-    const weeks = [];
-    const today = new Date();
-    
-    // Generate weeks for the past 2 years and future 1 year
-    for (let i = -104; i <= 52; i++) { // 2 years back, 1 year forward
-      const weekDate = new Date(today);
-      weekDate.setDate(today.getDate() + (i * 7));
-      
-      // Find the Monday of this week
-      const weekStart = new Date(weekDate);
-      const dayOfWeek = weekDate.getDay();
-      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so 6 days to Monday
-      weekStart.setDate(weekDate.getDate() - daysToMonday);
-      
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Sunday)
-      
-      const startDate = weekStart.toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'short' 
-      });
-      const endDate = weekEnd.toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'short',
-        year: 'numeric'
-      });
-      
-      const weekLabel = `Week of ${startDate} - ${endDate}`;
-      
-      weeks.push({
-        value: weekStart.toISOString().split('T')[0],
-        label: weekLabel
-      });
-    }
-    
-    return weeks;
-  };
-
-  const weekOptions = generateWeekOptions();
-
   useEffect(() => {
     if (open) {
       fetchData();
@@ -196,20 +154,18 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Select Week</InputLabel>
-                <Select
-                  value={selectedWeek}
-                  onChange={(e) => setSelectedWeek(e.target.value)}
-                  label="Select Week"
-                >
-                  {weekOptions.map((week) => (
-                    <MenuItem key={week.value} value={week.value}>
-                      {week.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <TextField
+                fullWidth
+                label="Week"
+                type="week"
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{ mb: 3 }}
+                helperText="Select the week for which to generate the invoice"
+              />
 
               <TextField
                 fullWidth

@@ -122,12 +122,12 @@ const ViewInvoice: React.FC = () => {
                 mb: 2
               }}
             >
-              Sabeo
+              Company
             </Typography>
             
             <Stack spacing={1}>
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Sabeo Holdings Limited
+                Company Holdings Limited
               </Typography>
               <Typography variant="body2">
                 Serpentine Business Centre,<br />
@@ -176,8 +176,8 @@ const ViewInvoice: React.FC = () => {
             </Typography>
             <Typography variant="body2">
               Tel: 086 607 2114<br />
-              Email: shlfinance@sabeo.com<br />
-              www.sabeo.com
+              Email: finance@company.com<br />
+              www.company.com
             </Typography>
           </Grid>
           <Grid item xs={6}>
@@ -271,7 +271,7 @@ const ViewInvoice: React.FC = () => {
             </Typography>
             <Stack spacing={1}>
               <Typography variant="body2">
-                <strong>Sabeo Holdings Ltd., AIB Plc</strong>
+                <strong>Company Holdings Ltd., AIB Plc</strong>
               </Typography>
               <Typography variant="body2">
                 1-4 Baggot Street Lower, Dublin 2

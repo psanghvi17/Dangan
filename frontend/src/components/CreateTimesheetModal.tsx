@@ -47,6 +47,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [clients, setClients] = useState<ClientDTO[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
   const [filteredCandidates, setFilteredCandidates] = useState<CandidateDTO[]>([]);
 
   // Convert ISO month (YYYY-MM) to label (e.g., "September 2025")
@@ -110,15 +111,24 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   // Load candidates and clients
   useEffect(() => {
     const fetchData = async () => {
+      setDataLoading(true);
       try {
+        console.log('🔍 DEBUG: Fetching candidates and clients data...');
         const [candidatesData, clientsData] = await Promise.all([
           candidatesAPI.listAll(),
           clientsAPI.list()
         ]);
+        console.log('🔍 DEBUG: Candidates data:', candidatesData);
+        console.log('🔍 DEBUG: Clients data:', clientsData);
         setCandidates(candidatesData);
         setClients(clientsData.items || []);
       } catch (error) {
         console.error('Error fetching data:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorDetails = (error as any)?.response?.data || errorMessage;
+        console.error('Error details:', errorDetails);
+      } finally {
+        setDataLoading(false);
       }
     };
 
@@ -129,12 +139,18 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
 
   // Filter candidates based on selected clients (currently show all; hook retained for future filtering)
   useEffect(() => {
+    console.log('🔍 DEBUG: Setting filtered candidates:', candidates);
     setFilteredCandidates(candidates);
   }, [selectedClients, candidates]);
 
   const handleSubmit = async () => {
     if (!month || !week) {
       alert('Please select both month and week');
+      return;
+    }
+
+    if (filteredCandidates.length === 0) {
+      alert('No candidates available. Please ensure candidates are loaded.');
       return;
     }
 
@@ -149,7 +165,14 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
         candidate_ids: selectedCandidate && selectedCandidate !== '' ? [selectedCandidate] : filteredCandidates.map(c => c.candidate_id)
       };
 
-      await timesheetsAPI.create(timesheetData);
+      console.log('🔍 DEBUG: Creating timesheet with data:', timesheetData);
+      console.log('🔍 DEBUG: Filtered candidates:', filteredCandidates);
+      console.log('🔍 DEBUG: Selected candidate:', selectedCandidate);
+      console.log('🔍 DEBUG: Candidate IDs being sent:', timesheetData.candidate_ids);
+      
+      const result = await timesheetsAPI.create(timesheetData);
+      console.log('🔍 DEBUG: Timesheet created successfully:', result);
+      
       onSuccess();
       onClose();
       
@@ -160,7 +183,11 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
       setSelectedCandidate('');
     } catch (error) {
       console.error('Error creating timesheet:', error);
-      alert('Error creating timesheet. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorDetails = (error as any)?.response?.data || errorMessage;
+      const errorDetail = (error as any)?.response?.data?.detail || errorMessage;
+      console.error('Error details:', errorDetails);
+      alert(`Error creating timesheet: ${errorDetail}. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -256,26 +283,32 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
           <Grid item xs={12}>
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
-                Preview: {filteredCandidates.length} candidates will be added
+                Preview: {dataLoading ? 'Loading candidates...' : `${filteredCandidates.length} candidates will be added`}
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, maxHeight: 100, overflow: 'auto' }}>
-                {filteredCandidates.slice(0, 10).map((candidate) => (
-                  <Chip
-                    key={candidate.candidate_id}
-                    label={candidate.invoice_contact_name || 'Unknown'}
-                    size="small"
-                    variant="outlined"
-                  />
-                ))}
-                {filteredCandidates.length > 10 && (
-                  <Chip
-                    label={`+${filteredCandidates.length - 10} more`}
-                    size="small"
-                    variant="outlined"
-                    color="secondary"
-                  />
-                )}
-              </Box>
+              {dataLoading ? (
+                <Typography variant="body2" color="text.secondary">
+                  Loading candidates and clients...
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, maxHeight: 100, overflow: 'auto' }}>
+                  {filteredCandidates.slice(0, 10).map((candidate) => (
+                    <Chip
+                      key={candidate.candidate_id}
+                      label={candidate.invoice_contact_name || 'Unknown'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                  {filteredCandidates.length > 10 && (
+                    <Chip
+                      label={`+${filteredCandidates.length - 10} more`}
+                      size="small"
+                      variant="outlined"
+                      color="secondary"
+                    />
+                  )}
+                </Box>
+              )}
             </Box>
           </Grid>
         </Grid>
@@ -288,9 +321,9 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
         <Button 
           onClick={handleSubmit} 
           variant="contained" 
-          disabled={loading || !month || !week}
+          disabled={loading || dataLoading || !month || !week || filteredCandidates.length === 0}
         >
-          {loading ? 'Creating...' : 'Create Timesheet'}
+          {loading ? 'Creating...' : dataLoading ? 'Loading...' : 'Create Timesheet'}
         </Button>
       </DialogActions>
     </Dialog>
