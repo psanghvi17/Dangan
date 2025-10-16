@@ -650,6 +650,29 @@ def get_candidate_cost_centers(user_id: uuid.UUID, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/client-relationship/{pcc_id}/cost-centers", response_model=List[schemas.CostCenterWithDetails])
+def get_cost_centers_by_pcc(pcc_id: uuid.UUID, db: Session = Depends(get_db)):
+    """List cost centers assigned to a specific candidate-client relationship (pcc)."""
+    try:
+        rows = crud.get_candidate_cost_centers(db, str(pcc_id))
+        result: List[schemas.CostCenterWithDetails] = []
+        for rel in rows:
+            if rel.cc_id:
+                cc = crud.get_cost_center(db, rel.cc_id)
+                if cc:
+                    result.append(schemas.CostCenterWithDetails(
+                        id=cc.id,
+                        cc_name=cc.cc_name,
+                        cc_number=cc.cc_number,
+                        cc_address=cc.cc_address,
+                        relationship_id=rel.id
+                    ))
+        return result
+    except Exception as e:
+        print(f"❌ Error listing cost centers by pcc: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/{user_id}/cost-centers", response_model=schemas.CandidateClientCostCenter)
 def assign_cost_center_to_candidate(
     user_id: uuid.UUID,

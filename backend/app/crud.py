@@ -1264,6 +1264,7 @@ def create_contract_rates(db: Session, pcc_id: str, rates: List[schemas.Contract
                 bill_rate=r.bill_rate,
                 date_applicable=r.date_applicable,
                 date_end=r.date_end,
+                tcccc_id=r.tcccc_id,
             )
             db.add(row)
             created.append(row)
@@ -1593,7 +1594,20 @@ def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithR
         if contract_data.pcc_id:
             # Update existing relationship
             print(f"🔄 Updating existing relationship: {contract_data.pcc_id}")
-            pcc = db.query(models.P_CandidateClient).filter(models.P_CandidateClient.pcc_id == contract_data.pcc_id).first()
+            # Use Session.get with UUID coercion to avoid driver casting issues
+            import uuid as _uuid
+            try:
+                _pcc_uuid = _uuid.UUID(str(contract_data.pcc_id))
+            except Exception:
+                _pcc_uuid = None
+            pcc = db.get(models.P_CandidateClient, _pcc_uuid) if _pcc_uuid else None
+            if not pcc:
+                # Fallback to filter if get failed
+                pcc = (
+                    db.query(models.P_CandidateClient)
+                    .filter(models.P_CandidateClient.pcc_id == contract_data.pcc_id)
+                    .first()
+                )
             if not pcc:
                 raise ValueError(f"Contract relationship {contract_data.pcc_id} not found")
             

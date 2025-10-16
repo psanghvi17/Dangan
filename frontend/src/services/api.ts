@@ -265,6 +265,7 @@ export interface ContractRateCreateDTO {
   bill_rate?: number;
   date_applicable?: string;
   date_end?: string;
+  tcccc_id?: string;
 }
 export interface ContractRateOutDTO extends ContractRateCreateDTO { id: number; pcc_id: string; created_on?: string }
 
@@ -275,6 +276,7 @@ export interface ContractRateUpdateDTO {
   bill_rate?: number;
   date_applicable?: string;
   date_end?: string;
+  tcccc_id?: string;
 }
 
 export interface ContractWithRatesCreateDTO {
@@ -393,6 +395,12 @@ export const candidatesAPI = {
 
   getRatesByPcc: async (pcc_id: string): Promise<ContractRateOutDTO[]> => {
     const res = await api.get(`/api/candidates/client-relationship/${pcc_id}/rates`);
+    return res.data;
+  },
+
+  // Cost centers by pcc (for rates dropdown)
+  getCostCentersByPcc: async (pcc_id: string): Promise<any[]> => {
+    const res = await api.get(`/api/candidates/client-relationship/${pcc_id}/cost-centers`);
     return res.data;
   },
 

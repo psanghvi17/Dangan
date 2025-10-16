@@ -81,8 +81,9 @@ const Candidate: React.FC = () => {
   const [rateFrequencies, setRateFrequencies] = useState<any[]>([]);
   const [loadingRateMeta, setLoadingRateMeta] = useState(false);
   const [loadingClientRates, setLoadingClientRates] = useState(false);
-  type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string };
-  const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+  type RateRow = { id?: number; rate_type?: number | ''; rate_frequency?: number | ''; pay_rate?: string; bill_rate?: string; date_applicable?: string; date_end?: string; tcccc_id?: string };
+  const [rates, setRates] = useState<RateRow[]>([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
+  const [pccCostCenters, setPccCostCenters] = useState<any[]>([]);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
 
   // Cost Center tab
@@ -200,8 +201,12 @@ const Candidate: React.FC = () => {
         setContractStartDate(firstRelationship.contract_start_date ? firstRelationship.contract_start_date.split('T')[0] : '');
         setContractEndDate(firstRelationship.contract_end_date ? firstRelationship.contract_end_date.split('T')[0] : '');
         console.log('✅ Pre-filled form with existing relationship data');
-        // Load client rates for the selected client (this will populate the rates section)
-        loadClientRates(firstRelationship.client_id);
+        // Prefer existing contract rates for active PCC; fall back to client template rates
+        if (firstRelationship.pcc_id) {
+          await loadRatesByPcc(firstRelationship.pcc_id);
+        } else {
+          loadClientRates(firstRelationship.client_id);
+        }
       }
       
     } catch (error: any) {
@@ -292,17 +297,50 @@ const Candidate: React.FC = () => {
           pay_rate: rate.pay_rate ? String(rate.pay_rate) : '',
           bill_rate: rate.bill_rate ? String(rate.bill_rate) : '',
           date_applicable: '', // Client rates don't have date_applicable, so leave empty
-          date_end: '' // Client rates don't have date_end, so leave empty
+          date_end: '', // Client rates don't have date_end, so leave empty
+          tcccc_id: ''
         }));
         setRates(formattedRates);
       } else {
         // If no client rates exist, start with one empty row
-        setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+        setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
       }
     } catch (error) {
       console.error('❌ Failed to load client rates:', error);
       // On error, reset to default
-      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
+      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
+    } finally {
+      setLoadingClientRates(false);
+    }
+  };
+
+  // Load existing contract rates for a given PCC (only non-deleted are returned by API)
+  const loadRatesByPcc = async (pccId: string) => {
+    if (!pccId) {
+      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
+      return;
+    }
+    setLoadingClientRates(true);
+    try {
+      const existing = await candidatesAPI.getRatesByPcc(pccId);
+      if (existing && existing.length > 0) {
+        setRates(existing.map((r: any) => ({
+          id: r.id,
+          rate_type: r.rate_type,
+          rate_frequency: r.rate_frequency,
+          pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
+          bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
+          date_applicable: r.date_applicable || '',
+          date_end: r.date_end || '',
+          tcccc_id: r.tcccc_id || ''
+        })));
+      } else {
+        // No existing contract rates – show blank row
+        setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
+      }
+    } catch (e) {
+      console.error('❌ Failed to load rates by PCC', e);
+      setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
     } finally {
       setLoadingClientRates(false);
     }
@@ -332,6 +370,28 @@ const Candidate: React.FC = () => {
       loadCostCenters(selectedClientId);
     }
   }, [selectedClientId]);
+
+  // Load PCC cost centers for the active relationship (for rates dropdowns)
+  useEffect(() => {
+    const loadPccCostCenters = async () => {
+      try {
+        if (clientRelationships.length > 0) {
+          const pccId = clientRelationships[0].pcc_id;
+          const cc = await candidatesAPI.getCostCentersByPcc(pccId);
+          setPccCostCenters(cc);
+          // Also load existing contract rates so all non-deleted rates are shown
+          await loadRatesByPcc(pccId);
+        } else {
+          setPccCostCenters([]);
+          setRates([{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '', tcccc_id: '' }]);
+        }
+      } catch (e) {
+        console.error('❌ Failed to load PCC cost centers', e);
+        setPccCostCenters([]);
+      }
+    };
+    loadPccCostCenters();
+  }, [clientRelationships]);
 
   const TabButton: React.FC<{ k: TabKey; label: string }> = ({ k, label }) => (
     <Button
@@ -637,6 +697,21 @@ const Candidate: React.FC = () => {
                       <TextField fullWidth value={margin} disabled />
                     </Grid>
 
+                    <Grid item xs={12} md={3}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Cost Center</Typography>
+                      <TextField select fullWidth value={row.tcccc_id || ''} onChange={(e) => {
+                        const value = e.target.value;
+                        setRates(prev => prev.map((r, i) => i === idx ? { ...r, tcccc_id: value } : r));
+                      }}>
+                        <MenuItem value=""><em>None</em></MenuItem>
+                        {pccCostCenters.map((cc) => (
+                          <MenuItem key={cc.relationship_id} value={cc.relationship_id}>
+                            {cc.cc_name} ({cc.cc_number})
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+
                     <Grid item xs={12} md={3} sx={{ display: 'flex', alignItems: 'end', gap: 1 }}>
                       {confirmDeleteIndex === idx ? (
                         <>
@@ -721,6 +796,7 @@ const Candidate: React.FC = () => {
                         bill_rate: r.bill_rate ? Number(r.bill_rate) : undefined,
                         date_applicable: r.date_applicable || undefined,
                         date_end: r.date_end || undefined,
+                        tcccc_id: r.tcccc_id || undefined,
                       })),
                     pcc_id: clientRelationships.length > 0 ? clientRelationships[0].pcc_id : undefined,
                     tcr_ids: rates.filter(r => r.id).map(r => r.id).filter((id): id is number => typeof id === 'number')
@@ -749,7 +825,8 @@ const Candidate: React.FC = () => {
                     pay_rate: r.pay_rate != null ? String(r.pay_rate) : '',
                     bill_rate: r.bill_rate != null ? String(r.bill_rate) : '',
                     date_applicable: r.date_applicable || '',
-                    date_end: r.date_end || ''
+                    date_end: r.date_end || '',
+                    tcccc_id: (r as any).tcccc_id || ''
                   })) : [{ rate_type: '', rate_frequency: '', pay_rate: '', bill_rate: '', date_applicable: '', date_end: '' }]);
 
                   console.log('✅ Contract and rates saved successfully');

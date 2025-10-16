@@ -355,6 +355,7 @@ class ContractRateCreate(BaseModel):
     bill_rate: Optional[float] = None
     date_applicable: Optional[date] = None
     date_end: Optional[date] = None
+    tcccc_id: Optional[UUID] = None
 
 
 class ContractRateOut(BaseModel):
@@ -385,6 +386,7 @@ class ContractRateUpdate(BaseModel):
     bill_rate: Optional[float] = None
     date_applicable: Optional[date] = None
     date_end: Optional[date] = None
+    tcccc_id: Optional[UUID] = None
 
 
 class ContractWithRatesCreate(BaseModel):
