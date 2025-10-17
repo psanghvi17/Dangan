@@ -1103,19 +1103,106 @@ def create_timesheet_entry(db: Session, entry: schemas.TimesheetEntryCreate):
     db.add(db_entry)
     db.commit()
     db.refresh(db_entry)
+    
+    # Process holiday tracking after successful creation
+    try:
+        standard_hours = entry.standard_hours or 0.0
+        holiday_hours = entry.holiday_hours or 0.0
+        
+        print(f"🔍 Timesheet entry creation - Standard hours: {standard_hours}, Holiday hours: {holiday_hours}")
+        
+        # Get the candidate_id from the employee_code
+        candidate_id = entry.employee_code
+        if candidate_id:
+            # Update holiday count based on standard hours (8% accumulation)
+            if standard_hours > 0:
+                print(f"🔄 Processing standard hours for candidate {candidate_id}: {standard_hours}")
+                update_candidate_holiday_count(db, candidate_id, standard_hours)
+            
+            # Deduct holiday count based on holiday hours
+            if holiday_hours > 0:
+                print(f"🔄 Processing holiday hours for candidate {candidate_id}: {holiday_hours}")
+                deduct_candidate_holiday_count(db, candidate_id, holiday_hours)
+                
+    except Exception as e:
+        print(f"⚠️ Warning: Holiday tracking failed for new timesheet entry: {e}")
+        import traceback
+        traceback.print_exc()
+    
     return db_entry
 
 
 def update_timesheet_entry(db: Session, entry_id: str, entry_update: schemas.TimesheetEntryUpdate):
     """Update a timesheet entry"""
+    print(f"🔍 DEBUG: update_timesheet_entry called with entry_id={entry_id}, update_data={entry_update}")
+    
     db_entry = db.query(models.TimesheetEntry).filter(models.TimesheetEntry.entry_id == entry_id).first()
-    if db_entry:
-        update_data = entry_update.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_entry, field, value)
-        db_entry.updated_on = func.now()
-        db.commit()
-        db.refresh(db_entry)
+    if not db_entry:
+        print(f"❌ DEBUG: No timesheet entry found with ID {entry_id}")
+        return None
+        
+    print(f"🔍 DEBUG: Found timesheet entry: {db_entry.employee_name} (employee_code: {db_entry.employee_code})")
+    
+    # Get the old values for comparison
+    old_standard_hours = db_entry.standard_hours or 0.0
+    old_holiday_hours = db_entry.holiday_hours or 0.0
+    
+    print(f"🔍 DEBUG: Old values - standard_hours: {old_standard_hours}, holiday_hours: {old_holiday_hours}")
+    
+    update_data = entry_update.dict(exclude_unset=True)
+    print(f"🔍 DEBUG: Update data: {update_data}")
+    
+    for field, value in update_data.items():
+        setattr(db_entry, field, value)
+    db_entry.updated_on = func.now()
+    db.commit()
+    db.refresh(db_entry)
+    
+    print(f"🔍 DEBUG: After update - standard_hours: {db_entry.standard_hours}, holiday_hours: {db_entry.holiday_hours}")
+    
+    # Process holiday tracking after successful update
+    try:
+        # Get the new values
+        new_standard_hours = db_entry.standard_hours or 0.0
+        new_holiday_hours = db_entry.holiday_hours or 0.0
+        
+        # Calculate the difference in hours
+        standard_hours_diff = new_standard_hours - old_standard_hours
+        holiday_hours_diff = new_holiday_hours - old_holiday_hours
+        
+        print(f"🔍 Timesheet entry update - Standard hours change: {old_standard_hours} -> {new_standard_hours} (diff: {standard_hours_diff})")
+        print(f"🔍 Timesheet entry update - Holiday hours change: {old_holiday_hours} -> {new_holiday_hours} (diff: {holiday_hours_diff})")
+        
+        # Get the candidate_id from the employee_code (which should be the candidate_id)
+        candidate_id = db_entry.employee_code
+        print(f"🔍 DEBUG: Using candidate_id from employee_code: {candidate_id}")
+        
+        if candidate_id:
+            # Update holiday count based on standard hours change (8% accumulation)
+            if standard_hours_diff != 0:
+                print(f"🔄 Processing standard hours change for candidate {candidate_id}: {standard_hours_diff}")
+                result = update_candidate_holiday_count(db, candidate_id, standard_hours_diff)
+                print(f"🔍 DEBUG: update_candidate_holiday_count result: {result}")
+            
+            # Deduct holiday count based on holiday hours change
+            if holiday_hours_diff != 0:
+                print(f"🔄 Processing holiday hours change for candidate {candidate_id}: {holiday_hours_diff}")
+                if holiday_hours_diff > 0:
+                    # Holiday hours increased, deduct from holiday count
+                    result = deduct_candidate_holiday_count(db, candidate_id, holiday_hours_diff)
+                    print(f"🔍 DEBUG: deduct_candidate_holiday_count result: {result}")
+                else:
+                    # Holiday hours decreased, add back to holiday count (reverse deduction)
+                    result = update_candidate_holiday_count(db, candidate_id, abs(holiday_hours_diff))
+                    print(f"🔍 DEBUG: update_candidate_holiday_count (reverse) result: {result}")
+        else:
+            print(f"⚠️ DEBUG: No candidate_id found in employee_code: {db_entry.employee_code}")
+                        
+    except Exception as e:
+        print(f"⚠️ Warning: Holiday tracking failed for timesheet entry {entry_id}: {e}")
+        import traceback
+        traceback.print_exc()
+    
     return db_entry
 
 
@@ -1367,6 +1454,13 @@ def upsert_contractor_hours(db: Session, items: List[schemas.ContractorHoursUpse
     db.commit()
     for r in result:
         db.refresh(r)
+    
+    # Process holiday tracking after successful upsert
+    try:
+        process_contractor_hours_for_holiday_tracking(db, items)
+    except Exception as e:
+        print(f"⚠️ Warning: Holiday tracking failed but contractor hours were saved: {e}")
+    
     return result
 
 
@@ -1793,11 +1887,27 @@ def get_holiday_summary_for_active_candidates(db: Session) -> List[Dict]:
     holiday_rate_type_ids = [rt[0] for rt in holiday_rate_types] if holiday_rate_types else []
 
     # Base: active candidates via p_candidate_client join to m_user for name/email
-    # Aggregate standard hours from t_contractor_hours
-    tch_sub = (
+    # Aggregate Hours Worked as sum of quantities from t_contractor_rate_hours where (rate_type=1, rate_frequency=1)
+    # Join through t_contractor_hours to attribute to contractor
+    rate_hours_sub = (
         db.query(
             models.ContractorHours.contractor_id.label('contractor_id'),
-            func.coalesce(func.sum(models.ContractorHours.standard_hours), 0.0).label('hours_worked')
+            func.coalesce(func.sum(models.ContractorRateHours.quantity), 0.0).label('hours_worked')
+        )
+        .join(models.ContractorRateHours, models.ContractorRateHours.tch_id == models.ContractorHours.tch_id)
+        .filter(models.ContractorHours.deleted_on.is_(None))
+        .filter(models.ContractorRateHours.deleted_on.is_(None))
+        .filter(models.ContractorRateHours.rate_type_id == 1)
+        .filter(models.ContractorRateHours.rate_frequency_id == 1)
+        .group_by(models.ContractorHours.contractor_id)
+        .subquery()
+    )
+
+    # Fallback: sum of standard_hours from t_contractor_hours when no matching tcrh rows exist
+    standard_hours_sub = (
+        db.query(
+            models.ContractorHours.contractor_id.label('contractor_id'),
+            func.coalesce(func.sum(models.ContractorHours.standard_hours), 0.0).label('standard_sum')
         )
         .filter(models.ContractorHours.deleted_on.is_(None))
         .group_by(models.ContractorHours.contractor_id)
@@ -1826,7 +1936,7 @@ def get_holiday_summary_for_active_candidates(db: Session) -> List[Dict]:
     mu = models.MUser
 
     name_expr = (func.coalesce(mu.first_name, '') + ' ' + func.coalesce(mu.last_name, ''))
-    hours_expr = func.coalesce(tch_sub.c.hours_worked, 0.0)
+    hours_expr = func.coalesce(rate_hours_sub.c.hours_worked, standard_hours_sub.c.standard_sum, 0.0)
     holiday_taken_expr = holiday_taken_sub.c.holiday_taken if holiday_taken_sub is not None else cast(0.0, Float)
 
     query = (
@@ -1838,7 +1948,8 @@ def get_holiday_summary_for_active_candidates(db: Session) -> List[Dict]:
             func.max(holiday_taken_expr).label('holiday_taken')
         )
         .join(pcc, pcc.candidate_id == mu.user_id)
-        .outerjoin(tch_sub, tch_sub.c.contractor_id == mu.user_id)
+        .outerjoin(rate_hours_sub, rate_hours_sub.c.contractor_id == mu.user_id)
+        .outerjoin(standard_hours_sub, standard_hours_sub.c.contractor_id == mu.user_id)
     )
 
     if holiday_taken_sub is not None:
@@ -2541,3 +2652,163 @@ def update_constant(db: Session, constant_id: int, constant_update: schemas.MCon
         db.refresh(db_constant)
     
     return db_constant
+
+
+def update_candidate_holiday_count(db: Session, candidate_id: str, hours_to_add: float):
+    """Update candidate's holiday count by adding 8% of standard hours worked"""
+    try:
+        print(f"🔄 Updating holiday count for candidate {candidate_id}: adding {hours_to_add} hours")
+        
+        # Get the candidate
+        candidate = db.query(models.Candidate).filter(models.Candidate.candidate_id == candidate_id).first()
+        if not candidate:
+            print(f"❌ Candidate {candidate_id} not found")
+            return False
+        
+        # Calculate 8% of the hours
+        holiday_earned = hours_to_add * 0.08
+        
+        # Update holiday_count (add to existing value)
+        current_holiday_count = candidate.holiday_count or 0.0
+        new_holiday_count = current_holiday_count + holiday_earned
+        candidate.holiday_count = new_holiday_count
+        
+        db.commit()
+        db.refresh(candidate)
+        
+        print(f"✅ Updated holiday count for candidate {candidate_id}: {current_holiday_count} -> {new_holiday_count} (+{holiday_earned})")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error updating holiday count for candidate {candidate_id}: {e}")
+        db.rollback()
+        return False
+
+
+def deduct_candidate_holiday_count(db: Session, candidate_id: str, holiday_hours_used: float):
+    """Deduct holiday hours from candidate's holiday count when holiday is taken"""
+    try:
+        print(f"🔄 Deducting holiday hours for candidate {candidate_id}: deducting {holiday_hours_used} hours")
+        
+        # Get the candidate
+        candidate = db.query(models.Candidate).filter(models.Candidate.candidate_id == candidate_id).first()
+        if not candidate:
+            print(f"❌ Candidate {candidate_id} not found")
+            return False
+        
+        # Deduct holiday hours from holiday_count
+        current_holiday_count = candidate.holiday_count or 0.0
+        new_holiday_count = max(0.0, current_holiday_count - holiday_hours_used)  # Don't go below 0
+        candidate.holiday_count = new_holiday_count
+        
+        db.commit()
+        db.refresh(candidate)
+        
+        print(f"✅ Deducted holiday hours for candidate {candidate_id}: {current_holiday_count} -> {new_holiday_count} (-{holiday_hours_used})")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error deducting holiday hours for candidate {candidate_id}: {e}")
+        db.rollback()
+        return False
+
+
+def process_contractor_hours_for_holiday_tracking(db: Session, contractor_hours_data: List[schemas.ContractorHoursUpsert]):
+    """Process contractor hours and update holiday count for standard hours, deduct for holiday hours"""
+    try:
+        print(f"🔄 Processing contractor hours for holiday tracking")
+        
+        for hours_data in contractor_hours_data:
+            if not hours_data.contractor_id:
+                continue
+                
+            # Process standard hours (rate_type=1, rate_frequency=1) for holiday accumulation
+            if hours_data.rate_hours:
+                standard_hours_total = 0.0
+                holiday_hours_total = 0.0
+                
+                for rate_hour in hours_data.rate_hours:
+                    if not rate_hour.quantity or rate_hour.quantity <= 0:
+                        continue
+                    
+                    # Check if this is standard hours (rate_type=1, rate_frequency=1)
+                    if rate_hour.rate_type_id == 1 and rate_hour.rate_frequency_id == 1:
+                        standard_hours_total += rate_hour.quantity
+                        print(f"🔍 Found standard hours: {rate_hour.quantity} for candidate {hours_data.contractor_id}")
+                    
+                    # Check if this is holiday hours (rate_type with name like 'Holiday')
+                    # We need to check the rate_type name to identify holiday
+                    rate_type = db.query(models.RateType).filter(
+                        models.RateType.rate_type_id == rate_hour.rate_type_id,
+                        models.RateType.deleted_on.is_(None)
+                    ).first()
+                    
+                    if rate_type and rate_type.rate_type_name and 'holiday' in rate_type.rate_type_name.lower():
+                        holiday_hours_total += rate_hour.quantity
+                        print(f"🔍 Found holiday hours: {rate_hour.quantity} for candidate {hours_data.contractor_id}")
+                
+                # Update holiday count based on standard hours (8% accumulation)
+                if standard_hours_total > 0:
+                    update_candidate_holiday_count(db, str(hours_data.contractor_id), standard_hours_total)
+                
+                # Deduct holiday count based on holiday hours used
+                if holiday_hours_total > 0:
+                    deduct_candidate_holiday_count(db, str(hours_data.contractor_id), holiday_hours_total)
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error processing contractor hours for holiday tracking: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def backfill_holiday_tracking_for_timesheet_entries(db: Session, timesheet_id: str = None):
+    """Backfill holiday tracking for existing timesheet entries"""
+    try:
+        print(f"🔄 Backfilling holiday tracking for timesheet entries")
+        
+        # Get all timesheet entries (optionally filtered by timesheet_id)
+        query = db.query(models.TimesheetEntry)
+        if timesheet_id:
+            query = query.filter(models.TimesheetEntry.timesheet_id == timesheet_id)
+        
+        entries = query.all()
+        print(f"🔍 Found {len(entries)} timesheet entries to process")
+        
+        processed_count = 0
+        for entry in entries:
+            try:
+                standard_hours = entry.standard_hours or 0.0
+                holiday_hours = entry.holiday_hours or 0.0
+                candidate_id = entry.employee_code
+                
+                if not candidate_id:
+                    print(f"⚠️ Skipping entry {entry.entry_id} - no employee_code")
+                    continue
+                
+                print(f"🔍 Processing entry for candidate {candidate_id}: standard={standard_hours}, holiday={holiday_hours}")
+                
+                # Update holiday count based on standard hours (8% accumulation)
+                if standard_hours > 0:
+                    update_candidate_holiday_count(db, candidate_id, standard_hours)
+                
+                # Deduct holiday count based on holiday hours
+                if holiday_hours > 0:
+                    deduct_candidate_holiday_count(db, candidate_id, holiday_hours)
+                
+                processed_count += 1
+                
+            except Exception as e:
+                print(f"❌ Error processing entry {entry.entry_id}: {e}")
+                continue
+        
+        print(f"✅ Successfully processed {processed_count} timesheet entries")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error backfilling holiday tracking: {e}")
+        import traceback
+        traceback.print_exc()
+        return False

@@ -65,6 +65,7 @@ class Candidate(Base):
     date_of_birth = Column(Date, nullable=True)
     bank_account_number = Column(String, nullable=True)
     bank_name = Column(String, nullable=True)
+    holiday_count = Column(Float, default=0.0, nullable=True)
 
 class Timesheet(Base):
     __tablename__ = "t_timesheet"

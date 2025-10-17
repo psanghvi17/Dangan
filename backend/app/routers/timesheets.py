@@ -190,6 +190,73 @@ async def upsert_contractor_hours_debug(
         return {"error": str(e)}
 
 
+@router.post("/backfill-holiday-tracking")
+def backfill_holiday_tracking(
+    timesheet_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Backfill holiday tracking for existing timesheet entries"""
+    try:
+        print(f"🔄 Backfilling holiday tracking for timesheet: {timesheet_id or 'all'}")
+        success = crud.backfill_holiday_tracking_for_timesheet_entries(db, timesheet_id)
+        if success:
+            return {"message": "Holiday tracking backfill completed successfully", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Holiday tracking backfill failed")
+    except Exception as e:
+        print(f"❌ Error in backfill_holiday_tracking: {e}")
+        raise HTTPException(status_code=500, detail=f"Error backfilling holiday tracking: {str(e)}")
+
+
+@router.post("/test-holiday-tracking")
+def test_holiday_tracking(
+    candidate_id: str,
+    standard_hours: float = 0.0,
+    holiday_hours: float = 0.0,
+    db: Session = Depends(get_db)
+):
+    """Test holiday tracking functions directly"""
+    try:
+        print(f"🧪 Testing holiday tracking for candidate {candidate_id}")
+        print(f"🧪 Standard hours: {standard_hours}, Holiday hours: {holiday_hours}")
+        
+        # Get the candidate first
+        candidate = db.query(models.Candidate).filter(models.Candidate.candidate_id == candidate_id).first()
+        if not candidate:
+            raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
+        
+        old_holiday_count = candidate.holiday_count or 0.0
+        print(f"🧪 Current holiday_count: {old_holiday_count}")
+        
+        # Test adding standard hours
+        if standard_hours > 0:
+            result = crud.update_candidate_holiday_count(db, candidate_id, standard_hours)
+            print(f"🧪 update_candidate_holiday_count result: {result}")
+            db.refresh(candidate)
+            print(f"🧪 Holiday count after standard hours: {candidate.holiday_count}")
+        
+        # Test deducting holiday hours
+        if holiday_hours > 0:
+            result = crud.deduct_candidate_holiday_count(db, candidate_id, holiday_hours)
+            print(f"🧪 deduct_candidate_holiday_count result: {result}")
+            db.refresh(candidate)
+            print(f"🧪 Holiday count after holiday hours: {candidate.holiday_count}")
+        
+        return {
+            "candidate_id": candidate_id,
+            "old_holiday_count": old_holiday_count,
+            "new_holiday_count": candidate.holiday_count,
+            "standard_hours_processed": standard_hours,
+            "holiday_hours_processed": holiday_hours
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in test_holiday_tracking: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error testing holiday tracking: {str(e)}")
+
+
 @router.post("/{timesheet_id}/contractor-hours/upsert", response_model=List[schemas.ContractorHoursOut])
 async def upsert_contractor_hours(
     timesheet_id: str,

@@ -148,6 +148,7 @@ class CandidateBase(BaseModel):
     date_of_birth: Optional[Union[datetime, str]] = None
     bank_account_number: Optional[str] = None
     bank_name: Optional[str] = None
+    holiday_count: Optional[float] = None
 
 
 class CandidateCreate(CandidateBase):
