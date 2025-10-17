@@ -596,7 +596,7 @@ export interface ContractorHoursCreateDTO {
   status?: string;
   start_time?: string | null;
   end_time?: string | null;
-  week?: number | null;
+  week?: number | string | null;
   day?: string | null;
   weekend_hours?: number | null;
   bank_holiday_hours?: number | null;

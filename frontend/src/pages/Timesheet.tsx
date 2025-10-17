@@ -12,7 +12,9 @@ import {
   TextField,
   Checkbox,
   FormControlLabel,
+  Snackbar,
 } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -106,6 +108,11 @@ const Timesheet: React.FC = () => {
   const [dateRange, setDateRange] = useState('');
   const [saving, setSaving] = useState(false);
   const [contractorHoursMap, setContractorHoursMap] = useState<Record<string, ContractorHoursDTO>>({});
+  
+  // Notification state
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
 
   // Load candidates and timesheet data
   useEffect(() => {
@@ -492,6 +499,104 @@ const Timesheet: React.FC = () => {
     return today.toISOString().slice(0, 10);
   };
 
+  // Helper to get the last working day of the week (Friday) as work_date
+  const getLastWorkingDayOfWeek = (): string => {
+    console.log('🔍 DEBUG: getLastWorkingDayOfWeek called with week:', week);
+    
+    try {
+      // First, try to extract from the week string if it's in ISO format (2025-W42)
+      if (week && week.includes('W')) {
+        const m = week.match(/(\d{4})-W(\d+)/);
+        if (m) {
+          const year = parseInt(m[1]);
+          const weekNumber = parseInt(m[2]);
+          console.log(`🔍 DEBUG: Extracted year: ${year}, week: ${weekNumber}`);
+          
+          // Match the backend calculation exactly
+          // January 4th is always in week 1 of the ISO week numbering system
+          const jan4 = new Date(Date.UTC(year, 0, 4));
+          const jan4Weekday = jan4.getUTCDay(); // 0=Sunday, 1=Monday, etc.
+          
+          console.log(`🔍 DEBUG: Jan 4, ${year} is a ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][jan4Weekday]} (weekday ${jan4Weekday})`);
+          
+          // Convert JavaScript weekday to Python weekday format
+          // JS: 0=Sunday, 1=Monday, ..., 6=Saturday
+          // Python: 0=Monday, 1=Tuesday, ..., 6=Sunday
+          const pythonWeekday = jan4Weekday === 0 ? 6 : jan4Weekday - 1;
+          
+          console.log(`🔍 DEBUG: Python weekday equivalent: ${pythonWeekday}`);
+          
+          // Use the same logic as the backend: jan_4 - timedelta(days=jan_4_weekday)
+          const week1Monday = new Date(Date.UTC(year, 0, 4 - pythonWeekday));
+          
+          // Calculate the Monday of the target week
+          const targetWeekMonday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNumber - 1) * 7));
+          
+          // Calculate Friday (last working day)
+          const friday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNumber - 1) * 7 + 4));
+          
+          console.log(`🔍 DEBUG: Week 1 Monday: ${week1Monday.toISOString().slice(0, 10)}`);
+          console.log(`🔍 DEBUG: Week ${weekNumber} Monday: ${targetWeekMonday.toISOString().slice(0, 10)}`);
+          
+          const weekStart = targetWeekMonday;
+          
+          console.log(`🔍 DEBUG: Week start (Monday): ${weekStart.toISOString().slice(0, 10)}`);
+          console.log(`🔍 DEBUG: Last working day (Friday): ${friday.toISOString().slice(0, 10)}`);
+          
+          // Verify for 2026-W04 should be 2026-01-23
+          if (year === 2026 && weekNumber === 4) {
+            const expected = '2026-01-23';
+            if (friday.toISOString().slice(0, 10) === expected) {
+              console.log(`✅ DEBUG: Calculation correct! 2026-W04 = ${expected}`);
+            } else {
+              console.log(`❌ DEBUG: Calculation error! Expected ${expected}, got ${friday.toISOString().slice(0, 10)}`);
+            }
+          }
+          
+          return friday.toISOString().slice(0, 10);
+        }
+      }
+      
+      // Fallback: try to extract from legacy "Week X" format
+      if (week) {
+        const m = week.match(/Week\s+(\d+)/);
+        if (m) {
+          const weekNumber = parseInt(m[1]);
+          const year = new Date().getFullYear();
+          console.log(`🔍 DEBUG: Legacy format - year: ${year}, week: ${weekNumber}`);
+          
+          // Use UTC for consistent date calculations - match backend logic
+          const jan4 = new Date(Date.UTC(year, 0, 4));
+          const jan4Weekday = jan4.getUTCDay();
+          
+          // Convert JavaScript weekday to Python weekday format
+          const pythonWeekday = jan4Weekday === 0 ? 6 : jan4Weekday - 1;
+          
+          const week1Monday = new Date(Date.UTC(year, 0, 4 - pythonWeekday));
+          const targetWeekMonday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNumber - 1) * 7));
+          const friday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNumber - 1) * 7 + 4));
+          
+          const weekStart = targetWeekMonday;
+          
+          console.log(`🔍 DEBUG: Legacy - Week start: ${weekStart.toISOString().slice(0, 10)}`);
+          console.log(`🔍 DEBUG: Legacy - Last working day: ${friday.toISOString().slice(0, 10)}`);
+          
+          return friday.toISOString().slice(0, 10);
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating last working day:', error);
+    }
+    
+    // Final fallback: return next Friday
+    console.log('🔍 DEBUG: Using fallback - next Friday');
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilFriday = dayOfWeek === 5 ? 0 : (5 - dayOfWeek + 7) % 7;
+    today.setDate(today.getDate() + daysUntilFriday);
+    return today.toISOString().slice(0, 10);
+  };
+
   // Helper function to calculate ISO week number (1-52)
   const getISOWeekNumber = (date: Date): number => {
     const target = new Date(date.valueOf());
@@ -510,7 +615,27 @@ const Timesheet: React.FC = () => {
     console.log('🔍 DEBUG: dateRange:', dateRange);
     console.log('🔍 DEBUG: timesheetData month:', timesheetData?.month);
     
-    // Calculate ISO week number based on the work date
+    // First, try to extract from the week string if it's in ISO format (2025-W42)
+    if (week && week.includes('W')) {
+      const m = week.match(/(\d{4})-W(\d+)/);
+      if (m) {
+        const weekNumber = Number(m[2]);
+        console.log('🔍 DEBUG: Extracted ISO week number from modal:', weekNumber);
+        return weekNumber;
+      }
+    }
+    
+    // Fallback: try to extract from legacy "Week X" format
+    if (week) {
+      const m = week.match(/Week\s+(\d+)/);
+      if (m) {
+        const weekNumber = Number(m[1]);
+        console.log('🔍 DEBUG: Extracted week number from legacy format:', weekNumber);
+        return weekNumber;
+      }
+    }
+    
+    // Calculate ISO week number based on the work date as last resort
     try {
       const workDate = getWeekStartDateISO();
       console.log('🔍 DEBUG: Work date for week calculation:', workDate);
@@ -519,7 +644,7 @@ const Timesheet: React.FC = () => {
         const date = new Date(workDate);
         if (!isNaN(date.getTime())) {
           const isoWeekNumber = getISOWeekNumber(date);
-          console.log('🔍 DEBUG: Calculated ISO week number:', isoWeekNumber);
+          console.log('🔍 DEBUG: Calculated ISO week number from date:', isoWeekNumber);
           return isoWeekNumber;
         }
       }
@@ -527,17 +652,58 @@ const Timesheet: React.FC = () => {
       console.error('Error calculating ISO week number:', error);
     }
     
-    // Fallback: try to extract from week string if available
-    if (week) {
-      const m = week.match(/Week\s+(\d+)/);
+    console.log('🔍 DEBUG: Could not calculate week number, returning null');
+    return null;
+  };
+
+  // Helper to get the full week string with year and week number (YYYY-WW format)
+  const getFullWeekString = (): string | null => {
+    console.log('🔍 DEBUG: getFullWeekString called with week:', week);
+    
+    // First, try to extract from the week string if it's in ISO format (2025-W42)
+    if (week && week.includes('W')) {
+      const m = week.match(/(\d{4})-W(\d+)/);
       if (m) {
-        const weekNumber = Number(m[1]);
-        console.log('🔍 DEBUG: Extracted week number from string as fallback:', weekNumber);
-        return weekNumber;
+        const year = m[1];
+        const weekNumber = m[2];
+        const fullWeek = `${year}-W${weekNumber}`;
+        console.log('🔍 DEBUG: Extracted full week string from modal:', fullWeek);
+        return fullWeek;
       }
     }
     
-    console.log('🔍 DEBUG: Could not calculate week number, returning null');
+    // Fallback: try to extract from legacy "Week X" format and get year from current date
+    if (week) {
+      const m = week.match(/Week\s+(\d+)/);
+      if (m) {
+        const weekNumber = m[1];
+        const year = new Date().getFullYear();
+        const fullWeek = `${year}-W${weekNumber}`;
+        console.log('🔍 DEBUG: Created full week string from legacy format:', fullWeek);
+        return fullWeek;
+      }
+    }
+    
+    // Calculate ISO week string based on the work date as last resort
+    try {
+      const workDate = getWeekStartDateISO();
+      console.log('🔍 DEBUG: Work date for week string calculation:', workDate);
+      
+      if (workDate) {
+        const date = new Date(workDate);
+        if (!isNaN(date.getTime())) {
+          const year = date.getFullYear();
+          const isoWeekNumber = getISOWeekNumber(date);
+          const fullWeek = `${year}-W${String(isoWeekNumber).padStart(2, '0')}`;
+          console.log('🔍 DEBUG: Calculated full week string from date:', fullWeek);
+          return fullWeek;
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating ISO week string:', error);
+    }
+    
+    console.log('🔍 DEBUG: Could not calculate full week string, returning null');
     return null;
   };
 
@@ -559,11 +725,13 @@ const Timesheet: React.FC = () => {
     if (!timesheetData) return;
     setSaving(true);
     try {
-      const workDate = getWeekStartDateISO();
+      // Use the last working day of the week (Friday) as work_date
+      const workDate = getLastWorkingDayOfWeek();
       const weekEnd = getWeekEndDateISO();
       const weekNumber = getWeekNumber();
+      const fullWeekString = getFullWeekString();
       
-      console.log('🔍 DEBUG: Save data - workDate:', workDate, 'weekEnd:', weekEnd, 'weekNumber:', weekNumber);
+      console.log('🔍 DEBUG: Save data - workDate (last working day):', workDate, 'weekEnd:', weekEnd, 'weekNumber:', weekNumber, 'fullWeekString:', fullWeekString);
       
       // Build upsert payload for contractor hours (include tch_id if exists)
       const payload: ContractorHoursUpsertDTO[] = rows.map((row) => {
@@ -613,7 +781,7 @@ const Timesheet: React.FC = () => {
           bank_holiday_hours: row.hours["8-1"] ?? undefined,
           total_hours: total,
           day: weekEnd,
-          week: weekNumber ?? undefined,
+          week: weekNumber ?? undefined, // Store week number for now (temporary fix)
           rate_hours: rateHours.length > 0 ? rateHours : undefined,
         };
         
@@ -631,8 +799,18 @@ const Timesheet: React.FC = () => {
       await refreshContractorHoursData();
       
       console.log('✅ Contractor hours and rate hours saved');
+      
+      // Show success notification
+      setToastSev('success');
+      setToastMsg('Timesheet saved successfully!');
+      setToastOpen(true);
     } catch (e) {
       console.error('❌ Failed to save contractor hours and rate hours', e);
+      
+      // Show error notification
+      setToastSev('error');
+      setToastMsg('Failed to save timesheet. Please try again.');
+      setToastOpen(true);
     } finally {
       setSaving(false);
     }
@@ -854,6 +1032,23 @@ const Timesheet: React.FC = () => {
           </Box>
         )}
       </Box>
+      
+      {/* Success/Error Notification */}
+      <Snackbar 
+        open={toastOpen} 
+        autoHideDuration={3000} 
+        onClose={() => setToastOpen(false)} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MuiAlert 
+          onClose={() => setToastOpen(false)} 
+          severity={toastSev} 
+          elevation={6} 
+          variant="filled"
+        >
+          {toastMsg}
+        </MuiAlert>
+      </Snackbar>
     </Container>
   );
 };

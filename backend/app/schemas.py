@@ -254,7 +254,7 @@ class TimesheetDetail(BaseModel):
     timesheet_id: UUID
     status: Optional[str] = None
     month: Optional[str] = None
-    week: Optional[str] = None
+    week: Optional[Union[int, str]] = None
     date_range: Optional[str] = None
     entries: List[TimesheetEntry] = []
 class MUserCreate(BaseModel):
@@ -455,7 +455,7 @@ class ContractorHoursBase(BaseModel):
     status: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    week: Optional[int] = None
+    week: Optional[Union[int, str]] = None
     day: Optional[str] = None
     weekend_hours: Optional[float] = None
     bank_holiday_hours: Optional[float] = None
@@ -505,7 +505,7 @@ class ContractorHoursUpsert(BaseModel):
     status: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    week: Optional[int] = None
+    week: Optional[Union[int, str]] = None
     day: Optional[str] = None
     weekend_hours: Optional[float] = None
     bank_holiday_hours: Optional[float] = None

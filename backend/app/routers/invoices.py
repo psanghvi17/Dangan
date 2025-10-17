@@ -139,7 +139,7 @@ def generate_invoice(
         # 1. Parse invoice date
         invoice_date = datetime.strptime(request.invoiceDate, "%Y-%m-%d").date()
         
-        # 2. Get contractor hours for the specified week using week column
+        # 2. Calculate the last working day (Friday) of the selected week
         # Handle both date format (YYYY-MM-DD) and week format (YYYY-W##)
         if 'W' in request.week:
             # Week format: YYYY-W## (e.g., "2025-W44")
@@ -157,35 +157,38 @@ def generate_invoice(
             # Date format: YYYY-MM-DD
             week_start = datetime.strptime(request.week, "%Y-%m-%d").date()
         
-        week_end = week_start + timedelta(days=6)
+        # Calculate the last working day (Friday) of the week
+        last_working_day = week_start + timedelta(days=4)  # Monday + 4 days = Friday
+        week_end = week_start + timedelta(days=6)  # Monday + 6 days = Sunday
         
-        print(f"🔍 DEBUG: Calculated week_start: {week_start}")
-        print(f"🔍 DEBUG: Calculated week_end: {week_end}")
+        print(f"🔍 DEBUG: Input week: {request.week}")
+        print(f"🔍 DEBUG: Extracted year: {year}, week_num: {week_num}")
+        print(f"🔍 DEBUG: Calculated week_start (Monday): {week_start}")
+        print(f"🔍 DEBUG: Calculated week_end (Sunday): {week_end}")
+        print(f"🔍 DEBUG: Calculated last_working_day (Friday): {last_working_day}")
         
-        # Calculate the week number of the year (ISO week)
-        week_number = week_start.isocalendar()[1]  # Get ISO week number
-        year = week_start.year
+        # Verify calculation for 2026-W4 should be 2026-01-22
+        if request.week == "2026-W04" or request.week == "2026-W4":
+            expected_friday = date(2026, 1, 22)
+            if last_working_day == expected_friday:
+                print(f"✅ DEBUG: Calculation correct! 2026-W4 = {last_working_day}")
+            else:
+                print(f"❌ DEBUG: Calculation error! Expected {expected_friday}, got {last_working_day}")
         
-        print(f"🔍 DEBUG: Calculated week_number: {week_number}")
-        print(f"🔍 DEBUG: Calculated year: {year}")
+        # Query contractor hours using work_date (last working day) instead of week column
+        # First, let's check what records exist for this date
+        all_tch_for_date = db.query(models.ContractorHours).filter(
+            models.ContractorHours.work_date == last_working_day
+        ).all()
         
-        print(f"🔍 DEBUG: Week start: {week_start}, Week end: {week_end}")
-        print(f"🔍 DEBUG: Calculated week number: {week_number}, Year: {year}")
-        print(f"🔍 DEBUG: ISO calendar info: {week_start.isocalendar()}")
+        print(f"🔍 DEBUG: Found {len(all_tch_for_date)} total contractor hours for work_date {last_working_day}")
+        for tch in all_tch_for_date:
+            print(f"🔍 DEBUG: TCH {tch.tch_id}: status='{tch.status}', standard_hours={tch.standard_hours}, pcc_id={tch.pcc_id}")
         
-        # Also try alternative week calculation methods
-        week_number_alt = week_start.isocalendar()[1]
-        print(f"🔍 DEBUG: Alternative week calculation: {week_number_alt}")
-        
-        # Query contractor hours by week number (remove status filter for now to see what we have)
+        # Query contractor hours - try without status filter first to see what we have
         tch_query = db.query(models.ContractorHours).filter(
-            models.ContractorHours.week == week_number
+            models.ContractorHours.work_date == last_working_day
         )
-        
-        # If no results with week number, try without week filter to see what we have
-        if tch_query.count() == 0:
-            print(f"🔍 DEBUG: No contractor hours found for week {week_number}, trying without week filter")
-            tch_query = db.query(models.ContractorHours)
         
         # Filter by selected clients (join with p_candidate_client)
         if request.clientIds:
@@ -195,63 +198,29 @@ def generate_invoice(
             ).filter(models.P_CandidateClient.client_id.in_(request.clientIds))
         
         contractor_hours = tch_query.all()
-        print(f"🔍 DEBUG: Found {len(contractor_hours)} contractor hours for week number {week_number} with status 'Logged'")
+        print(f"🔍 DEBUG: Found {len(contractor_hours)} contractor hours for work_date {last_working_day} with status 'Logged'")
         
-        # Debug: Check if there are any contractor hours in the database at all
-        total_tch_count = db.query(models.ContractorHours).count()
-        print(f"🔍 DEBUG: Total contractor hours in database: {total_tch_count}")
+        # Also check what clients are selected
+        print(f"🔍 DEBUG: Selected client IDs: {request.clientIds}")
         
-        # Debug: Check contractor hours with 'Logged' status
-        logged_tch_count = db.query(models.ContractorHours).filter(models.ContractorHours.status == 'Logged').count()
-        print(f"🔍 DEBUG: Total contractor hours with 'Logged' status: {logged_tch_count}")
+        # Check if any of the found contractor hours belong to the selected clients
+        for tch in contractor_hours:
+            if tch.pcc_id:
+                pcc = db.query(models.P_CandidateClient).filter(models.P_CandidateClient.pcc_id == tch.pcc_id).first()
+                if pcc:
+                    print(f"🔍 DEBUG: TCH {tch.tch_id} belongs to client {pcc.client_id}")
+                    if str(pcc.client_id) in request.clientIds:
+                        print(f"🔍 DEBUG: ✅ Client {pcc.client_id} is in selected clients")
+                    else:
+                        print(f"🔍 DEBUG: ❌ Client {pcc.client_id} is NOT in selected clients")
         
-        # Debug: Check contractor hours for this specific week number
-        week_tch_count = db.query(models.ContractorHours).filter(models.ContractorHours.week == week_number).count()
-        print(f"🔍 DEBUG: Total contractor hours for week {week_number}: {week_tch_count}")
-        
-        # Debug: Check contractor hours with both week number and 'Logged' status
-        week_logged_tch_count = db.query(models.ContractorHours).filter(
-            and_(
-                models.ContractorHours.week == week_number,
-                models.ContractorHours.status == 'Logged'
+        # Check if we have contractor hours for the specific work_date and clients
+        if len(contractor_hours) == 0:
+            print(f"🔍 DEBUG: No contractor hours found for work_date {last_working_day} with selected clients")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"No contractor hours found for work_date {last_working_day} with the selected clients. Please ensure contractor hours have been logged for the selected week and clients."
             )
-        ).count()
-        print(f"🔍 DEBUG: Total contractor hours for week {week_number} with 'Logged' status: {week_logged_tch_count}")
-        
-        # Debug: Check if there are any contractor rate hours in the database
-        total_tcrh_count = db.query(models.ContractorRateHours).count()
-        print(f"🔍 DEBUG: Total contractor rate hours in database: {total_tcrh_count}")
-        
-        # Debug: Show some sample contractor hours with 'Logged' status and week number
-        sample_tch = db.query(models.ContractorHours).filter(
-            and_(
-                models.ContractorHours.status == 'Logged',
-                models.ContractorHours.week == week_number
-            )
-        ).limit(3).all()
-        for tch in sample_tch:
-            print(f"🔍 DEBUG: Sample TCH: {tch.tch_id}, contractor: {tch.contractor_id}, work_date: {tch.work_date}, status: {tch.status}, week: {tch.week}, timesheet_id: {tch.timesheet_id}")
-        
-        # Debug: Show all week numbers in the database
-        all_weeks = db.query(models.ContractorHours.week).distinct().all()
-        week_numbers = [w[0] for w in all_weeks if w[0] is not None]
-        print(f"🔍 DEBUG: All week numbers in database: {sorted(week_numbers)}")
-        
-        # Debug: Show all contractor hours with their details
-        all_tch = db.query(models.ContractorHours).all()
-        print(f"🔍 DEBUG: All contractor hours in database:")
-        for tch in all_tch:
-            print(f"🔍 DEBUG: TCH: {tch.tch_id}, contractor: {tch.contractor_id}, work_date: {tch.work_date}, status: {tch.status}, week: {tch.week}, timesheet_id: {tch.timesheet_id}")
-        
-        # Debug: Show contractor hours for different week numbers
-        for week_num in week_numbers[:5]:  # Show first 5 weeks
-            week_count = db.query(models.ContractorHours).filter(
-                and_(
-                    models.ContractorHours.week == week_num,
-                    models.ContractorHours.status == 'Logged'
-                )
-            ).count()
-            print(f"🔍 DEBUG: Week {week_num}: {week_count} contractor hours with 'Logged' status")
         
         # 3. Group contractor hours by client_id to create separate invoices
         client_groups = {}
@@ -265,7 +234,7 @@ def generate_invoice(
                         client_groups[client_id] = []
                     client_groups[client_id].append(tch)
         
-        print(f"🔍 DEBUG: Found {len(client_groups)} clients for this week")
+        print(f"🔍 DEBUG: Found {len(client_groups)} clients for work_date {last_working_day}")
         
         # Create separate invoice for each client
         created_invoices = []
@@ -307,10 +276,14 @@ def generate_invoice(
             for tch in tch_list:
                 print(f"🔍 DEBUG: Processing contractor hour {tch.tch_id} for client {client_id}")
                 
-                # Get rate hours for this contractor hour
+                # Get rate hours for this contractor hour only
                 rate_hours = db.query(models.ContractorRateHours).filter(
                     models.ContractorRateHours.tch_id == tch.tch_id
                 ).all()
+                
+                if not rate_hours:
+                    print(f"🔍 DEBUG: No rate hours found for contractor hour {tch.tch_id}")
+                    continue  # Skip this contractor hour if no rate hours
                 
                 for rate_hour in rate_hours:
                     # Calculate total: quantity * bill_rate
@@ -366,34 +339,10 @@ def generate_invoice(
         
         # Check if any invoices were created
         if len(created_invoices) == 0:
-            print("🔍 DEBUG: No invoices created")
-            
-            # Check if we have any contractor hours in the database
-            total_contractor_hours = db.query(models.ContractorHours).count()
-            if total_contractor_hours == 0:
-                print("🔍 DEBUG: No contractor hours found in database")
-                raise HTTPException(
-                    status_code=400, 
-                    detail="No contractor hours data found. Please ensure timesheets have been created and contractor hours have been logged for the selected week."
-                )
-            
-            # Check if we have contractor hours for this specific week
-            week_contractor_hours = db.query(models.ContractorHours).filter(
-                models.ContractorHours.week == week_number
-            ).count()
-            
-            if week_contractor_hours == 0:
-                print(f"🔍 DEBUG: No contractor hours found for week {week_number}")
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"No contractor hours found for week {week_number}. Please ensure contractor hours have been logged for the selected week."
-                )
-            
-            # If we have contractor hours but no rate hours, that's a different issue
-            print("🔍 DEBUG: Contractor hours exist but no rate hours found")
+            print("🔍 DEBUG: No invoices created - no contractor hours with rate information found")
             raise HTTPException(
                 status_code=400, 
-                detail="Contractor hours found but no rate information available. Please ensure contractor rates have been set up."
+                detail=f"No contractor hours with rate information found for week {week_number} with the selected clients. Please ensure contractor hours have been logged and rates have been set up for the selected week and clients."
             )
         
         # Commit transaction

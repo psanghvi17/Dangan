@@ -40,8 +40,8 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [month, setMonth] = useState(''); // stores ISO like "2025-09"
-  const [week, setWeek] = useState('');
+  const [month, setMonth] = useState(''); // derived from selected week (kept for backend label)
+  const [week, setWeek] = useState('');    // HTML week value like "2025-W42"
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState('');
   const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
@@ -57,6 +57,30 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     const date = new Date(parseInt(y), parseInt(m) - 1, 1);
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
+
+  // When week changes, derive month label from the selected ISO week (YYYY-W##)
+  useEffect(() => {
+    if (!week || !week.includes('W')) {
+      setMonth('');
+      return;
+    }
+    try {
+      const [yearStr, w] = week.split('-W');
+      const year = parseInt(yearStr);
+      const weekNum = parseInt(w);
+      // ISO week → approximate month from the Monday of the week
+      const jan4 = new Date(year, 0, 4);
+      const jan4Weekday = (jan4.getDay() + 6) % 7; // Monday=0
+      const week1Monday = new Date(jan4);
+      week1Monday.setDate(jan4.getDate() - jan4Weekday);
+      const weekStart = new Date(week1Monday);
+      weekStart.setDate(week1Monday.getDate() + (weekNum - 1) * 7);
+      const isoMonth = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}`;
+      setMonth(isoMonth);
+    } catch (_) {
+      setMonth('');
+    }
+  }, [week]);
 
   // Generate weeks for selected month with date ranges
   const generateWeeks = () => {
@@ -180,8 +204,8 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   }, [selectedClients, candidates, clients]);
 
   const handleSubmit = async () => {
-    if (!month || !week) {
-      alert('Please select both month and week');
+    if (!week) {
+      alert('Please select the week');
       return;
     }
 
@@ -194,8 +218,8 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
     try {
       // Create the timesheet with filtered candidates
       const timesheetData = {
-        month: formatMonthLabel(month) || month,
-        week,
+        month: formatMonthLabel(month) || month, // derived from selected week
+        week, // keep as provided (can be "YYYY-W##")
         // If exactly one client is selected, pass it; otherwise null (all clients)
         client_id: selectedClients.length === 1 ? selectedClients[0] : null,
         candidate_ids: selectedCandidate && selectedCandidate !== '' ? [selectedCandidate] : filteredCandidates.map(c => c.candidate_id)
@@ -246,30 +270,24 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
             <TextField
               fullWidth
               required
-              label="Month"
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              label="Week"
+              type="week"
+              value={week}
+              onChange={(e) => setWeek(e.target.value)}
               InputLabelProps={{ shrink: true }}
+              helperText="Select the ISO week (e.g., 2025-W42)"
             />
           </Grid>
-          
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth required>
-              <InputLabel>Week</InputLabel>
-              <Select
-                value={week}
-                onChange={(e) => setWeek(e.target.value)}
-                label="Week"
-                disabled={!month}
-              >
-                {generateWeeks().map((weekOption) => (
-                  <MenuItem key={weekOption.value} value={weekOption.value}>
-                    {weekOption.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              label="Month (auto)"
+              type="text"
+              value={formatMonthLabel(month) || month}
+              InputProps={{ readOnly: true }}
+              InputLabelProps={{ shrink: true }}
+              helperText="Derived from selected week"
+            />
           </Grid>
 
           <Grid item xs={12} sm={6}>
