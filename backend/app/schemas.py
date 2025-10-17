@@ -773,3 +773,17 @@ class MConstant(MConstantBase):
 class MConstantUpdate(BaseModel):
     constant: Optional[str] = None
     use_for: Optional[str] = None
+
+
+# Holiday summary schemas
+class HolidaySummaryItem(BaseModel):
+    user_id: UUID
+    name: str
+    email_id: Optional[EmailStr] = None
+    hours_worked: float
+    total_holiday: float
+    holiday_taken: float
+    holiday_balance: float
+
+    class Config:
+        from_attributes = True

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Container,
   Box,
@@ -15,31 +15,40 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
-interface HolidayRow {
-  id: number;
-  name: string;
-  email: string;
-  hoursWorked: string; // display format like 12:50
-  totalHoliday: number;
-  holidayTaken: number;
-  holidayBalance: number;
-}
+import { candidatesAPI } from '../services/api';
 
-const mockRows: HolidayRow[] = [
-  { id: 1, name: 'Gheorghe Scurei', email: 'catalindascu@gmail.com', hoursWorked: '12:50', totalHoliday: 20, holidayTaken: 4, holidayBalance: 16 },
-  { id: 2, name: 'Gary Clark', email: 'notsureg3@testmail.com', hoursWorked: '15:00', totalHoliday: 20, holidayTaken: 6, holidayBalance: 14 },
-  { id: 3, name: 'Shanahan John', email: 'shananhjohn@gmail.com', hoursWorked: '10:00', totalHoliday: 20, holidayTaken: 6, holidayBalance: 14 },
-  { id: 4, name: 'Lynch Cillian', email: 'cillancly89@gmail.com', hoursWorked: '32:00', totalHoliday: 20, holidayTaken: 4, holidayBalance: 16 },
-];
+interface HolidayRow {
+  user_id: string;
+  name: string;
+  email_id?: string;
+  hours_worked: number;
+  total_holiday: number;
+  holiday_taken: number;
+  holiday_balance: number;
+}
 
 const Holiday: React.FC = () => {
   const [query, setQuery] = useState('');
   const [clientFilter, setClientFilter] = useState('Client');
+  const [rows, setRows] = useState<HolidayRow[]>([]);
 
-  const rows = useMemo(() => {
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await candidatesAPI.holidaySummary();
+        if (mounted) setRows(data);
+      } catch (e) {
+        console.error('Failed to load holiday summary', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return mockRows.filter((r) => !q || r.name.toLowerCase().includes(q));
-  }, [query]);
+    return rows.filter((r) => !q || (r.name || '').toLowerCase().includes(q));
+  }, [query, rows]);
 
   return (
     <Container maxWidth="lg">
@@ -78,16 +87,16 @@ const Holiday: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id} hover>
+                {filtered.map((r) => (
+                  <TableRow key={r.user_id} hover>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{r.email}</Typography>
+                      <Typography variant="caption" color="text.secondary">{r.email_id}</Typography>
                     </TableCell>
-                    <TableCell align="center">{r.hoursWorked}</TableCell>
-                    <TableCell align="center">{r.totalHoliday}</TableCell>
-                    <TableCell align="center">{String(r.holidayTaken).padStart(2, '0')}</TableCell>
-                    <TableCell align="center">{r.holidayBalance}</TableCell>
+                    <TableCell align="center">{r.hours_worked.toFixed(2)}</TableCell>
+                    <TableCell align="center">{r.total_holiday.toFixed(2)}</TableCell>
+                    <TableCell align="center">{r.holiday_taken.toFixed(2)}</TableCell>
+                    <TableCell align="center">{r.holiday_balance.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func, text
+from sqlalchemy import Float, cast
 from uuid import uuid4, UUID
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
@@ -1772,6 +1773,98 @@ def get_candidate_pcc_info(db: Session, candidate_ids: List[str]) -> Dict[str, D
         traceback.print_exc()
         return {}
 
+
+def get_holiday_summary_for_active_candidates(db: Session) -> List[Dict]:
+    """Compute holiday summary per active candidate.
+    - Active candidates: have at least one row in p_candidate_client (status not enforced here; include all active relationships)
+    - hours_worked: sum of standard_hours from t_contractor_hours (excluding deleted rows)
+    - total_holiday: 8% of hours_worked
+    - holiday_taken: sum of quantities in t_contractor_rate_hours where rate_type is Holiday
+      We resolve Holiday by looking up m_rate_type where rate_type_name ilike 'Holiday%'
+    - holiday_balance: total_holiday - holiday_taken
+    """
+    from sqlalchemy import func, and_
+
+    # Resolve Holiday rate_type ids (support multiple named variants)
+    holiday_rate_types = db.query(models.RateType.rate_type_id).filter(
+        models.RateType.rate_type_name.ilike('%holiday%'),
+        models.RateType.deleted_on.is_(None)
+    ).all()
+    holiday_rate_type_ids = [rt[0] for rt in holiday_rate_types] if holiday_rate_types else []
+
+    # Base: active candidates via p_candidate_client join to m_user for name/email
+    # Aggregate standard hours from t_contractor_hours
+    tch_sub = (
+        db.query(
+            models.ContractorHours.contractor_id.label('contractor_id'),
+            func.coalesce(func.sum(models.ContractorHours.standard_hours), 0.0).label('hours_worked')
+        )
+        .filter(models.ContractorHours.deleted_on.is_(None))
+        .group_by(models.ContractorHours.contractor_id)
+        .subquery()
+    )
+
+    # Aggregate holiday taken from t_contractor_rate_hours joined via tch
+    holiday_taken_sub = None
+    if holiday_rate_type_ids:
+        crh_join = (
+            db.query(
+                models.ContractorHours.contractor_id.label('contractor_id'),
+                func.coalesce(func.sum(models.ContractorRateHours.quantity), 0.0).label('holiday_taken')
+            )
+            .join(models.ContractorRateHours, models.ContractorRateHours.tch_id == models.ContractorHours.tch_id)
+            .filter(models.ContractorHours.deleted_on.is_(None))
+            .filter(models.ContractorRateHours.deleted_on.is_(None))
+            .filter(models.ContractorRateHours.rate_type_id.in_(holiday_rate_type_ids))
+            .group_by(models.ContractorHours.contractor_id)
+            .subquery()
+        )
+        holiday_taken_sub = crh_join
+
+    # Active candidates through p_candidate_client
+    pcc = models.P_CandidateClient
+    mu = models.MUser
+
+    name_expr = (func.coalesce(mu.first_name, '') + ' ' + func.coalesce(mu.last_name, ''))
+    hours_expr = func.coalesce(tch_sub.c.hours_worked, 0.0)
+    holiday_taken_expr = holiday_taken_sub.c.holiday_taken if holiday_taken_sub is not None else cast(0.0, Float)
+
+    query = (
+        db.query(
+            mu.user_id.label('user_id'),
+            func.max(name_expr).label('name'),
+            func.max(mu.email_id).label('email_id'),
+            func.max(hours_expr).label('hours_worked'),
+            func.max(holiday_taken_expr).label('holiday_taken')
+        )
+        .join(pcc, pcc.candidate_id == mu.user_id)
+        .outerjoin(tch_sub, tch_sub.c.contractor_id == mu.user_id)
+    )
+
+    if holiday_taken_sub is not None:
+        query = query.outerjoin(holiday_taken_sub, holiday_taken_sub.c.contractor_id == mu.user_id)
+
+    # Only non-deleted users and non-deleted relationships and active status
+    query = query.filter(mu.deleted_on.is_(None)).filter(pcc.deleted_on.is_(None)).filter(pcc.status == 0)
+
+    rows = query.group_by(mu.user_id)
+
+    result = []
+    for r in rows.all():
+        hours_worked = float(r.hours_worked or 0.0)
+        total_holiday = hours_worked * 0.08
+        holiday_taken = float(r.holiday_taken or 0.0)
+        result.append({
+            'user_id': str(r.user_id),
+            'name': (r.name or '').strip(),
+            'email_id': r.email_id,
+            'hours_worked': hours_worked,
+            'total_holiday': total_holiday,
+            'holiday_taken': holiday_taken,
+            'holiday_balance': total_holiday - holiday_taken
+        })
+
+    return result
 
 def create_contract_with_rates(db: Session, contract_data: schemas.ContractWithRatesCreate) -> schemas.ContractWithRatesOut:
     """Create or update contract with rates in a single transaction"""

@@ -354,6 +354,11 @@ export const candidatesAPI = {
     }
   },
 
+  holidaySummary: async (): Promise<Array<{ user_id: string; name: string; email_id?: string; hours_worked: number; total_holiday: number; holiday_taken: number; holiday_balance: number }>> => {
+    const res = await api.get('/api/candidates/holiday-summary');
+    return res.data;
+  },
+
   listAll: async (): Promise<CandidateDTO[]> => {
     console.log('Making API call to /api/candidates/ to get all candidates with client info');
     try {

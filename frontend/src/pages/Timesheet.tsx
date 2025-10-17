@@ -51,39 +51,46 @@ interface TableColumn {
 
 // Helper function to calculate date range for a given week and month
 const calculateDateRange = (week: string, month: string): string => {
-  if (!week || !month) return '';
+  if (!week) return '';
+  
+  // Support ISO week format like "2025-W45"
+  const isoMatch = week.match(/^(\d{4})-W(\d{1,2})$/);
+  if (isoMatch) {
+    try {
+      const year = parseInt(isoMatch[1], 10);
+      const weekNo = parseInt(isoMatch[2], 10);
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const jan4Weekday = jan4.getUTCDay();
+      const pythonWeekday = jan4Weekday === 0 ? 6 : jan4Weekday - 1;
+      const weekMonday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNo - 1) * 7));
+      const weekSunday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNo - 1) * 7 + 6));
+      const startDate = weekMonday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const endDate = weekSunday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      return `${startDate} - ${endDate}`;
+    } catch (error) {
+      console.error('Error calculating ISO date range:', error);
+      return '';
+    }
+  }
+
+  if (!month) return '';
   
   try {
     const [monthName, year] = month.split(' ');
     const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
     const yearNum = parseInt(year);
-    
-    // Get the first day of the month
     const firstDay = new Date(yearNum, monthIndex, 1);
-    
-    // Find the first Monday of the month (or before if month doesn't start on Monday)
     const firstMonday = new Date(firstDay);
     const dayOfWeek = firstDay.getDay();
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     firstMonday.setDate(firstDay.getDate() - daysToMonday);
-    
-    // Calculate which week we want (Week 1, Week 2, etc.)
     const weekNumber = parseInt(week.replace('Week ', ''));
     const weekStart = new Date(firstMonday);
     weekStart.setDate(firstMonday.getDate() + ((weekNumber - 1) * 7));
-    
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    
-    const startDate = weekStart.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short' 
-    });
-    const endDate = weekEnd.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short' 
-    });
-    
+    const startDate = weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const endDate = weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     return `${startDate} - ${endDate}`;
   } catch (error) {
     console.error('Error calculating date range:', error);

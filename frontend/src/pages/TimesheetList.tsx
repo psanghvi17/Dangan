@@ -134,39 +134,45 @@ const TimesheetList: React.FC = () => {
     fetchData(); // Refresh the list after creating a new timesheet
   };
 
-  // Function to calculate start and end dates for a week
+  // Function to calculate start and end dates for a week (supports both "Week X" and ISO week like "2025-W45")
   const getWeekDates = (weekLabel: string, monthLabel: string) => {
-    // Parse the month (e.g., "April 2025")
-    const [monthName, year] = monthLabel.split(' ');
-    const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
-    const yearNum = parseInt(year);
-    
-    // Get the first day of the month
-    const firstDay = new Date(yearNum, monthIndex, 1);
-    const firstMonday = new Date(firstDay);
-    const dayOfWeek = firstDay.getDay();
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    firstMonday.setDate(firstDay.getDate() - daysToMonday);
-    
-    // Calculate week number (1-4)
-    const weekNumber = parseInt(weekLabel.split(' ')[1]) - 1;
-    
-    const weekStart = new Date(firstMonday);
-    weekStart.setDate(firstMonday.getDate() + (weekNumber * 7));
-    
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    
-    const startDate = weekStart.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short' 
-    });
-    const endDate = weekEnd.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short' 
-    });
-    
-    return { startDate, endDate };
+    // If backend returns ISO week like "2025-W45", compute ISO week Monday and Sunday
+    const isoMatch = weekLabel.match(/^(\d{4})-W(\d{1,2})$/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const weekNo = parseInt(isoMatch[2], 10);
+      // ISO: Week 1 is the week with Jan 4; Monday is day 1
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const jan4Weekday = jan4.getUTCDay(); // 0..6 Sun..Sat
+      const pythonWeekday = jan4Weekday === 0 ? 6 : jan4Weekday - 1; // align with Python weekday
+      const weekMonday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNo - 1) * 7));
+      const weekSunday = new Date(Date.UTC(year, 0, 4 - pythonWeekday + (weekNo - 1) * 7 + 6));
+      const startDate = weekMonday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const endDate = weekSunday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      return { startDate, endDate };
+    }
+
+    // Legacy format like "Week 3" with a month label like "April 2025"
+    try {
+      const [monthName, yearStr] = monthLabel.split(' ');
+      const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
+      const yearNum = parseInt(yearStr, 10);
+      const firstDay = new Date(yearNum, monthIndex, 1);
+      const firstMonday = new Date(firstDay);
+      const dayOfWeek = firstDay.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      firstMonday.setDate(firstDay.getDate() - daysToMonday);
+      const weekNumber = parseInt(weekLabel.split(' ')[1], 10) - 1;
+      const weekStart = new Date(firstMonday);
+      weekStart.setDate(firstMonday.getDate() + (weekNumber * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      const startDate = weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      const endDate = weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      return { startDate, endDate };
+    } catch {
+      return { startDate: 'Invalid Date', endDate: 'Invalid Date' };
+    }
   };
 
   const StatusChip: React.FC<{ value: 'Open' | 'Close' }> = ({ value }) => (

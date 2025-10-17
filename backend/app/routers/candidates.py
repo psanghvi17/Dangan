@@ -148,6 +148,29 @@ def get_rate_frequencies(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/holiday-summary", response_model=List[schemas.HolidaySummaryItem])
+def get_holiday_summary(db: Session = Depends(get_db)):
+    """Return holiday summary for all active candidates."""
+    try:
+        rows = crud.get_holiday_summary_for_active_candidates(db)
+        # Map to schema
+        result = []
+        for r in rows:
+            result.append(schemas.HolidaySummaryItem(
+                user_id=r['user_id'],
+                name=r['name'],
+                email_id=r['email_id'],
+                hours_worked=r['hours_worked'],
+                total_holiday=r['total_holiday'],
+                holiday_taken=r['holiday_taken'],
+                holiday_balance=r['holiday_balance']
+            ))
+        return result
+    except Exception as e:
+        print(f"❌ Error computing holiday summary: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/", response_model=schemas.Candidate)
 def create_candidate(candidate: schemas.CandidateCreate, db: Session = Depends(get_db)):
     try:
