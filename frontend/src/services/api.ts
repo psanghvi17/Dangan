@@ -811,8 +811,7 @@ export interface InvoiceDTO {
 }
 
 export interface GenerateInvoiceRequestDTO {
-  candidateId: string;
-  clientId: string;
+  clientIds: string[];
   week: string;
   invoiceDate: string;
 }

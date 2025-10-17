@@ -600,10 +600,9 @@ class Invoice(InvoiceBase):
 
 
 class GenerateInvoiceRequest(BaseModel):
-    candidateId: str  # Can be 'all' or specific candidate ID
-    clientId: str     # Can be 'all' or specific client ID
-    week: str         # Week start date in YYYY-MM-DD format
-    invoiceDate: str   # Invoice date in YYYY-MM-DD format
+    clientIds: List[str]  # List of Client IDs
+    week: str             # Week start date in YYYY-MM-DD format
+    invoiceDate: str      # Invoice date in YYYY-MM-DD format
 
 
 class InvoiceLineItemBase(BaseModel):

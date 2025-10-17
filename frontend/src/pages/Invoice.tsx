@@ -172,8 +172,7 @@ const Invoice: React.FC = () => {
             console.log('🔍 DEBUG: Invoice date format:', data.invoiceDate);
             
             const request: GenerateInvoiceRequestDTO = {
-              candidateId: data.candidateId,
-              clientId: data.clientId,
+              clientIds: data.clientIds,
               week: data.week,
               invoiceDate: data.invoiceDate,
             };

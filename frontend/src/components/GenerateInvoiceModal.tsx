@@ -14,8 +14,10 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  Chip,
+  OutlinedInput,
 } from '@mui/material';
-import { candidatesAPI, clientsAPI, CandidateDTO, ClientDTO } from '../services/api';
+import { clientsAPI, ClientDTO } from '../services/api';
 
 interface GenerateInvoiceModalProps {
   open: boolean;
@@ -24,8 +26,7 @@ interface GenerateInvoiceModalProps {
 }
 
 interface GenerateInvoiceData {
-  candidateId: string | 'all';
-  clientId: string | 'all';
+  clientIds: string[];
   week: string;
   invoiceDate: string;
 }
@@ -35,10 +36,8 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   onClose,
   onGenerate,
 }) => {
-  const [candidates, setCandidates] = useState<CandidateDTO[]>([]);
   const [clients, setClients] = useState<ClientDTO[]>([]);
-  const [selectedCandidate, setSelectedCandidate] = useState<string>('');
-  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [invoiceDate, setInvoiceDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -55,31 +54,25 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       setLoading(true);
       setError(null);
       
-      // Fetch active candidates and clients in parallel
-      const [candidatesResponse, clientsResponse] = await Promise.all([
-        candidatesAPI.listActive(),
-        clientsAPI.list()
-      ]);
-      
-      setCandidates(candidatesResponse);
+      // Fetch clients only
+      const clientsResponse = await clientsAPI.list();
       setClients(clientsResponse.items || []);
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError('Failed to load candidates and clients');
+      setError('Failed to load clients');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerate = () => {
-    if (!selectedCandidate || !selectedClient || !selectedWeek || !invoiceDate) {
+    if (selectedClients.length === 0 || !selectedWeek || !invoiceDate) {
       setError('Please fill in all fields');
       return;
     }
 
     const generateData: GenerateInvoiceData = {
-      candidateId: selectedCandidate,
-      clientId: selectedClient,
+      clientIds: selectedClients,
       week: selectedWeek,
       invoiceDate: invoiceDate,
     };
@@ -88,8 +81,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   };
 
   const handleClose = () => {
-    setSelectedCandidate('');
-    setSelectedClient('');
+    setSelectedClients([]);
     setSelectedWeek('');
     setInvoiceDate('');
     setError(null);
@@ -119,33 +111,27 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
               )}
               
               <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Select Candidate</InputLabel>
+                <InputLabel>Select Clients</InputLabel>
                 <Select
-                  value={selectedCandidate}
-                  onChange={(e) => setSelectedCandidate(e.target.value)}
-                  label="Select Candidate"
+                  multiple
+                  value={selectedClients}
+                  onChange={(e) => setSelectedClients(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                  input={<OutlinedInput label="Select Clients" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => {
+                        const client = clients.find(c => c.client_id === value);
+                        return (
+                          <Chip 
+                            key={value} 
+                            label={client?.client_name || value} 
+                            size="small"
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
                 >
-                  <MenuItem value="all">
-                    <strong>All Candidates</strong>
-                  </MenuItem>
-                  {candidates.map((candidate) => (
-                    <MenuItem key={candidate.candidate_id} value={candidate.candidate_id}>
-                      {candidate.invoice_contact_name || 'Unknown Candidate'}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Select Client</InputLabel>
-                <Select
-                  value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
-                  label="Select Client"
-                >
-                  <MenuItem value="all">
-                    <strong>All Clients</strong>
-                  </MenuItem>
                   {clients.map((client) => (
                     <MenuItem key={client.client_id} value={client.client_id}>
                       {client.client_name}
@@ -190,7 +176,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
         <Button 
           onClick={handleGenerate} 
           variant="contained"
-          disabled={loading || !selectedCandidate || !selectedClient || !selectedWeek || !invoiceDate}
+          disabled={loading || selectedClients.length === 0 || !selectedWeek || !invoiceDate}
         >
           Generate Invoice
         </Button>
