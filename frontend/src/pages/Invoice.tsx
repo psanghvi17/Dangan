@@ -15,7 +15,9 @@ import {
   Button,
   Fab,
   IconButton,
+  Snackbar,
 } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { invoicesAPI, InvoiceDTO, GenerateInvoiceRequestDTO } from '../services/api';
@@ -28,6 +30,9 @@ const Invoice: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastSev, setToastSev] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     fetchInvoices();
@@ -120,7 +125,7 @@ const Invoice: React.FC = () => {
                 <TableCell>Invoice Date</TableCell>
                 <TableCell align="right">Amount</TableCell>
                 <TableCell align="right">Total Amount</TableCell>
-                <TableCell>Status</TableCell>
+                
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -139,13 +144,7 @@ const Invoice: React.FC = () => {
                   <TableCell align="right">
                     {formatCurrency(invoice.total_amount)}
                   </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={invoice.status || 'Unknown'}
-                      color={getStatusColor(invoice.status)}
-                      size="small"
-                    />
-                  </TableCell>
+                  
                   <TableCell align="center">
                     <IconButton 
                       size="small" 
@@ -179,25 +178,41 @@ const Invoice: React.FC = () => {
             
             console.log('🔍 DEBUG: Sending request to backend:', request);
             const response = await invoicesAPI.generate(request);
-            console.log('🔍 DEBUG: Invoice generated successfully:', response);
             
             // Refresh the invoice list
             await fetchInvoices();
             
             setGenerateModalOpen(false);
-            
-            // Show success message (you can add a toast notification here)
-            alert(`Invoice generated successfully! Invoice #${response.invoice_num} with total amount $${response.total_amount.toFixed(2)}`);
-            
+            setToastSev('success');
+            setToastMsg(`Invoice generated successfully. #${response.invoice_num}`);
+            setToastOpen(true);
           } catch (error) {
             console.error('Error generating invoice:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const errorDetails = (error as any)?.response?.data?.detail || errorMessage;
             console.error('Error details:', errorDetails);
-            alert(`Failed to generate invoice: ${errorDetails}. Please try again.`);
+            setToastSev('error');
+            setToastMsg(`Failed to generate invoice: ${errorDetails}`);
+            setToastOpen(true);
           }
         }}
       />
+
+      <Snackbar 
+        open={toastOpen} 
+        autoHideDuration={3000} 
+        onClose={() => setToastOpen(false)} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MuiAlert 
+          onClose={() => setToastOpen(false)} 
+          severity={toastSev} 
+          elevation={6} 
+          variant="filled"
+        >
+          {toastMsg}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { timesheetsAPI, TimesheetDetailDTO, TimesheetEntryDTO, candidatesAPI, CandidateDTO, ContractRateOutDTO, ContractorHoursCreateDTO, ContractorHoursDTO, ContractorHoursUpsertDTO, ContractorRateHoursCreateDTO, ContractorRateHoursOutDTO, MultipleRateHoursCreateDTO } from '../services/api';
 import { RateTypeDTO, RateFrequencyDTO } from '../types';
 import {
@@ -93,6 +93,7 @@ const calculateDateRange = (week: string, month: string): string => {
 
 const Timesheet: React.FC = () => {
   const { timesheetId } = useParams<{ timesheetId?: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode') || 'edit'; // Default to edit mode
   const [timesheetData, setTimesheetData] = useState<TimesheetDetailDTO | null>(null);
@@ -850,6 +851,9 @@ const Timesheet: React.FC = () => {
 
         <Paper elevation={0} sx={{ mb: 1.5, p: 1, bgcolor: 'background.default' }}>
           <Grid container spacing={1.5} alignItems="center">
+            <Grid item>
+              <Button variant="outlined" onClick={() => navigate(-1)} sx={{ borderRadius: 999 }}>Back</Button>
+            </Grid>
             <Grid item>
               <Button variant="outlined" sx={{ borderRadius: 999 }}>{week}</Button>
             </Grid>

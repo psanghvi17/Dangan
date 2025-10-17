@@ -827,7 +827,7 @@ def update_candidate(db: Session, user_id: str, candidate_data: dict):
         if candidate:
             # Update candidate-specific fields
             candidate_fields = [
-                'invoice_contact_name', 'invoice_email', 'date_of_birth',
+                'invoice_contact_name', 'invoice_email', 'employee_id', 'date_of_birth',
                 'address1', 'address2', 'town', 'county', 'eircode',
                 'pps_number', 'bank_account_number', 'bank_name'
             ]
@@ -891,6 +891,7 @@ def create_candidate(db: Session, candidate_data: schemas.CandidateCreate):
             invoice_contact_name=candidate_data.invoice_contact_name,
             invoice_email=invoice_emails,
             invoice_phone=candidate_data.invoice_phone,
+            employee_id=candidate_data.employee_id,
             address1=candidate_data.address1,
             address2=candidate_data.address2,
             town=candidate_data.town,

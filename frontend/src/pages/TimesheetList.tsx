@@ -33,7 +33,10 @@ const mock: TimesheetSummaryDTO[] = [
 
 const TimesheetList: React.FC = () => {
   const navigate = useNavigate();
-  const [month, setMonth] = useState('2025-04'); // Format: YYYY-MM for HTML5 month input
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }); // Format: YYYY-MM for HTML5 month input
   const [rows, setRows] = useState<TimesheetSummaryDTO[]>(mock);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -120,8 +123,7 @@ const TimesheetList: React.FC = () => {
   };
 
   useEffect(() => {
-    // Set default month from latest timesheet on component mount
-    setDefaultMonth();
+    // Keep default month as the current month (do not override with latest from server)
   }, []);
 
   useEffect(() => {

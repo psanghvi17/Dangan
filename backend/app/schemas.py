@@ -138,6 +138,7 @@ class ClientRate(ClientRateBase):
 class CandidateBase(BaseModel):
     invoice_email: Optional[Union[str, List[str]]] = None
     invoice_phone: Optional[str] = None
+    employee_id: Optional[str] = None
     address1: Optional[str] = None
     address2: Optional[str] = None
     town: Optional[str] = None
@@ -302,6 +303,7 @@ class CandidateUpdate(BaseModel):
     invoice_contact_name: Optional[str] = None
     # Accept either a single string or list of strings from the client
     invoice_email: Optional[Union[str, List[str]]] = None
+    employee_id: Optional[str] = None
     date_of_birth: Optional[datetime] = None
     address1: Optional[str] = None
     address2: Optional[str] = None

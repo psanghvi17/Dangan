@@ -190,6 +190,7 @@ export interface CandidateCreateDTO {
   invoice_contact_name: string;
   invoice_email?: string | string[];
   invoice_phone?: string;
+  employee_id?: string;
   address1?: string;
   address2?: string;
   town?: string;
@@ -210,6 +211,7 @@ export interface CandidateDTO {
   invoice_contact_name?: string;
   invoice_email?: string | string[];
   invoice_phone?: string;
+  employee_id?: string;
   address1?: string;
   address2?: string;
   town?: string;

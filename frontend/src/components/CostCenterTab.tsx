@@ -98,7 +98,7 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
         console.log('✅ Cost center created successfully:', result);
       }
       resetForm();
-      loadCostCenters();
+      await loadCostCenters();
     } catch (error: any) {
       console.error('❌ Failed to save cost center:', error);
       console.error('❌ Error details:', error.response?.data || error.message);

@@ -157,6 +157,7 @@ const Candidate: React.FC = () => {
       setAddr1(candidate.address1 || '');
       setAddr2(candidate.address2 || '');
       setPps(candidate.pps_number || '');
+      setEmployeeId(candidate.employee_id || '');
       
       // Populate account details if available
       setAccountEmail(candidate.invoice_email ? (Array.isArray(candidate.invoice_email) ? candidate.invoice_email[0] : candidate.invoice_email) : '');
@@ -209,7 +210,7 @@ const Candidate: React.FC = () => {
       if (relationships.length > 0) {
         const firstRelationship = relationships[0];
         setSelectedClientId(firstRelationship.client_id);
-        setPlacementDate(firstRelationship.placement_date ? firstRelationship.placement_date.split('T')[0] : '');
+        setPlacementDate(firstRelationship.placement_date ? firstRelationship.placement_date.split('T')[0] : new Date().toISOString().slice(0,10));
         setContractStartDate(firstRelationship.contract_start_date ? firstRelationship.contract_start_date.split('T')[0] : '');
         setContractEndDate(firstRelationship.contract_end_date ? firstRelationship.contract_end_date.split('T')[0] : '');
         console.log('✅ Pre-filled form with existing relationship data');
@@ -368,6 +369,8 @@ const Candidate: React.FC = () => {
     } else {
       console.log('🚀 Create mode: Resetting form');
       resetForm();
+      // Default placement date to today for new candidate when no DB value
+      setPlacementDate(new Date().toISOString().slice(0,10));
     }
     
     // Load client options
@@ -448,6 +451,7 @@ const Candidate: React.FC = () => {
                       email_id: email,
                       invoice_contact_name: `${firstName} ${lastName}`,
                       invoice_email: email ? [email] : undefined,
+                      employee_id: employeeId || undefined,
                       date_of_birth: dob ? new Date(dob).toISOString() : undefined,
                     });
                     setToastSev('success');
@@ -459,6 +463,7 @@ const Candidate: React.FC = () => {
                     const result = await candidatesAPI.create({
                       invoice_contact_name: `${firstName} ${lastName}`,
                       invoice_email: email,
+                      employee_id: employeeId || undefined,
                       date_of_birth: dob ? new Date(dob).toISOString() : undefined,
                       first_name: firstName,
                       last_name: lastName,
@@ -1017,6 +1022,9 @@ const Candidate: React.FC = () => {
                         
                         // Reload the assignments to get the updated data
                         loadExistingCostCenterAssignments(user_id!);
+                        
+                        // Force a full page refresh so all dependent tabs reflect latest cost centers
+                        window.location.reload();
                       } catch (error) {
                         console.error('Failed to assign cost centers:', error);
                         setToastSev('error');

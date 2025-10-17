@@ -342,6 +342,7 @@ def get_candidate_full_data(user_id: uuid.UUID, db: Session = Depends(get_db)):
             "invoice_contact_name": candidate.invoice_contact_name,
             "invoice_email": candidate.invoice_email,
             "invoice_phone": candidate.invoice_phone,
+            "employee_id": getattr(candidate, 'employee_id', None),
             "address1": candidate.address1,
             "address2": candidate.address2,
             "town": candidate.town,

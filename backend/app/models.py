@@ -55,6 +55,7 @@ class Candidate(Base):
     invoice_contact_name = Column(String, nullable=True)
     invoice_email = Column(ARRAY(String), nullable=True)  # _varchar array type
     invoice_phone = Column(String, nullable=True)
+    employee_id = Column(String, nullable=True)
     address1 = Column(String, nullable=True)
     address2 = Column(String, nullable=True)
     town = Column(String, nullable=True)

@@ -22,7 +22,7 @@ import { clientsAPI, ClientDTO } from '../services/api';
 interface GenerateInvoiceModalProps {
   open: boolean;
   onClose: () => void;
-  onGenerate: (data: GenerateInvoiceData) => void;
+  onGenerate: (data: GenerateInvoiceData) => void | Promise<void>;
 }
 
 interface GenerateInvoiceData {
@@ -41,6 +41,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [invoiceDate, setInvoiceDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (selectedClients.length === 0 || !selectedWeek || !invoiceDate) {
       setError('Please fill in all fields');
       return;
@@ -77,7 +78,18 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
       invoiceDate: invoiceDate,
     };
 
-    onGenerate(generateData);
+    try {
+      setGenerating(true);
+      const maybePromise = onGenerate(generateData);
+      if (maybePromise && typeof (maybePromise as any).then === 'function') {
+        await (maybePromise as Promise<void>);
+      }
+    } catch (e: any) {
+      // Surface any error in the modal
+      setError(e?.response?.data?.detail || e?.message || 'Failed to generate invoice');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleClose = () => {
@@ -176,9 +188,10 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
         <Button 
           onClick={handleGenerate} 
           variant="contained"
-          disabled={loading || selectedClients.length === 0 || !selectedWeek || !invoiceDate}
+          disabled={loading || generating || selectedClients.length === 0 || !selectedWeek || !invoiceDate}
+          startIcon={generating ? <CircularProgress size={16} /> : undefined}
         >
-          Generate Invoice
+          {generating ? 'Generating…' : 'Generate Invoice'}
         </Button>
       </DialogActions>
     </Dialog>
