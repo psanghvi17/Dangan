@@ -16,7 +16,9 @@ import {
   Alert,
   Chip,
   OutlinedInput,
+  IconButton,
 } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { clientsAPI, ClientDTO } from '../services/api';
 
 interface GenerateInvoiceModalProps {
@@ -41,6 +43,7 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [invoiceDate, setInvoiceDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [clientMenuOpen, setClientMenuOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,7 +130,11 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                 <Select
                   multiple
                   value={selectedClients}
-                  onChange={(e) => setSelectedClients(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                  onChange={(e) => {
+                    const val = typeof e.target.value === 'string' ? e.target.value.split(',') : (e.target.value as string[]);
+                    setSelectedClients(val);
+                    setClientMenuOpen(false);
+                  }}
                   input={<OutlinedInput label="Select Clients" />}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -138,11 +145,22 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                             key={value} 
                             label={client?.client_name || value} 
                             size="small"
+                            onMouseDown={(e) => {
+                              // Prevent opening the menu when clicking the chip/delete icon
+                              e.stopPropagation();
+                            }}
+                            onDelete={() => {
+                              setSelectedClients(prev => prev.filter(id => id !== value));
+                            }}
+                            deleteIcon={<Close />}
                           />
                         );
                       })}
                     </Box>
                   )}
+                  open={clientMenuOpen}
+                  onOpen={() => setClientMenuOpen(true)}
+                  onClose={() => setClientMenuOpen(false)}
                 >
                   {clients.map((client) => (
                     <MenuItem key={client.client_id} value={client.client_id}>

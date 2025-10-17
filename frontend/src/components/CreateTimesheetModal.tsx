@@ -15,6 +15,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { candidatesAPI, clientsAPI, timesheetsAPI, CandidateDTO } from '../services/api';
 
 interface CreateTimesheetModalProps {
@@ -49,6 +50,7 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [filteredCandidates, setFilteredCandidates] = useState<CandidateDTO[]>([]);
+  const [clientMenuOpen, setClientMenuOpen] = useState(false);
 
   // Convert ISO month (YYYY-MM) to label (e.g., "September 2025")
   const formatMonthLabel = (isoMonth: string) => {
@@ -296,16 +298,37 @@ const CreateTimesheetModal: React.FC<CreateTimesheetModalProps> = ({
               <Select
                 multiple
                 value={selectedClients}
-                onChange={(e) => setSelectedClients(typeof e.target.value === 'string' ? e.target.value.split(',') : (e.target.value as string[]))}
+                onChange={(e) => {
+                  const val = typeof e.target.value === 'string' ? e.target.value.split(',') : (e.target.value as string[]);
+                  setSelectedClients(val);
+                  setClientMenuOpen(false);
+                }}
                 label="Clients (Optional)"
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {(selected as string[]).map((id) => {
                       const cl = clients.find(c => c.client_id === id);
-                      return <Chip key={id} label={cl?.client_name || id} size="small" />;
+                      return (
+                        <Chip 
+                          key={id} 
+                          label={cl?.client_name || id} 
+                          size="small"
+                          onMouseDown={(e) => {
+                            // Prevent opening the menu when clicking the chip/delete icon
+                            e.stopPropagation();
+                          }}
+                          onDelete={() => {
+                            setSelectedClients(prev => prev.filter(clientId => clientId !== id));
+                          }}
+                          deleteIcon={<Close />}
+                        />
+                      );
                     })}
                   </Box>
                 )}
+                open={clientMenuOpen}
+                onOpen={() => setClientMenuOpen(true)}
+                onClose={() => setClientMenuOpen(false)}
               >
                 {clients.map((client) => (
                   <MenuItem key={client.client_id} value={client.client_id}>
