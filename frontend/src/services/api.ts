@@ -802,6 +802,7 @@ export interface InvoiceDTO {
   amount?: number;
   total_amount?: number;
   status?: string;
+  inv_client_id?: string;
   pcc_id?: string;
   timesheet_id?: string;
   created_on?: string;

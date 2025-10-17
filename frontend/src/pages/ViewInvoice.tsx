@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -19,14 +19,16 @@ import {
   Stack,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { invoicesAPI, InvoiceWithLineItemsDTO } from '../services/api';
+import { invoicesAPI, clientsAPI, InvoiceWithLineItemsDTO, ClientDTO } from '../services/api';
 
 const ViewInvoice: React.FC = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [invoiceData, setInvoiceData] = useState<InvoiceWithLineItemsDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [billTo, setBillTo] = useState<ClientDTO | null>(null);
 
   useEffect(() => {
     if (invoiceId) {
@@ -34,11 +36,28 @@ const ViewInvoice: React.FC = () => {
     }
   }, [invoiceId]);
 
+  // Auto trigger print if print=1 in query
+  useEffect(() => {
+    if (searchParams.get('print') === '1') {
+      // Delay to allow content to render
+      const t = setTimeout(() => window.print(), 300);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
+
   const fetchInvoiceData = async () => {
     try {
       setLoading(true);
       const response = await invoicesAPI.getWithLineItems(invoiceId!);
       setInvoiceData(response);
+      if (response?.invoice?.inv_client_id) {
+        try {
+          const client = await clientsAPI.get(response.invoice.inv_client_id);
+          setBillTo(client);
+        } catch (e) {
+          console.warn('Failed to fetch client for Bill To');
+        }
+      }
     } catch (err) {
       console.error('Error fetching invoice data:', err);
       setError('Failed to fetch invoice data');
@@ -111,7 +130,7 @@ const ViewInvoice: React.FC = () => {
       <Paper sx={{ p: 4, backgroundColor: 'white' }}>
         {/* Header Section */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
-          {/* Left: Company Logo and Details */}
+          {/* Left: Brand */}
           <Box>
             <Typography 
               variant="h3" 
@@ -119,23 +138,13 @@ const ViewInvoice: React.FC = () => {
                 fontWeight: 'bold', 
                 color: '#1976d2',
                 fontSize: '2.5rem',
-                mb: 2
+                mb: 2,
+                textTransform: 'lowercase'
               }}
+              data-testid="invoice-brand"
             >
-              Company
+              dangan
             </Typography>
-            
-            <Stack spacing={1}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                Company Holdings Limited
-              </Typography>
-              <Typography variant="body2">
-                Serpentine Business Centre,<br />
-                Unit 6, 48 Serpentine Avenue<br />
-                Ballsbridge, Dublin 4<br />
-                D04 YD26
-              </Typography>
-            </Stack>
           </Box>
 
           {/* Right: Invoice Title and Details */}
@@ -168,30 +177,28 @@ const ViewInvoice: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Contact Information */}
+        {/* Bill To: fetch and show client details for the invoice */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={6}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              <strong>Contact Information:</strong>
-            </Typography>
-            <Typography variant="body2">
-              Tel: 086 607 2114<br />
-              Email: finance@company.com<br />
-              www.company.com
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
+          <Grid item xs={12}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               <strong>Bill To:</strong>
             </Typography>
-            <Typography variant="body2">
-              Hewlett Packard Enterprise Ireland Ltd<br />
-              Kildare Innovation Campus,<br />
-              Barnhill Road,<br />
-              Leixlip,<br />
-              Co Kildare W23Y972,<br />
-              Ireland
-            </Typography>
+            {billTo ? (
+              <Box>
+                <Typography variant="body2">{billTo.client_name}</Typography>
+                {billTo.contact_name && (
+                  <Typography variant="body2">Attn: {billTo.contact_name}</Typography>
+                )}
+                {billTo.contact_email && (
+                  <Typography variant="body2">{billTo.contact_email}</Typography>
+                )}
+                {billTo.contact_phone && (
+                  <Typography variant="body2">{billTo.contact_phone}</Typography>
+                )}
+              </Box>
+            ) : (
+              <Typography variant="body2">Client</Typography>
+            )}
           </Grid>
         </Grid>
 
@@ -262,47 +269,19 @@ const ViewInvoice: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Bottom Section */}
-        <Grid container spacing={4}>
-          {/* Bank Details */}
-          <Grid item xs={6}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
+        {/* Bottom Left: Bank Details */}
+        <Grid container spacing={4} sx={{ mt: 2 }}>
+          <Grid item xs={12} sm={6}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
               Bank Details
             </Typography>
-            <Stack spacing={1}>
-              <Typography variant="body2">
-                <strong>Company Holdings Ltd., AIB Plc</strong>
-              </Typography>
-              <Typography variant="body2">
-                1-4 Baggot Street Lower, Dublin 2
-              </Typography>
-              <Typography variant="body2">
-                <strong>Account No.:</strong> 31273092
-              </Typography>
-              <Typography variant="body2">
-                <strong>Sort Code:</strong> 93-13-65
-              </Typography>
-              <Typography variant="body2">
-                <strong>IBAN:</strong> IE46AIBK93136531273092
-              </Typography>
-              <Typography variant="body2">
-                <strong>BIC:</strong> AIBKIE2D
-              </Typography>
-            </Stack>
-          </Grid>
-
-          {/* Additional Information */}
-          <Grid item xs={6}>
-            <Stack spacing={2}>
-              <Typography variant="body2">
-                <strong>VAT Registration No:</strong> IE36270211H
-              </Typography>
-              <Typography variant="body2">
-                <strong>Company Reg. No.:</strong> 652541
-              </Typography>
-              <Typography variant="body2">
-                <strong>Terms:</strong> 30 days from date of invoice
-              </Typography>
+            <Stack spacing={0.5}>
+              <Typography variant="body2"><strong>Bank:</strong> Dangan Bank Plc</Typography>
+              <Typography variant="body2"><strong>Account Name:</strong> Dangan Ltd</Typography>
+              <Typography variant="body2"><strong>Account No.:</strong> 12345678</Typography>
+              <Typography variant="body2"><strong>Sort Code:</strong> 12-34-56</Typography>
+              <Typography variant="body2"><strong>IBAN:</strong> IE00BANK12345678901234</Typography>
+              <Typography variant="body2"><strong>BIC:</strong> DANGIE2D</Typography>
             </Stack>
           </Grid>
         </Grid>

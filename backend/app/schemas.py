@@ -588,6 +588,7 @@ class InvoiceBase(BaseModel):
 
 class Invoice(InvoiceBase):
     invoice_id: UUID
+    inv_client_id: Optional[UUID] = None
     pcc_id: Optional[UUID] = None
     timesheet_id: Optional[UUID] = None
     created_on: Optional[datetime] = None

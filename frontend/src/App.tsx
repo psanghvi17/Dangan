@@ -17,6 +17,7 @@ import ManageCandidate from './pages/ManageCandidate';
 import TimesheetList from './pages/TimesheetList';
 import Invoice from './pages/Invoice';
 import ViewInvoice from './pages/ViewInvoice';
+import InvoiceDownload from './pages/InvoiceDownload';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -94,6 +95,12 @@ function App() {
         <Route path="/invoice/view-invoice/:invoiceId" element={
           <ProtectedRoute>
             <AppLayout title="View Invoice"><ViewInvoice /></AppLayout>
+          </ProtectedRoute>
+        } />
+        {/* Minimal download route without AppLayout */}
+        <Route path="/invoice/download/:invoiceId" element={
+          <ProtectedRoute>
+            <InvoiceDownload />
           </ProtectedRoute>
         } />
         <Route path="/holiday" element={

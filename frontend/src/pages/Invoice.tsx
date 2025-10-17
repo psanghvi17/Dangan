@@ -20,6 +20,7 @@ import {
 import MuiAlert from '@mui/material/Alert';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { invoicesAPI, InvoiceDTO, GenerateInvoiceRequestDTO } from '../services/api';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 import { useNavigate } from 'react-router-dom';
@@ -150,8 +151,20 @@ const Invoice: React.FC = () => {
                       size="small" 
                       onClick={() => navigate(`/invoice/view-invoice/${invoice.invoice_id}`)}
                       title="View Invoice"
+                      sx={{ mr: 1 }}
                     >
                       <VisibilityIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      title="Download PDF"
+                      onClick={() => {
+                        // Open the minimal download page that generates PDF
+                        const url = `/invoice/download/${invoice.invoice_id}`;
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <PictureAsPdfIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
                 </TableRow>
