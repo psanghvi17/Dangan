@@ -750,3 +750,24 @@ class CostCenterWithDetails(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MConstantBase(BaseModel):
+    constant: str
+    use_for: str
+
+
+class MConstant(MConstantBase):
+    id: int
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MConstantUpdate(BaseModel):
+    constant: Optional[str] = None
+    use_for: Optional[str] = None

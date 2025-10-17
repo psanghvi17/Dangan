@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, text
 from typing import List
 from datetime import datetime, date, timedelta
 import uuid
 from ..database import get_db
-from .. import schemas, models
+from .. import schemas, models, crud
 
 router = APIRouter()
 
@@ -137,13 +137,28 @@ def generate_invoice(
         # Start transaction
         db.begin()
         
-        # 1. Create invoice with invoice number 100
+        # 1. Create invoice with auto-generated invoice number
         invoice_id = str(uuid.uuid4())
         invoice_date = datetime.strptime(request.invoiceDate, "%Y-%m-%d").date()
         
+        # Get next invoice number from m_constant table
+        # First get current value
+        result = db.execute(text("SELECT constant FROM app.m_constant WHERE use_for = 'Sales' LIMIT 1"))
+        current_constant = result.fetchone()
+        
+        if current_constant:
+            next_invoice_num = str(int(current_constant[0]) + 1)
+            # Update the constant with new value
+            db.execute(text("UPDATE app.m_constant SET constant = :new_value WHERE use_for = 'Sales'"), 
+                      {"new_value": next_invoice_num})
+        else:
+            # If no constant exists, start with 1200000
+            next_invoice_num = "1200000"
+            db.execute(text("INSERT INTO app.m_constant (id, constant, use_for) VALUES (1, '1200001', 'Sales')"))
+        
         new_invoice = models.Invoice(
             invoice_id=invoice_id,
-            invoice_num="100",  # Set invoice number as 100
+            invoice_num=next_invoice_num,  # Use auto-generated invoice number
             invoice_date=invoice_date,
             status="Draft",
             show_invoices=True

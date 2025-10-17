@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from uuid import uuid4, UUID
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
@@ -2359,3 +2359,91 @@ def delete_cost_center(db: Session, cost_center_id: UUID, deleted_by: UUID = Non
     
     db.commit()
     return True
+
+
+# MConstant CRUD operations
+def get_constant_by_use_for(db: Session, use_for: str):
+    """Get constant by use_for field"""
+    return db.query(models.MConstant).filter(models.MConstant.use_for == use_for).first()
+
+
+def get_next_invoice_number(db: Session) -> str:
+    """Get next invoice number and increment the constant"""
+    try:
+        # First try to get the constant
+        constant = get_constant_by_use_for(db, "Sales")
+        if not constant:
+            # If no constant exists, create one starting from 1200000
+            new_constant = models.MConstant(
+                constant="1200000",
+                use_for="Sales"
+            )
+            db.add(new_constant)
+            db.commit()
+            db.refresh(new_constant)
+            return "1200000"
+        
+        # Get current value and increment
+        current_value = int(constant.constant)
+        next_value = current_value + 1
+        
+        # Update the constant
+        constant.constant = str(next_value)
+        constant.updated_on = datetime.now()
+        
+        db.commit()
+        db.refresh(constant)
+        
+        return str(next_value)
+    
+    except Exception as e:
+        # If table doesn't exist, create it and return default value
+        print(f"Table m_constant doesn't exist, creating it: {e}")
+        try:
+            # Create the table using raw SQL
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS app.m_constant (
+                    id INTEGER PRIMARY KEY,
+                    constant VARCHAR NOT NULL,
+                    use_for VARCHAR NOT NULL,
+                    created_on TIMESTAMP DEFAULT NOW(),
+                    updated_on TIMESTAMP,
+                    created_by UUID REFERENCES app.m_user(user_id),
+                    updated_by UUID REFERENCES app.m_user(user_id)
+                );
+            """))
+            
+            # Insert initial data
+            db.execute(text("""
+                INSERT INTO app.m_constant (id, constant, use_for)
+                VALUES (1, '1200000', 'Sales')
+                ON CONFLICT (id) DO NOTHING;
+            """))
+            
+            db.commit()
+            return "1200000"
+            
+        except Exception as create_error:
+            print(f"Failed to create table: {create_error}")
+            # Fallback to a simple incrementing number
+            return str(1200000)
+
+
+def update_constant(db: Session, constant_id: int, constant_update: schemas.MConstantUpdate, updated_by: UUID = None):
+    """Update a constant"""
+    db_constant = db.query(models.MConstant).filter(models.MConstant.id == constant_id).first()
+    if not db_constant:
+        return None
+    
+    update_data = constant_update.dict(exclude_unset=True)
+    if update_data:
+        for field, value in update_data.items():
+            setattr(db_constant, field, value)
+        
+        db_constant.updated_by = updated_by
+        db_constant.updated_on = datetime.now()
+        
+        db.commit()
+        db.refresh(db_constant)
+    
+    return db_constant

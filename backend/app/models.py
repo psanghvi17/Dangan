@@ -373,3 +373,16 @@ class CandidateClientCostCenter(Base):
     updated_on = Column(DateTime(timezone=False), nullable=True)
     deleted_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
     deleted_on = Column(DateTime(timezone=False), nullable=True)
+
+
+class MConstant(Base):
+    __tablename__ = "m_constant"
+    __table_args__ = {"schema": "app"}
+
+    id = Column(Integer, primary_key=True)
+    constant = Column(String, nullable=False)
+    use_for = Column(String, nullable=False)
+    created_on = Column(DateTime(timezone=False), server_default=func.now(), nullable=True)
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
