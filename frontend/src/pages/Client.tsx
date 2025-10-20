@@ -34,7 +34,7 @@ interface ClientFormData {
   address?: string;
 }
 
-const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
+const accountManagers = ['Select', 'Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Client: React.FC = () => {
   const [tab, setTab] = useState(0);
@@ -48,7 +48,7 @@ const Client: React.FC = () => {
     clientName: '',
     description: '',
     email: '',
-    accountManager: accountManagers[0],
+    accountManager: 'Select',
     address: '',
   });
   
@@ -102,8 +102,8 @@ const Client: React.FC = () => {
         clientName: clientData.client_name || '',
         description: clientData.description || '',
         email: clientData.email || '',
-        accountManager: clientData.contact_name || accountManagers[0],
-        address: '', // Not in current schema
+        accountManager: clientData.contact_name || 'Select',
+        address: clientData.address || '',
       });
     } catch (error) {
       console.error('Failed to load client data:', error);
@@ -284,6 +284,7 @@ const Client: React.FC = () => {
                             description: form.description,
                             contact_email: form.email,
                             contact_name: form.accountManager,
+                            address: form.address,
                           });
                           setToastSev('success');
                           setToastMsg('Client created successfully');
@@ -298,6 +299,7 @@ const Client: React.FC = () => {
                             description: form.description,
                             contact_email: form.email,
                             contact_name: form.accountManager,
+                            address: form.address,
                           });
                           setToastSev('success');
                           setToastMsg('Client updated successfully');

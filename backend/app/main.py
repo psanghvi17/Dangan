@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, items, clients, candidates, timesheets, invoices, cost_centers
+from .routers import auth, items, clients, candidates, timesheets, invoices, cost_centers, payroll
 from .database import engine, ensure_app_schema_exists
 from . import models
 
@@ -31,6 +31,7 @@ app.include_router(candidates.router, prefix="/api/candidates", tags=["candidate
 app.include_router(timesheets.router, prefix="/api/timesheets", tags=["timesheets"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["invoices"])
 app.include_router(cost_centers.router, prefix="/api", tags=["cost-centers"])
+app.include_router(payroll.router, prefix="/api", tags=["payroll"])
 
 
 @app.get("/")

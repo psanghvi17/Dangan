@@ -109,6 +109,7 @@ export interface ClientDTO {
   contact_email?: string;
   contact_name?: string;
   contact_phone?: string;
+  address?: string;
   created_on?: string;
   active_contracts_count?: number;
 }
@@ -120,6 +121,7 @@ export interface ClientCreateDTO {
   contact_email?: string;
   contact_name?: string;
   contact_phone?: string;
+  address?: string;
 }
 
 export interface ClientUpdateDTO {
@@ -129,6 +131,7 @@ export interface ClientUpdateDTO {
   contact_email?: string;
   contact_name?: string;
   contact_phone?: string;
+  address?: string;
 }
 
 export const clientsAPI = {

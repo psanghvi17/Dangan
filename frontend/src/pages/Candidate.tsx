@@ -23,7 +23,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 
 type TabKey = 'personal' | 'account' | 'client' | 'cost-center' | 'documents';
 
-const accountManagers = ['Kyle Abaca', 'Jane Doe', 'John Smith'];
+const accountManagers = ['Select', 'Kyle Abaca', 'Jane Doe', 'John Smith'];
 
 const Candidate: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -67,7 +67,7 @@ const Candidate: React.FC = () => {
   const [loadingClients, setLoadingClients] = useState(false);
   const [clientRelationships, setClientRelationships] = useState<any[]>([]);
   const [loadingRelationships, setLoadingRelationships] = useState(false);
-  const [manager, setManager] = useState(accountManagers[0]);
+  const [manager, setManager] = useState('Select');
   const [hourlyPay, setHourlyPay] = useState('');
   const [hourlyBill, setHourlyBill] = useState('');
   const [weekendPay, setWeekendPay] = useState('');
@@ -125,7 +125,7 @@ const Candidate: React.FC = () => {
     setContractStartDate('');
     setContractEndDate('');
     setClientRelationships([]);
-    setManager(accountManagers[0]);
+    setManager('Select');
     setHourlyPay('');
     setHourlyBill('');
     setWeekendPay('');

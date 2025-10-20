@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -18,12 +19,14 @@ import TimesheetList from './pages/TimesheetList';
 import Invoice from './pages/Invoice';
 import ViewInvoice from './pages/ViewInvoice';
 import InvoiceDownload from './pages/InvoiceDownload';
+import Payroll from './pages/Payroll';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Routes>
         {/* Authentication routes without sidebar */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -108,11 +111,17 @@ function App() {
             <AppLayout title="Annual Leave"><Holiday /></AppLayout>
           </ProtectedRoute>
         } />
+        <Route path="/payroll" element={
+          <ProtectedRoute>
+            <AppLayout title="Payroll"><Payroll /></AppLayout>
+          </ProtectedRoute>
+        } />
         
         {/* Redirect root to login if not authenticated */}
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </AuthProvider>
+        </Routes>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -27,7 +27,7 @@ const Sidebar: React.FC = () => {
     { label: 'Candidate', icon: <PersonIcon />, path: '/candidate' },
     { label: 'Timesheet', icon: <AssignmentIcon />, path: '/timesheet' },
     { label: 'Invoice', icon: <ReceiptIcon />, path: '/invoices' },
-    { label: 'Payroll', icon: <PaidIcon />, path: '#' },
+    { label: 'Payroll', icon: <PaidIcon />, path: '/payroll' },
     { label: 'Holiday', icon: <BeachAccessIcon />, path: '/holiday' },
     { label: 'Report', icon: <BarChartIcon />, path: '#' },
   ];

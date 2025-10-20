@@ -38,6 +38,7 @@ class Client(Base):
     contact_email = Column(String)
     contact_name = Column(String)
     contact_phone = Column(String)
+    address = Column(String)
     start_date = Column(Date)
     end_date = Column(Date)
     created_on = Column(DateTime(timezone=False), server_default=func.now())
@@ -388,3 +389,115 @@ class MConstant(Base):
     updated_on = Column(DateTime(timezone=False), nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
     updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+
+
+# Payroll Period Model
+class PayrollPeriod(Base):
+    __tablename__ = "t_payroll_period"
+    __table_args__ = {"schema": "app"}
+
+    period_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    period_name = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    status = Column(String, default="draft")  # draft, active, closed
+    created_at = Column(DateTime(timezone=False), server_default=func.now())
+    updated_at = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+
+
+# Payroll Report Models
+class PayrollReport(Base):
+    __tablename__ = "t_payroll_report"
+    __table_args__ = {"schema": "app"}
+
+    report_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    report_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    selected_weeks = Column(ARRAY(String), nullable=False)  # Array of week identifiers
+    status = Column(String, default="draft")  # draft, generating, completed, failed
+    file_path = Column(String, nullable=True)  # Path to generated file
+    file_size = Column(Integer, nullable=True)  # File size in bytes
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    generated_on = Column(DateTime(timezone=False), nullable=True)
+    generated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+
+
+class PayrollRun(Base):
+    __tablename__ = "t_payroll_run"
+    __table_args__ = {"schema": "app"}
+
+    run_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    period_id = Column(UUID(as_uuid=True), ForeignKey("app.t_payroll_period.period_id"), nullable=False)
+    contractor_id = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=False)
+    total_hours = Column(Float, default=0.0)
+    standard_hours = Column(Float, default=0.0)
+    overtime_hours = Column(Float, default=0.0)
+    holiday_hours = Column(Float, default=0.0)
+    bank_holiday_hours = Column(Float, default=0.0)
+    weekend_hours = Column(Float, default=0.0)
+    oncall_hours = Column(Float, default=0.0)
+    # Pay calculations
+    standard_pay = Column(Float, default=0.0)
+    overtime_pay = Column(Float, default=0.0)
+    holiday_pay = Column(Float, default=0.0)
+    bank_holiday_pay = Column(Float, default=0.0)
+    weekend_pay = Column(Float, default=0.0)
+    oncall_pay = Column(Float, default=0.0)
+    gross_pay = Column(Float, default=0.0)
+    # Deductions
+    tax_deduction = Column(Float, default=0.0)
+    prsi_deduction = Column(Float, default=0.0)
+    usc_deduction = Column(Float, default=0.0)
+    pension_deduction = Column(Float, default=0.0)
+    other_deductions = Column(Float, default=0.0)
+    total_deductions = Column(Float, default=0.0)
+    net_pay = Column(Float, default=0.0)
+    # Status and tracking
+    status = Column(String, default="pending")  # pending, approved, paid
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    approved_on = Column(DateTime(timezone=False), nullable=True)
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    paid_on = Column(DateTime(timezone=False), nullable=True)
+    paid_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+
+
+class PayrollDeduction(Base):
+    __tablename__ = "m_payroll_deduction"
+    __table_args__ = {"schema": "app"}
+
+    deduction_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    deduction_name = Column(String, nullable=False)
+    deduction_type = Column(String, nullable=False)  # tax, prsi, usc, pension, other
+    is_percentage = Column(Boolean, default=False)
+    percentage_rate = Column(Float, nullable=True)
+    fixed_amount = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("app.m_user.user_id"), nullable=True)
+
+
+class PayrollSummary(Base):
+    __tablename__ = "t_payroll_summary"
+    __table_args__ = {"schema": "app"}
+
+    summary_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    period_id = Column(UUID(as_uuid=True), ForeignKey("app.t_payroll_period.period_id"), nullable=False)
+    total_contractors = Column(Integer, default=0)
+    total_hours = Column(Float, default=0.0)
+    total_gross_pay = Column(Float, default=0.0)
+    total_deductions = Column(Float, default=0.0)
+    total_net_pay = Column(Float, default=0.0)
+    total_tax = Column(Float, default=0.0)
+    total_prsi = Column(Float, default=0.0)
+    total_usc = Column(Float, default=0.0)
+    created_on = Column(DateTime(timezone=False), server_default=func.now())
+    updated_on = Column(DateTime(timezone=False), nullable=True)

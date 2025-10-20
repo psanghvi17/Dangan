@@ -4,6 +4,71 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
+import { suppressResizeObserverErrors } from './utils/resizeObserver';
+
+// Suppress ResizeObserver errors globally - call this as early as possible
+suppressResizeObserverErrors();
+
+// Override the global error handler to catch ResizeObserver errors before they reach React
+const originalOnError = window.onerror;
+window.onerror = (message, source, lineno, colno, error) => {
+  if (typeof message === 'string' && message.includes('ResizeObserver loop completed with undelivered notifications')) {
+    return true; // Prevent the error from being logged
+  }
+  if (originalOnError) {
+    return originalOnError.call(window, message, source, lineno, colno, error);
+  }
+  return false;
+};
+
+// Override console.error to suppress ResizeObserver errors
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const message = args[0];
+  if (typeof message === 'string' && message.includes('ResizeObserver loop completed with undelivered notifications')) {
+    return; // Suppress this specific error
+  }
+  originalConsoleError.apply(console, args);
+};
+
+// Additional global error handler for ResizeObserver errors
+window.addEventListener('error', (event) => {
+  if (event.message && event.message.includes('ResizeObserver loop completed with undelivered notifications')) {
+    event.preventDefault();
+    event.stopPropagation();
+    return false;
+  }
+});
+
+// Handle unhandled promise rejections that might contain ResizeObserver errors
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && typeof event.reason === 'string' && 
+      event.reason.includes('ResizeObserver loop completed with undelivered notifications')) {
+    event.preventDefault();
+  }
+});
+
+// Additional ResizeObserver error suppression using MutationObserver
+// This is a more aggressive approach that catches errors at the DOM level
+const originalResizeObserver = window.ResizeObserver;
+if (originalResizeObserver) {
+  window.ResizeObserver = class extends originalResizeObserver {
+    constructor(callback: ResizeObserverCallback) {
+      super((entries, observer) => {
+        try {
+          callback(entries, observer);
+        } catch (error) {
+          if (error instanceof Error && 
+              error.message.includes('ResizeObserver loop completed with undelivered notifications')) {
+            // Silently ignore this error
+            return;
+          }
+          throw error;
+        }
+      });
+    }
+  };
+}
 
 const theme = createTheme({
   palette: {

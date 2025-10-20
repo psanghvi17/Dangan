@@ -74,6 +74,7 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
     try {
       setSaving(true);
       console.log('🔄 Submitting cost center form:', form);
+      console.log('🔄 Address field value:', form.cc_address);
       
       // Basic validation
       if (!form.cc_name?.trim()) {
@@ -172,7 +173,36 @@ const CostCenterTab: React.FC<CostCenterTabProps> = ({ clientId }) => {
               multiline
               rows={3}
               value={form.cc_address}
-              onChange={(e) => handleChange('cc_address', e.target.value)}
+              onChange={(e) => {
+                console.log('Address field changed:', e.target.value);
+                handleChange('cc_address', e.target.value);
+              }}
+              placeholder="Enter cost center address here"
+              variant="outlined"
+              InputLabelProps={{
+                shrink: true,
+                style: { 
+                  backgroundColor: 'white',
+                  paddingLeft: '4px',
+                  paddingRight: '4px'
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: '#1976d2',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  position: 'absolute',
+                  top: '-8px',
+                  left: '14px',
+                  backgroundColor: 'white',
+                  paddingLeft: '4px',
+                  paddingRight: '4px',
+                  zIndex: 1
+                }
+              }}
             />
           </Grid>
           <Grid item xs={12}>

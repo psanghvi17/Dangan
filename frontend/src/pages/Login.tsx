@@ -8,7 +8,10 @@ import {
   Box,
   Alert,
   Link,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -25,6 +28,7 @@ const Login: React.FC = () => {
   const { loginMUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const {
     register,
@@ -42,6 +46,10 @@ const Login: React.FC = () => {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
     }
+  };
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -83,12 +91,25 @@ const Login: React.FC = () => {
               required
               fullWidth
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="current-password"
               {...register('password')}
               error={!!errors.password}
               helperText={errors.password?.message}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleTogglePasswordVisibility}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Box sx={{ textAlign: 'right', mt: 1 }}>
               <Link

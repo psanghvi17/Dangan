@@ -4,6 +4,7 @@ from sqlalchemy import Float, cast
 from uuid import uuid4, UUID
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
+import os
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -82,6 +83,7 @@ def create_client(db: Session, client: schemas.ClientCreate):
         contact_email=client.contact_email,
         contact_name=client.contact_name,
         contact_phone=client.contact_phone,
+        address=client.address,
     )
     db.add(db_client)
     db.commit()
@@ -2363,6 +2365,19 @@ def reset_user_password(db: Session, token: str, new_password: str) -> bool:
     return True
 
 
+def update_user_password_by_email(db: Session, email: str, new_password: str) -> bool:
+    """Update user password by email"""
+    user = get_m_user_by_email(db, email)
+    if not user:
+        return False
+    
+    # Update password
+    user.pass_ = get_password_hash(new_password)
+    
+    db.commit()
+    return True
+
+
 # Cost Center CRUD operations
 def get_cost_centers_by_client(db: Session, client_id: UUID) -> List[models.CostCenter]:
     """Get all cost centers for a specific client"""
@@ -2812,3 +2827,452 @@ def backfill_holiday_tracking_for_timesheet_entries(db: Session, timesheet_id: s
         import traceback
         traceback.print_exc()
         return False
+
+
+# Payroll Report CRUD Functions
+
+def create_payroll_report(db: Session, report: schemas.PayrollReportCreate, created_by: UUID = None):
+    """Create a new payroll report"""
+    db_report = models.PayrollReport(
+        report_name=report.report_name,
+        description=report.description,
+        selected_weeks=report.selected_weeks,
+        status=report.status,
+        created_by=created_by
+    )
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+
+def get_payroll_report(db: Session, report_id: UUID):
+    """Get a payroll report by ID"""
+    return db.query(models.PayrollReport).filter(models.PayrollReport.report_id == report_id).first()
+
+
+def get_payroll_reports(db: Session, skip: int = 0, limit: int = 100):
+    """Get all payroll reports"""
+    return db.query(models.PayrollReport).offset(skip).limit(limit).all()
+
+
+def update_payroll_report(db: Session, report_id: UUID, report_update: schemas.PayrollReportUpdate, updated_by: UUID = None):
+    """Update a payroll report"""
+    db_report = db.query(models.PayrollReport).filter(models.PayrollReport.report_id == report_id).first()
+    if not db_report:
+        return None
+    
+    update_data = report_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_report, field, value)
+    
+    db_report.updated_by = updated_by
+    db_report.updated_on = datetime.now()
+    
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+
+def delete_payroll_report(db: Session, report_id: UUID):
+    """Delete a payroll report"""
+    db_report = db.query(models.PayrollReport).filter(models.PayrollReport.report_id == report_id).first()
+    if not db_report:
+        return None
+    
+    # Delete associated file if it exists
+    if db_report.file_path and os.path.exists(db_report.file_path):
+        try:
+            os.remove(db_report.file_path)
+        except Exception as e:
+            print(f"Error deleting file {db_report.file_path}: {e}")
+    
+    db.delete(db_report)
+    db.commit()
+    return db_report
+
+
+# Legacy Payroll CRUD Functions (keeping for backward compatibility)
+
+def create_payroll_period(db: Session, period: schemas.PayrollPeriodCreate, created_by: UUID = None):
+    """Create a new payroll period"""
+    db_period = models.PayrollPeriod(
+        period_name=period.period_name,
+        start_date=period.start_date,
+        end_date=period.end_date,
+        status=period.status,
+        created_by=created_by
+    )
+    db.add(db_period)
+    db.commit()
+    db.refresh(db_period)
+    return db_period
+
+
+def get_payroll_period(db: Session, period_id: UUID):
+    """Get a payroll period by ID"""
+    return db.query(models.PayrollPeriod).filter(models.PayrollPeriod.period_id == period_id).first()
+
+
+def get_payroll_periods(db: Session, skip: int = 0, limit: int = 100):
+    """Get all payroll periods"""
+    return db.query(models.PayrollPeriod).offset(skip).limit(limit).all()
+
+
+def update_payroll_period(db: Session, period_id: UUID, period_update: schemas.PayrollPeriodUpdate, updated_by: UUID = None):
+    """Update a payroll period"""
+    db_period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.period_id == period_id).first()
+    if not db_period:
+        return None
+    
+    update_data = period_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_period, field, value)
+    
+    db_period.updated_by = updated_by
+    db_period.updated_on = datetime.now()
+    
+    db.commit()
+    db.refresh(db_period)
+    return db_period
+
+
+def create_payroll_run(db: Session, run: schemas.PayrollRunCreate, created_by: UUID = None):
+    """Create a new payroll run"""
+    db_run = models.PayrollRun(
+        period_id=run.period_id,
+        contractor_id=run.contractor_id,
+        total_hours=run.total_hours,
+        standard_hours=run.standard_hours,
+        overtime_hours=run.overtime_hours,
+        holiday_hours=run.holiday_hours,
+        bank_holiday_hours=run.bank_holiday_hours,
+        weekend_hours=run.weekend_hours,
+        oncall_hours=run.oncall_hours,
+        standard_pay=run.standard_pay,
+        overtime_pay=run.overtime_pay,
+        holiday_pay=run.holiday_pay,
+        bank_holiday_pay=run.bank_holiday_pay,
+        weekend_pay=run.weekend_pay,
+        oncall_pay=run.oncall_pay,
+        gross_pay=run.gross_pay,
+        tax_deduction=run.tax_deduction,
+        prsi_deduction=run.prsi_deduction,
+        usc_deduction=run.usc_deduction,
+        pension_deduction=run.pension_deduction,
+        other_deductions=run.other_deductions,
+        total_deductions=run.total_deductions,
+        net_pay=run.net_pay,
+        status=run.status,
+        created_by=created_by
+    )
+    db.add(db_run)
+    db.commit()
+    db.refresh(db_run)
+    return db_run
+
+
+def get_payroll_runs_by_period(db: Session, period_id: UUID):
+    """Get all payroll runs for a specific period"""
+    return db.query(models.PayrollRun).filter(models.PayrollRun.period_id == period_id).all()
+
+
+def get_payroll_run(db: Session, run_id: UUID):
+    """Get a payroll run by ID"""
+    return db.query(models.PayrollRun).filter(models.PayrollRun.run_id == run_id).first()
+
+
+def update_payroll_run(db: Session, run_id: UUID, run_update: schemas.PayrollRunUpdate, updated_by: UUID = None):
+    """Update a payroll run"""
+    db_run = db.query(models.PayrollRun).filter(models.PayrollRun.run_id == run_id).first()
+    if not db_run:
+        return None
+    
+    update_data = run_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_run, field, value)
+    
+    db_run.updated_by = updated_by
+    db_run.updated_on = datetime.now()
+    
+    db.commit()
+    db.refresh(db_run)
+    return db_run
+
+
+def create_payroll_deduction(db: Session, deduction: schemas.PayrollDeductionCreate, created_by: UUID = None):
+    """Create a new payroll deduction"""
+    db_deduction = models.PayrollDeduction(
+        deduction_name=deduction.deduction_name,
+        deduction_type=deduction.deduction_type,
+        is_percentage=deduction.is_percentage,
+        percentage_rate=deduction.percentage_rate,
+        fixed_amount=deduction.fixed_amount,
+        is_active=deduction.is_active,
+        created_by=created_by
+    )
+    db.add(db_deduction)
+    db.commit()
+    db.refresh(db_deduction)
+    return db_deduction
+
+
+def get_payroll_deductions(db: Session, skip: int = 0, limit: int = 100):
+    """Get all payroll deductions"""
+    return db.query(models.PayrollDeduction).offset(skip).limit(limit).all()
+
+
+def get_active_payroll_deductions(db: Session):
+    """Get all active payroll deductions"""
+    return db.query(models.PayrollDeduction).filter(models.PayrollDeduction.is_active == True).all()
+
+
+def update_payroll_deduction(db: Session, deduction_id: UUID, deduction_update: schemas.PayrollDeductionUpdate, updated_by: UUID = None):
+    """Update a payroll deduction"""
+    db_deduction = db.query(models.PayrollDeduction).filter(models.PayrollDeduction.deduction_id == deduction_id).first()
+    if not db_deduction:
+        return None
+    
+    update_data = deduction_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_deduction, field, value)
+    
+    db_deduction.updated_by = updated_by
+    db_deduction.updated_on = datetime.now()
+    
+    db.commit()
+    db.refresh(db_deduction)
+    return db_deduction
+
+
+def create_payroll_summary(db: Session, summary: schemas.PayrollSummaryCreate):
+    """Create a payroll summary"""
+    db_summary = models.PayrollSummary(
+        period_id=summary.period_id,
+        total_contractors=summary.total_contractors,
+        total_hours=summary.total_hours,
+        total_gross_pay=summary.total_gross_pay,
+        total_deductions=summary.total_deductions,
+        total_net_pay=summary.total_net_pay,
+        total_tax=summary.total_tax,
+        total_prsi=summary.total_prsi,
+        total_usc=summary.total_usc
+    )
+    db.add(db_summary)
+    db.commit()
+    db.refresh(db_summary)
+    return db_summary
+
+
+def get_payroll_summary_by_period(db: Session, period_id: UUID):
+    """Get payroll summary for a specific period"""
+    return db.query(models.PayrollSummary).filter(models.PayrollSummary.period_id == period_id).first()
+
+
+def calculate_payroll_for_period(db: Session, period_id: UUID, contractor_ids: List[UUID] = None):
+    """Calculate payroll for a specific period and contractors"""
+    try:
+        # Get the payroll period
+        period = get_payroll_period(db, period_id)
+        if not period:
+            raise ValueError("Payroll period not found")
+        
+        # Get contractor hours for the period
+        query = db.query(models.ContractorHours).filter(
+            models.ContractorHours.work_date >= period.start_date,
+            models.ContractorHours.work_date <= period.end_date
+        )
+        
+        if contractor_ids:
+            query = query.filter(models.ContractorHours.contractor_id.in_(contractor_ids))
+        
+        contractor_hours = query.all()
+        
+        # Group hours by contractor
+        contractor_data = {}
+        for hours in contractor_hours:
+            contractor_id = hours.contractor_id
+            if contractor_id not in contractor_data:
+                contractor_data[contractor_id] = {
+                    'total_hours': 0.0,
+                    'standard_hours': 0.0,
+                    'overtime_hours': 0.0,
+                    'holiday_hours': 0.0,
+                    'bank_holiday_hours': 0.0,
+                    'weekend_hours': 0.0,
+                    'oncall_hours': 0.0,
+                    'standard_pay': 0.0,
+                    'overtime_pay': 0.0,
+                    'holiday_pay': 0.0,
+                    'bank_holiday_pay': 0.0,
+                    'weekend_pay': 0.0,
+                    'oncall_pay': 0.0,
+                    'gross_pay': 0.0
+                }
+            
+            # Accumulate hours
+            contractor_data[contractor_id]['standard_hours'] += hours.standard_hours or 0.0
+            contractor_data[contractor_id]['holiday_hours'] += hours.bank_holiday_hours or 0.0
+            contractor_data[contractor_id]['weekend_hours'] += hours.weekend_hours or 0.0
+            contractor_data[contractor_id]['oncall_hours'] += hours.on_call_hours or 0.0
+            
+            # Calculate pay based on rates
+            standard_pay = (hours.standard_hours or 0.0) * (hours.standard_pay_rate or 0.0)
+            holiday_pay = (hours.bank_holiday_hours or 0.0) * (hours.bankholiday_pay_rate or 0.0)
+            weekend_pay = (hours.weekend_hours or 0.0) * (hours.weekend_pay_rate or 0.0)
+            oncall_pay = (hours.on_call_hours or 0.0) * (hours.oncall_pay_rate or 0.0)
+            
+            contractor_data[contractor_id]['standard_pay'] += standard_pay
+            contractor_data[contractor_id]['holiday_pay'] += holiday_pay
+            contractor_data[contractor_id]['weekend_pay'] += weekend_pay
+            contractor_data[contractor_id]['oncall_pay'] += oncall_pay
+        
+        # Calculate totals and create payroll runs
+        payroll_runs = []
+        total_gross_pay = 0.0
+        total_deductions = 0.0
+        total_net_pay = 0.0
+        
+        for contractor_id, data in contractor_data.items():
+            # Calculate gross pay
+            gross_pay = (data['standard_pay'] + data['holiday_pay'] + 
+                        data['weekend_pay'] + data['oncall_pay'])
+            
+            # Calculate deductions (simplified - you may want to implement proper tax calculations)
+            tax_deduction = gross_pay * 0.20  # 20% tax rate (simplified)
+            prsi_deduction = gross_pay * 0.04  # 4% PRSI (simplified)
+            usc_deduction = gross_pay * 0.02  # 2% USC (simplified)
+            total_deductions_amount = tax_deduction + prsi_deduction + usc_deduction
+            net_pay = gross_pay - total_deductions_amount
+            
+            # Create payroll run
+            payroll_run = schemas.PayrollRunCreate(
+                period_id=period_id,
+                contractor_id=contractor_id,
+                total_hours=data['standard_hours'] + data['holiday_hours'] + 
+                           data['weekend_hours'] + data['oncall_hours'],
+                standard_hours=data['standard_hours'],
+                holiday_hours=data['holiday_hours'],
+                bank_holiday_hours=data['bank_holiday_hours'],
+                weekend_hours=data['weekend_hours'],
+                oncall_hours=data['oncall_hours'],
+                standard_pay=data['standard_pay'],
+                holiday_pay=data['holiday_pay'],
+                bank_holiday_pay=data['bank_holiday_pay'],
+                weekend_pay=data['weekend_pay'],
+                oncall_pay=data['oncall_pay'],
+                gross_pay=gross_pay,
+                tax_deduction=tax_deduction,
+                prsi_deduction=prsi_deduction,
+                usc_deduction=usc_deduction,
+                total_deductions=total_deductions_amount,
+                net_pay=net_pay,
+                status="pending"
+            )
+            
+            db_run = create_payroll_run(db, payroll_run)
+            payroll_runs.append(db_run)
+            
+            total_gross_pay += gross_pay
+            total_deductions += total_deductions_amount
+            total_net_pay += net_pay
+        
+        # Create or update payroll summary
+        summary = get_payroll_summary_by_period(db, period_id)
+        if summary:
+            summary.total_contractors = len(contractor_data)
+            summary.total_hours = sum(data['total_hours'] for data in contractor_data.values())
+            summary.total_gross_pay = total_gross_pay
+            summary.total_deductions = total_deductions
+            summary.total_net_pay = total_net_pay
+            summary.total_tax = sum(run.tax_deduction for run in payroll_runs)
+            summary.total_prsi = sum(run.prsi_deduction for run in payroll_runs)
+            summary.total_usc = sum(run.usc_deduction for run in payroll_runs)
+            summary.updated_on = datetime.now()
+        else:
+            summary_data = schemas.PayrollSummaryCreate(
+                period_id=period_id,
+                total_contractors=len(contractor_data),
+                total_hours=sum(data['total_hours'] for data in contractor_data.values()),
+                total_gross_pay=total_gross_pay,
+                total_deductions=total_deductions,
+                total_net_pay=total_net_pay,
+                total_tax=sum(run.tax_deduction for run in payroll_runs),
+                total_prsi=sum(run.prsi_deduction for run in payroll_runs),
+                total_usc=sum(run.usc_deduction for run in payroll_runs)
+            )
+            summary = create_payroll_summary(db, summary_data)
+        
+        db.commit()
+        
+        return {
+            'period_id': period_id,
+            'total_contractors': len(contractor_data),
+            'total_gross_pay': total_gross_pay,
+            'total_deductions': total_deductions,
+            'total_net_pay': total_net_pay,
+            'payroll_runs': payroll_runs
+        }
+        
+    except Exception as e:
+        print(f"Error calculating payroll: {e}")
+        import traceback
+        traceback.print_exc()
+        raise e
+
+
+def get_payroll_runs_with_details(db: Session, period_id: UUID):
+    """Get payroll runs with contractor details"""
+    query = db.query(
+        models.PayrollRun,
+        models.MUser.first_name,
+        models.MUser.last_name,
+        models.MUser.email_id,
+        models.PayrollPeriod.period_name
+    ).join(
+        models.MUser, models.PayrollRun.contractor_id == models.MUser.user_id
+    ).join(
+        models.PayrollPeriod, models.PayrollRun.period_id == models.PayrollPeriod.period_id
+    ).filter(
+        models.PayrollRun.period_id == period_id
+    )
+    
+    results = query.all()
+    payroll_runs = []
+    
+    for run, first_name, last_name, email_id, period_name in results:
+        run_dict = {
+            'run_id': run.run_id,
+            'period_id': run.period_id,
+            'contractor_id': run.contractor_id,
+            'total_hours': run.total_hours,
+            'standard_hours': run.standard_hours,
+            'overtime_hours': run.overtime_hours,
+            'holiday_hours': run.holiday_hours,
+            'bank_holiday_hours': run.bank_holiday_hours,
+            'weekend_hours': run.weekend_hours,
+            'oncall_hours': run.oncall_hours,
+            'standard_pay': run.standard_pay,
+            'overtime_pay': run.overtime_pay,
+            'holiday_pay': run.holiday_pay,
+            'bank_holiday_pay': run.bank_holiday_pay,
+            'weekend_pay': run.weekend_pay,
+            'oncall_pay': run.oncall_pay,
+            'gross_pay': run.gross_pay,
+            'tax_deduction': run.tax_deduction,
+            'prsi_deduction': run.prsi_deduction,
+            'usc_deduction': run.usc_deduction,
+            'pension_deduction': run.pension_deduction,
+            'other_deductions': run.other_deductions,
+            'total_deductions': run.total_deductions,
+            'net_pay': run.net_pay,
+            'status': run.status,
+            'created_on': run.created_on,
+            'updated_on': run.updated_on,
+            'contractor_name': f"{first_name} {last_name}" if first_name and last_name else None,
+            'contractor_email': email_id,
+            'period_name': period_name
+        }
+        payroll_runs.append(run_dict)
+    
+    return payroll_runs

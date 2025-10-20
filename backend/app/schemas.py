@@ -70,6 +70,7 @@ class ClientBase(BaseModel):
     contact_email: Optional[str] = None
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    address: Optional[str] = None
 
 
 class ClientCreate(ClientBase):
@@ -785,6 +786,291 @@ class HolidaySummaryItem(BaseModel):
     total_holiday: float
     holiday_taken: float
     holiday_balance: float
+
+    class Config:
+        from_attributes = True
+
+
+# Payroll Report Schemas
+class PayrollReportBase(BaseModel):
+    report_name: str
+    description: Optional[str] = None
+    status: Optional[str] = "draft"
+
+
+class PayrollReportCreate(PayrollReportBase):
+    selected_weeks: List[str]  # List of week identifiers
+
+
+class PayrollReportUpdate(BaseModel):
+    report_name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    selected_weeks: Optional[List[str]] = None
+
+
+class PayrollReport(PayrollReportBase):
+    report_id: UUID
+    selected_weeks: List[str]
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+    generated_on: Optional[datetime] = None
+    file_path: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollRunBase(BaseModel):
+    period_id: UUID
+    contractor_id: UUID
+    total_hours: Optional[float] = 0.0
+    standard_hours: Optional[float] = 0.0
+    overtime_hours: Optional[float] = 0.0
+    holiday_hours: Optional[float] = 0.0
+    bank_holiday_hours: Optional[float] = 0.0
+    weekend_hours: Optional[float] = 0.0
+    oncall_hours: Optional[float] = 0.0
+    standard_pay: Optional[float] = 0.0
+    overtime_pay: Optional[float] = 0.0
+    holiday_pay: Optional[float] = 0.0
+    bank_holiday_pay: Optional[float] = 0.0
+    weekend_pay: Optional[float] = 0.0
+    oncall_pay: Optional[float] = 0.0
+    gross_pay: Optional[float] = 0.0
+    tax_deduction: Optional[float] = 0.0
+    prsi_deduction: Optional[float] = 0.0
+    usc_deduction: Optional[float] = 0.0
+    pension_deduction: Optional[float] = 0.0
+    other_deductions: Optional[float] = 0.0
+    total_deductions: Optional[float] = 0.0
+    net_pay: Optional[float] = 0.0
+    status: Optional[str] = "pending"
+
+
+class PayrollRunCreate(PayrollRunBase):
+    pass
+
+
+class PayrollRunUpdate(BaseModel):
+    total_hours: Optional[float] = None
+    standard_hours: Optional[float] = None
+    overtime_hours: Optional[float] = None
+    holiday_hours: Optional[float] = None
+    bank_holiday_hours: Optional[float] = None
+    weekend_hours: Optional[float] = None
+    oncall_hours: Optional[float] = None
+    standard_pay: Optional[float] = None
+    overtime_pay: Optional[float] = None
+    holiday_pay: Optional[float] = None
+    bank_holiday_pay: Optional[float] = None
+    weekend_pay: Optional[float] = None
+    oncall_pay: Optional[float] = None
+    gross_pay: Optional[float] = None
+    tax_deduction: Optional[float] = None
+    prsi_deduction: Optional[float] = None
+    usc_deduction: Optional[float] = None
+    pension_deduction: Optional[float] = None
+    other_deductions: Optional[float] = None
+    total_deductions: Optional[float] = None
+    net_pay: Optional[float] = None
+    status: Optional[str] = None
+
+
+class PayrollRun(PayrollRunBase):
+    run_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+    approved_on: Optional[datetime] = None
+    approved_by: Optional[UUID] = None
+    paid_on: Optional[datetime] = None
+    paid_by: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollRunWithDetails(PayrollRun):
+    contractor_name: Optional[str] = None
+    contractor_email: Optional[str] = None
+    period_name: Optional[str] = None
+
+
+class PayrollDeductionBase(BaseModel):
+    deduction_name: str
+    deduction_type: str
+    is_percentage: Optional[bool] = False
+    percentage_rate: Optional[float] = None
+    fixed_amount: Optional[float] = None
+    is_active: Optional[bool] = True
+
+
+class PayrollDeductionCreate(PayrollDeductionBase):
+    pass
+
+
+class PayrollDeductionUpdate(BaseModel):
+    deduction_name: Optional[str] = None
+    deduction_type: Optional[str] = None
+    is_percentage: Optional[bool] = None
+    percentage_rate: Optional[float] = None
+    fixed_amount: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+class PayrollDeduction(PayrollDeductionBase):
+    deduction_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    updated_by: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollSummaryBase(BaseModel):
+    period_id: UUID
+    total_contractors: Optional[int] = 0
+    total_hours: Optional[float] = 0.0
+    total_gross_pay: Optional[float] = 0.0
+    total_deductions: Optional[float] = 0.0
+    total_net_pay: Optional[float] = 0.0
+    total_tax: Optional[float] = 0.0
+    total_prsi: Optional[float] = 0.0
+    total_usc: Optional[float] = 0.0
+
+
+class PayrollSummaryCreate(PayrollSummaryBase):
+    pass
+
+
+class PayrollSummary(PayrollSummaryBase):
+    summary_id: UUID
+    created_on: Optional[datetime] = None
+    updated_on: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollCalculationRequest(BaseModel):
+    period_id: UUID
+    contractor_ids: Optional[List[UUID]] = None  # If None, calculate for all contractors
+
+
+class PayrollCalculationResponse(BaseModel):
+    period_id: UUID
+    total_contractors: int
+    total_gross_pay: float
+    total_deductions: float
+    total_net_pay: float
+    payroll_runs: List[PayrollRunWithDetails]
+
+
+class PayrollReportRequest(BaseModel):
+    period_id: UUID
+    report_type: str  # summary, detailed, contractor
+    contractor_id: Optional[UUID] = None
+
+
+class PayrollReportResponse(BaseModel):
+    period_name: str
+    report_type: str
+    generated_on: datetime
+    data: dict
+
+
+# Payroll Report Data Schemas
+class PayrollReportItem(BaseModel):
+    candidate_name: str
+    candidate_email: Optional[str] = None
+    client_name: str
+    cost_center: Optional[str] = None
+    week: str
+    invoice_id: Optional[str] = None
+    invoice_date: Optional[date] = None
+    standard_hours: float = 0.0
+    overtime_hours: float = 0.0
+    holiday_hours: float = 0.0
+    weekend_hours: float = 0.0
+    oncall_hours: float = 0.0
+    total_hours: float = 0.0
+    standard_rate: float = 0.0
+    overtime_rate: float = 0.0
+    holiday_rate: float = 0.0
+    weekend_rate: float = 0.0
+    oncall_rate: float = 0.0
+    standard_pay: float = 0.0
+    overtime_pay: float = 0.0
+    holiday_pay: float = 0.0
+    weekend_pay: float = 0.0
+    oncall_pay: float = 0.0
+    total_pay: float = 0.0
+    gross_pay: float = 0.0
+    tax_deduction: float = 0.0
+    prsi_deduction: float = 0.0
+    usc_deduction: float = 0.0
+    total_deductions: float = 0.0
+    net_pay: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class PayrollReportSummary(BaseModel):
+    total_candidates: int
+    total_hours: float
+    total_gross_pay: float
+    total_deductions: float
+    total_net_pay: float
+    weeks_covered: List[str]
+    report_items: List[PayrollReportItem]
+
+    class Config:
+        from_attributes = True
+
+
+class WeekSelectionRequest(BaseModel):
+    selected_weeks: List[str]
+
+
+class PayrollReportGenerationRequest(BaseModel):
+    report_name: str
+    description: Optional[str] = None
+    selected_weeks: List[str]
+    include_deductions: bool = True
+    format: str = "excel"  # excel, pdf, csv
+
+
+# Payroll Period Schemas
+class PayrollPeriodBase(BaseModel):
+    period_name: str
+    start_date: date
+    end_date: date
+    status: str = "draft"
+
+
+class PayrollPeriodCreate(PayrollPeriodBase):
+    pass
+
+
+class PayrollPeriodUpdate(BaseModel):
+    period_name: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[str] = None
+
+
+class PayrollPeriod(PayrollPeriodBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    created_by: Optional[UUID] = None
 
     class Config:
         from_attributes = True
